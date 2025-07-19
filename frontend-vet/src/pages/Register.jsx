@@ -15,9 +15,9 @@ export const Register = () => {
 
             // Eliminado el rol admin
             if (data.role === "editor") {
-                url = "http://localhost:3000/api/emprendedores/registro";
+                url = "https://backend-production-bd1d.up.railway.app/api/emprendedores/registro";
             } else if (data.role === "user") {
-                url = "http://localhost:3000/api/clientes/registro";
+                url = "https://backend-production-bd1d.up.railway.app/api/clientes/registro";
             } else {
                 toast.error("Selecciona un rol válido");
                 return;
