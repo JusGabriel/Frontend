@@ -49,10 +49,8 @@ const Login = () => {
                 throw new Error(result.msg || "Credenciales incorrectas");
             }
 
-            // Guardar token y rol en el store Zustand para persistencia
             setToken(result.token);
             setRol(data.role);
-
             toast.success("Inicio de sesión exitoso");
 
             setTimeout(() => {
@@ -64,21 +62,30 @@ const Login = () => {
         }
     };
 
+    // URLs OAuth
+    const GOOGLE_CLIENT_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/cliente`;
+    const GOOGLE_EMPRENDEDOR_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/emprendedor`;
+
+    const loginGoogleCliente = () => {
+        window.location.href = GOOGLE_CLIENT_URL;
+    };
+
+    const loginGoogleEmprendedor = () => {
+        window.location.href = GOOGLE_EMPRENDEDOR_URL;
+    };
+
     return (
         <div className="flex flex-col sm:flex-row h-screen">
             <ToastContainer />
 
-            {/* Imagen de fondo */}
             <div className="w-full sm:w-1/2 h-1/3 sm:h-screen bg-[url('/public/images/doglogin.jpg')] bg-no-repeat bg-cover bg-center sm:block hidden" />
 
-            {/* Contenedor de formulario */}
             <div className="w-full sm:w-1/2 h-screen bg-white flex justify-center items-center">
                 <div className="md:w-4/5 sm:w-full">
                     <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-500">Bienvenido(a) de nuevo</h1>
                     <small className="text-gray-400 block my-4 text-sm">Por favor ingresa tus datos</small>
 
                     <form onSubmit={handleSubmit(loginUser)}>
-                        {/* Correo */}
                         <div className="mb-3">
                             <label className="mb-2 block text-sm font-semibold">Correo electrónico</label>
                             <input
@@ -90,7 +97,6 @@ const Login = () => {
                             {errors.email && <p className="text-red-800 text-sm">{errors.email.message}</p>}
                         </div>
 
-                        {/* Contraseña */}
                         <div className="mb-3 relative">
                             <label className="mb-2 block text-sm font-semibold">Contraseña</label>
                             <div className="relative">
@@ -106,7 +112,6 @@ const Login = () => {
                                     onClick={() => setShowPassword(!showPassword)}
                                     className="absolute top-2 right-3 text-gray-500 hover:text-gray-700"
                                 >
-                                    {/* Icono de ojo */}
                                     {showPassword ? (
                                         <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" />
@@ -120,7 +125,6 @@ const Login = () => {
                             </div>
                         </div>
 
-                        {/* Rol */}
                         <div className="mb-3">
                             <label htmlFor="role" className="mb-2 block text-sm font-semibold">Selecciona tu rol</label>
                             <select
@@ -136,7 +140,6 @@ const Login = () => {
                             {errors.role && <p className="text-red-800 text-sm">{errors.role.message}</p>}
                         </div>
 
-                        {/* Botón de login */}
                         <div className="my-4">
                             <button type="submit" className="py-2 w-full block text-center bg-gray-500 text-slate-300 border rounded-xl hover:scale-100 duration-300 hover:bg-gray-900 hover:text-white">
                                 Iniciar sesión
@@ -144,20 +147,30 @@ const Login = () => {
                         </div>
                     </form>
 
-                    {/* Separador */}
                     <div className="mt-6 grid grid-cols-3 items-center text-gray-400">
                         <hr className="border-gray-400" />
                         <p className="text-center text-sm">O</p>
                         <hr className="border-gray-400" />
                     </div>
 
-                    {/* Google login (no implementado) */}
-                    <button className="bg-white border py-2 w-full rounded-xl mt-5 flex justify-center items-center text-sm hover:scale-105 duration-300 hover:bg-black hover:text-white">
-                        <img className="w-5 mr-2" src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google icon" />
-                        Sign in with Google
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                        <button
+                            onClick={loginGoogleCliente}
+                            className="bg-white border py-2 w-full rounded-xl flex justify-center items-center text-sm hover:scale-105 duration-300 hover:bg-red-600 hover:text-white"
+                        >
+                            <img className="w-5 mr-2" src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google icon" />
+                            Ingresar con Google como Cliente
+                        </button>
 
-                    {/* Links extras */}
+                        <button
+                            onClick={loginGoogleEmprendedor}
+                            className="bg-white border py-2 w-full rounded-xl flex justify-center items-center text-sm hover:scale-105 duration-300 hover:bg-blue-600 hover:text-white"
+                        >
+                            <img className="w-5 mr-2" src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google icon" />
+                            Ingresar con Google como Emprendedor
+                        </button>
+                    </div>
+
                     <div className="mt-5 text-xs border-b-2 py-4">
                         <Link to="/forgot/id" className="underline text-sm text-gray-400 hover:text-gray-900">¿Olvidaste tu contraseña?</Link>
                     </div>
