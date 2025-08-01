@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
-import storeAuth from '../context/storeAuth'; // Tu contexto para auth
+import storeAuth from '../context/storeAuth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,21 +11,20 @@ const Login = () => {
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Detectar token y rol en URL (callback Google)
+  // Al cargar la página: si vienen token y rol en la URL, los guardamos y vamos al dashboard
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const tokenFromUrl = params.get('token');
-    const roleFromUrl = params.get('role');
+    const query = new URLSearchParams(location.search);
+    const tokenFromUrl = query.get('token');
+    const rolFromUrl = query.get('role');
 
-    if (tokenFromUrl) {
+    if (tokenFromUrl && rolFromUrl) {
       setToken(tokenFromUrl);
-      if (roleFromUrl) setRol(roleFromUrl);
-      toast.success('Inicio de sesión exitoso vía Google');
+      setRol(rolFromUrl);
       navigate('/dashboard');
     }
-  }, [location.search, navigate, setToken, setRol]);
+  }, [location.search, setToken, setRol, navigate]);
 
-  // Si ya tiene token, ir directo al dashboard
+  // Si ya hay token (usuario logueado), redirigir al dashboard
   useEffect(() => {
     if (token) {
       navigate('/dashboard');
@@ -34,54 +33,57 @@ const Login = () => {
 
   const loginUser = async (data) => {
     try {
-      let endpoint = '';
+      let endpoint = "";
       switch (data.role) {
-        case 'admin':
+        case "admin":
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/administradores/login`;
           break;
-        case 'user':
+        case "user":
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/clientes/login`;
           break;
-        case 'editor':
+        case "editor":
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/emprendedores/login`;
           break;
         default:
-          toast.error('Selecciona un rol válido');
+          toast.error("Selecciona un rol válido");
           return;
       }
 
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password }),
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password
+        })
       });
 
-      const contentType = response.headers.get('content-type');
+      const contentType = response.headers.get("content-type");
       let result;
-      if (contentType && contentType.includes('application/json')) {
+      if (contentType && contentType.includes("application/json")) {
         result = await response.json();
       } else {
-        throw new Error('No existen estos datos para el rol seleccionado');
+        throw new Error("No existen estos datos para el rol seleccionado");
       }
 
       if (!response.ok) {
-        throw new Error(result.msg || 'Credenciales incorrectas');
+        throw new Error(result.msg || "Credenciales incorrectas");
       }
 
       setToken(result.token);
       setRol(data.role);
-      toast.success('Inicio de sesión exitoso');
+      toast.success("Inicio de sesión exitoso");
 
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
 
     } catch (error) {
-      toast.error(error.message || 'Ocurrió un error inesperado');
+      toast.error(error.message || "Ocurrió un error inesperado");
     }
   };
 
-  // URLs para OAuth Google
+  // URLs OAuth para redireccionar al backend
   const GOOGLE_CLIENT_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/cliente`;
   const GOOGLE_EMPRENDEDOR_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/emprendedor`;
 
@@ -111,7 +113,7 @@ const Login = () => {
                 type="email"
                 placeholder="Ingresa tu correo"
                 className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-2 text-gray-500"
-                {...register('email', { required: 'El correo es obligatorio' })}
+                {...register("email", { required: "El correo es obligatorio" })}
               />
               {errors.email && <p className="text-red-800 text-sm">{errors.email.message}</p>}
             </div>
@@ -120,10 +122,10 @@ const Login = () => {
               <label className="mb-2 block text-sm font-semibold">Contraseña</label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   placeholder="********************"
                   className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500 pr-10"
-                  {...register('password', { required: 'La contraseña es obligatoria' })}
+                  {...register("password", { required: "La contraseña es obligatoria" })}
                 />
                 {errors.password && <p className="text-red-800 text-sm">{errors.password.message}</p>}
                 <button
@@ -149,7 +151,7 @@ const Login = () => {
               <select
                 id="role"
                 className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-2 text-gray-500"
-                {...register('role', { required: 'El rol es obligatorio' })}
+                {...register("role", { required: "El rol es obligatorio" })}
               >
                 <option value="">Selecciona un rol</option>
                 <option value="admin">Administrador</option>
