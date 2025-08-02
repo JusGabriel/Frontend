@@ -11,27 +11,28 @@ const Login = () => {
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Al cargar la página: si vienen token y rol en la URL, los guardamos y vamos al dashboard
+  // Al cargar: verificar si el token viene por la URL (login con Google)
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
-    const rolFromUrl = query.get('rol');
+    const rolFromUrl = query.get('role');
 
     if (tokenFromUrl && rolFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
+      toast.success("Inicio de sesión con Google exitoso");
       navigate('/dashboard');
     }
   }, [location.search, setToken, setRol, navigate]);
 
-  // Si ya hay token (usuario logueado), redirigir al dashboard
+  // Si ya está autenticado, redirige
   useEffect(() => {
     if (token) {
       navigate('/dashboard');
     }
   }, [token, navigate]);
 
-  const loginUser  = async (data) => {
+  const loginUser = async (data) => {
     try {
       let endpoint = "";
       switch (data.role) {
@@ -58,13 +59,7 @@ const Login = () => {
         })
       });
 
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        throw new Error("No existen estos datos para el rol seleccionado");
-      }
+      const result = await response.json();
 
       if (!response.ok) {
         throw new Error(result.msg || "Credenciales incorrectas");
@@ -76,40 +71,34 @@ const Login = () => {
 
       setTimeout(() => {
         navigate('/dashboard');
-      }, 1500);
+      }, 1000);
 
     } catch (error) {
       toast.error(error.message || "Ocurrió un error inesperado");
     }
   };
 
-  // URLs OAuth para redireccionar al backend
   const GOOGLE_CLIENT_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/cliente`;
   const GOOGLE_EMPRENDEDOR_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/emprendedor`;
 
-
-
-
-
   const loginGoogleCliente = () => {
-    window.location.href = GOOGLE_CLIENT_URL; // URL para clientes
+    window.location.href = GOOGLE_CLIENT_URL;
   };
+
   const loginGoogleEmprendedor = () => {
-    window.location.href = GOOGLE_EMPRENDEDOR_URL; // URL para emprendedores
+    window.location.href = GOOGLE_EMPRENDEDOR_URL;
   };
 
   return (
     <div className="flex flex-col sm:flex-row h-screen">
       <ToastContainer />
-
       <div className="w-full sm:w-1/2 h-1/3 sm:h-screen bg-[url('/public/images/doglogin.jpg')] bg-no-repeat bg-cover bg-center sm:block hidden" />
-
       <div className="w-full sm:w-1/2 h-screen bg-white flex justify-center items-center">
         <div className="md:w-4/5 sm:w-full">
           <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-500">Bienvenido(a) de nuevo</h1>
           <small className="text-gray-400 block my-4 text-sm">Por favor ingresa tus datos</small>
 
-          <form onSubmit={handleSubmit(loginUser )}>
+          <form onSubmit={handleSubmit(loginUser)}>
             <div className="mb-3">
               <label className="mb-2 block text-sm font-semibold">Correo electrónico</label>
               <input
@@ -137,13 +126,9 @@ const Login = () => {
                   className="absolute top-2 right-3 text-gray-500 hover:text-gray-700"
                 >
                   {showPassword ? (
-                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" />
-                    </svg>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" /></svg>
                   ) : (
-                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9.95 0a9.96 9.96 0 0119.9 0m-19.9 0a9.96 9.96 0 0119.9 0M3 3l18 18" />
-                    </svg>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9.95 0a9.96 9.96 0 0119.9 0m-19.9 0a9.96 9.96 0 0119.9 0M3 3l18 18" /></svg>
                   )}
                 </button>
               </div>
