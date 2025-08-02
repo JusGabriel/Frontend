@@ -11,21 +11,20 @@ const Login = () => {
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Al cargar: verificar si el token viene por la URL (login con Google)
+  // Detectar token y rol desde la URL
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
-    const rolFromUrl = query.get('role');
+    const rolFromUrl = query.get('rol');
 
     if (tokenFromUrl && rolFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
-      toast.success("Inicio de sesión con Google exitoso");
       navigate('/dashboard');
     }
   }, [location.search, setToken, setRol, navigate]);
 
-  // Si ya está autenticado, redirige
+  // Redirigir si ya está autenticado
   useEffect(() => {
     if (token) {
       navigate('/dashboard');
@@ -53,41 +52,32 @@ const Login = () => {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password
-        })
+        body: JSON.stringify({ email: data.email, password: data.password })
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.msg || "Credenciales incorrectas");
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        throw new Error("No existen estos datos para el rol seleccionado");
       }
+
+      if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
 
       setToken(result.token);
       setRol(data.role);
       toast.success("Inicio de sesión exitoso");
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
+      setTimeout(() => navigate('/dashboard'), 1500);
 
     } catch (error) {
       toast.error(error.message || "Ocurrió un error inesperado");
     }
   };
 
-  const GOOGLE_CLIENT_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/cliente`;
-  const GOOGLE_EMPRENDEDOR_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/emprendedor`;
-
-  const loginGoogleCliente = () => {
-    window.location.href = GOOGLE_CLIENT_URL;
-  };
-
-  const loginGoogleEmprendedor = () => {
-    window.location.href = GOOGLE_EMPRENDEDOR_URL;
-  };
+  // URLs directas de Google OAuth
+  const GOOGLE_CLIENT_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
+  const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
   return (
     <div className="flex flex-col sm:flex-row h-screen">
@@ -125,10 +115,15 @@ const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute top-2 right-3 text-gray-500 hover:text-gray-700"
                 >
+                  {/* SVG ocultar/mostrar */}
                   {showPassword ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" /></svg>
+                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" />
+                    </svg>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9.95 0a9.96 9.96 0 0119.9 0m-19.9 0a9.96 9.96 0 0119.9 0M3 3l18 18" /></svg>
+                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9.95 0a9.96 9.96 0 0119.9 0M3 3l18 18" />
+                    </svg>
                   )}
                 </button>
               </div>
@@ -163,21 +158,21 @@ const Login = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <button
-              onClick={loginGoogleCliente}
+            <a
+              href={GOOGLE_CLIENT_URL}
               className="bg-white border py-2 w-full rounded-xl flex justify-center items-center text-sm hover:scale-105 duration-300 hover:bg-red-600 hover:text-white"
             >
               <img className="w-5 mr-2" src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google icon" />
               Ingresar con Google como Cliente
-            </button>
+            </a>
 
-            <button
-              onClick={loginGoogleEmprendedor}
+            <a
+              href={GOOGLE_EMPRENDEDOR_URL}
               className="bg-white border py-2 w-full rounded-xl flex justify-center items-center text-sm hover:scale-105 duration-300 hover:bg-blue-600 hover:text-white"
             >
               <img className="w-5 mr-2" src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google icon" />
               Ingresar con Google como Emprendedor
-            </button>
+            </a>
           </div>
 
           <div className="mt-5 text-xs border-b-2 py-4">
