@@ -20,7 +20,7 @@ const storeProfile = create((set) => ({
         clearUser: () => set({ user: null }),
         profile: async () => {
             try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/perfil`;
+                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/perfil`;
                 const respuesta = await axios.get(url, getAuthHeaders())
                 set({ user: respuesta.data })
             } catch (error) {
@@ -29,7 +29,7 @@ const storeProfile = create((set) => ({
         },
          updateProfile:async(data,id)=>{
             try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/${id}`
+                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/admin/${id}`
                 const respuesta = await axios.put(url, data,getAuthHeaders())
                 set({ user: respuesta.data })
                 toast.success("Perfil actualizado correctamente")
@@ -40,7 +40,7 @@ const storeProfile = create((set) => ({
         },
         updatePasswordProfile:async(data,id)=>{
             try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/actualizarpassword/${id}`
+                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/admin/actualizarpassword/${id}`
                 const respuesta = await axios.put(url, data,getAuthHeaders())
                 toast.success(respuesta?.data?.msg)
                 return respuesta
