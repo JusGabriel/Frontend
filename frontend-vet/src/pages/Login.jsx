@@ -15,7 +15,7 @@ const Login = () => {
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
-    const rolFromUrl = query.get('role');
+    const rolFromUrl = query.get('rol');
 
     if (tokenFromUrl && rolFromUrl) {
       setToken(tokenFromUrl);
@@ -31,7 +31,7 @@ const Login = () => {
     }
   }, [token, navigate]);
 
-  const loginUser = async (data) => {
+  const loginUser  = async (data) => {
     try {
       let endpoint = "";
       switch (data.role) {
@@ -106,7 +106,7 @@ const Login = () => {
           <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-500">Bienvenido(a) de nuevo</h1>
           <small className="text-gray-400 block my-4 text-sm">Por favor ingresa tus datos</small>
 
-          <form onSubmit={handleSubmit(loginUser)}>
+          <form onSubmit={handleSubmit(loginUser )}>
             <div className="mb-3">
               <label className="mb-2 block text-sm font-semibold">Correo electrónico</label>
               <input
