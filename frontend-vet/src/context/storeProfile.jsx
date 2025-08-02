@@ -2,54 +2,117 @@ import { create } from "zustand";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-
-const getAuthHeaders = () => {
-    const storedUser = JSON.parse(localStorage.getItem("auth-token"));
-    return {
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${storedUser?.state?.token}`,
-        },
-    };
+// Obtener token y rol desde Zustand persistido
+const getStoredAuth = () => {
+  const stored = JSON.parse(localStorage.getItem("auth-token"));
+  return stored?.state || {};
 };
 
+// Encabezados de autenticación
+const getAuthHeaders = () => {
+  const { token } = getStoredAuth();
+  return {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  };
+};
 
 const storeProfile = create((set) => ({
-        
-        user: null,
-        clearUser: () => set({ user: null }),
-        profile: async () => {
-            try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/perfil`;
-                const respuesta = await axios.get(url, getAuthHeaders())
-                set({ user: respuesta.data })
-            } catch (error) {
-                console.error(error)
-            }
-        },
-         updateProfile:async(data,id)=>{
-            try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/admin/${id}`
-                const respuesta = await axios.put(url, data,getAuthHeaders())
-                set({ user: respuesta.data })
-                toast.success("Perfil actualizado correctamente")
-            } catch (error) {
-                console.log(error)
-                toast.error(error.response?.data?.msg)
-            }
-        },
-        updatePasswordProfile:async(data,id)=>{
-            try {
-                const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/admin/actualizarpassword/${id}`
-                const respuesta = await axios.put(url, data,getAuthHeaders())
-                toast.success(respuesta?.data?.msg)
-                return respuesta
-            } catch (error) {
-                console.log(error)
-                toast.error(error.response?.data?.msg)
-            }
-        }
-    })
-)
+  user: null,
+
+  clearUser: () => set({ user: null }),
+
+  profile: async () => {
+    try {
+      const { rol } = getStoredAuth();
+      let endpoint = "";
+
+      switch (rol) {
+        case "Administrador":
+          endpoint = "/api/administradores/perfil";
+          break;
+        case "Cliente":
+          endpoint = "/api/clientes/perfil";
+          break;
+        case "Emprendedor":
+          endpoint = "/api/emprendedores/perfil";
+          break;
+        default:
+          toast.error("Rol no reconocido");
+          return;
+      }
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const respuesta = await axios.get(url, getAuthHeaders());
+      set({ user: respuesta.data });
+
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo obtener el perfil del usuario");
+    }
+  },
+
+  updateProfile: async (data, id) => {
+    try {
+      const { rol } = getStoredAuth();
+      let endpoint = "";
+
+      switch (rol) {
+        case "Administrador":
+          endpoint = `/api/administradores/admin/${id}`;
+          break;
+        case "Cliente":
+          endpoint = `/api/clientes/cliente/${id}`;
+          break;
+        case "Emprendedor":
+          endpoint = `/api/emprendedores/emprendedor/${id}`;
+          break;
+        default:
+          toast.error("Rol no reconocido");
+          return;
+      }
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const respuesta = await axios.put(url, data, getAuthHeaders());
+      set({ user: respuesta.data });
+      toast.success("Perfil actualizado correctamente");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.msg || "Error al actualizar perfil");
+    }
+  },
+
+  updatePasswordProfile: async (data, id) => {
+    try {
+      const { rol } = getStoredAuth();
+      let endpoint = "";
+
+      switch (rol) {
+        case "Administrador":
+          endpoint = `/api/administradores/admin/actualizarpassword/${id}`;
+          break;
+        case "Cliente":
+          endpoint = `/api/clientes/cliente/actualizarpassword/${id}`;
+          break;
+        case "Emprendedor":
+          endpoint = `/api/emprendedores/emprendedor/actualizarpassword/${id}`;
+          break;
+        default:
+          toast.error("Rol no reconocido");
+          return;
+      }
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const respuesta = await axios.put(url, data, getAuthHeaders());
+      toast.success(respuesta?.data?.msg || "Contraseña actualizada");
+      return respuesta;
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.msg || "Error al actualizar contraseña");
+    }
+  }
+}));
 
 export default storeProfile;
