@@ -87,12 +87,15 @@ const Login = () => {
   const GOOGLE_CLIENT_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/cliente`;
   const GOOGLE_EMPRENDEDOR_URL = `${import.meta.env.VITE_BACKEND_URL}/auth/google/emprendedor`;
 
-  const loginGoogleCliente = () => {
-    window.location.href = GOOGLE_CLIENT_URL;
-  };
 
+
+
+
+  const loginGoogleCliente = () => {
+    window.location.href = GOOGLE_CLIENT_URL; // URL para clientes
+  };
   const loginGoogleEmprendedor = () => {
-    window.location.href = GOOGLE_EMPRENDEDOR_URL;
+    window.location.href = GOOGLE_EMPRENDEDOR_URL; // URL para emprendedores
   };
 
   return (
