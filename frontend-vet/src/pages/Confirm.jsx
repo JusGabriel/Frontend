@@ -12,7 +12,7 @@ export const Confirm = () => {
 
     for (const role of roles) {
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/${role}/confirmar/${token}`
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/${role}/confirmar/${token}`
         const respuesta = await axios.get(url)
 
         if (respuesta?.data?.msg) {
@@ -63,3 +63,4 @@ export const Confirm = () => {
     </div>
   )
 }
+
