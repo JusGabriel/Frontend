@@ -1,54 +1,54 @@
 import { create } from "zustand";
 import axios from "axios";
-import storeAuth from "./storeAuth";
+import { toast } from "react-toastify";
 
 const getAuthHeaders = () => {
-  const { token } = storeAuth.getState();
-  return {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  };
+    const storedUser = JSON.parse(localStorage.getItem("auth-token"));
+    return {
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${storedUser?.state?.token}`,
+        },
+    };
 };
 
 const storeProfile = create((set) => ({
-  user: null,
-  setUser: (usuario) => set({ user: usuario }),
-  clearUser: () => set({ user: null }),
+    user: null,
+    clearUser: () => set({ user: null }),
+    
+    profile: async () => {
+        try {
+            const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/perfil`;
+            const respuesta = await axios.get(url, getAuthHeaders());
+            set({ user: respuesta.data });
+        } catch (error) {
+            console.error(error);
+        }
+    },
 
-  profile: async () => {
-    try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/perfil`;
-      const res = await axios.get(url, getAuthHeaders());
-      set({ user: res.data });
-    } catch (error) {
-      console.error(error);
-    }
-  },
+    updateProfile: async (data, id) => {
+        try {
+            const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/${id}`;
+            const respuesta = await axios.put(url, data, getAuthHeaders());
+            set({ user: respuesta.data });
+            toast.success("Perfil actualizado correctamente");
+        } catch (error) {
+            console.log(error);
+            toast.error(error.response?.data?.msg);
+        }
+    },
 
-  updateProfile: async (data, id) => {
-    try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/${id}`;
-      const res = await axios.put(url, data, getAuthHeaders());
-      set({ user: res.data });
-      return res;
-    } catch (error) {
-      console.error(error);
-      throw error;
+    updatePasswordProfile: async (data, id) => {
+        try {
+            const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/actualizarpassword/${id}`;
+            const respuesta = await axios.put(url, data, getAuthHeaders());
+            toast.success(respuesta?.data?.msg);
+            return respuesta;
+        } catch (error) {
+            console.log(error);
+            toast.error(error.response?.data?.msg);
+        }
     }
-  },
-
-  updatePasswordProfile: async (data, id) => {
-    try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/admin/actualizarpassword/${id}`;
-      const res = await axios.put(url, data, getAuthHeaders());
-      return res;
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }
 }));
 
 export default storeProfile;
