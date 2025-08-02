@@ -30,13 +30,13 @@ const storeProfile = create((set) => ({
       let endpoint = "";
 
       switch (rol) {
-        case "Administrador":
+        case "admin":
           endpoint = "/api/administradores/perfil";
           break;
-        case "Cliente":
+        case "user":
           endpoint = "/api/clientes/perfil";
           break;
-        case "Emprendedor":
+        case "editor":
           endpoint = "/api/emprendedores/perfil";
           break;
         default:
@@ -60,13 +60,13 @@ const storeProfile = create((set) => ({
       let endpoint = "";
 
       switch (rol) {
-        case "Administrador":
+        case "admin":
           endpoint = `/api/administradores/admin/${id}`;
           break;
-        case "Cliente":
+        case "user":
           endpoint = `/api/clientes/cliente/${id}`;
           break;
-        case "Emprendedor":
+        case "editor":
           endpoint = `/api/emprendedores/emprendedor/${id}`;
           break;
         default:
@@ -90,13 +90,13 @@ const storeProfile = create((set) => ({
       let endpoint = "";
 
       switch (rol) {
-        case "Administrador":
+        case "admin":
           endpoint = `/api/administradores/admin/actualizarpassword/${id}`;
           break;
-        case "Cliente":
+        case "user":
           endpoint = `/api/clientes/cliente/actualizarpassword/${id}`;
           break;
-        case "Emprendedor":
+        case "editor":
           endpoint = `/api/emprendedores/emprendedor/actualizarpassword/${id}`;
           break;
         default:
