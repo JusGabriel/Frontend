@@ -32,48 +32,48 @@ const Login = () => {
   }, [token, navigate]);
 
   const loginUser = async (data) => {
-  try {
-    let endpoint = "";
-    switch (data.role) {
-      case "admin":
-        endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
-        break;
-      case "user":
-        endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
-        break;
-      case "editor":
-        endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
-        break;
-      default:
-        toast.error("Selecciona un rol válido");
-        return;
+    try {
+      let endpoint = "";
+      switch (data.role) {
+        case "admin":
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
+          break;
+        case "user":
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
+          break;
+        case "editor":
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
+          break;
+        default:
+          toast.error("Selecciona un rol válido");
+          return;
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, password: data.password })
+      });
+
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        throw new Error("No existen estos datos para el rol seleccionado");
+      }
+
+      if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
+
+      setToken(result.token);
+      setRol(data.role);
+      toast.success("Inicio de sesión exitoso");
+      setTimeout(() => navigate('/dashboard'), 1500);
+
+    } catch (error) {
+      toast.error(error.message || "Ocurrió un error inesperado");
     }
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: data.email, password: data.password }),
-    });
-
-    const contentType = response.headers.get("content-type");
-    let result;
-    if (contentType && contentType.includes("application/json")) {
-      result = await response.json();
-    } else {
-      throw new Error("No existen estos datos para el rol seleccionado");
-    }
-
-    if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
-
-    setToken(result.token);
-    setRol(result.rol);  // <--- Aquí tomamos el rol que envía el backend
-    toast.success("Inicio de sesión exitoso");
-    setTimeout(() => navigate("/dashboard"), 1500);
-  } catch (error) {
-    toast.error(error.message || "Ocurrió un error inesperado");
-  }
   };
-
 
   // URLs directas de Google OAuth
   const GOOGLE_CLIENT_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
