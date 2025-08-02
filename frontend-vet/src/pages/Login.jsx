@@ -36,13 +36,13 @@ const Login = () => {
       let endpoint = "";
       switch (data.role) {
         case "admin":
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/administradores/login`;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
           break;
         case "user":
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/clientes/login`;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
           break;
         case "editor":
-          endpoint = `${import.meta.env.VITE_BACKEND_URL}/emprendedores/login`;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
           break;
         default:
           toast.error("Selecciona un rol válido");
