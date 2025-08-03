@@ -12,13 +12,13 @@ export const Forgot = () => {
     let endpoint = '';
     switch (role) {
       case 'admin':
-        endpoint = 'http://localhost:3000/api/administradores/recuperarpassword';
+        endpoint = 'https://backend-production-bd1d.up.railway.app/api/administradores/recuperarpassword';
         break;
       case 'editor':
-        endpoint = 'http://localhost:3000/api/emprendedores/recuperarpassword';
+        endpoint = 'https://backend-production-bd1d.up.railway.app/api/emprendedores/recuperarpassword';
         break;
       case 'user':
-        endpoint = 'http://localhost:3000/api/clientes/recuperar-password';
+        endpoint = 'https://backend-production-bd1d.up.railway.app/api/clientes/recuperar-password';
         break;
       default:
         toast.error("Selecciona un rol válido");
