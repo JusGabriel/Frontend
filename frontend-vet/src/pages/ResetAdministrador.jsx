@@ -17,7 +17,7 @@ const ResetAdministrador = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/recuperarpassword/${token}`
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/recuperarpassword/${token}`
         await axios.get(url)
         setTokenValid(true)
       } catch {
@@ -36,7 +36,7 @@ const ResetAdministrador = () => {
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/administradores/nuevopassword/${token}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/nuevopassword/${token}`
       const { data } = await axios.post(url, {
         password: password.trim(),
         confirmpassword: confirmPassword.trim(),
