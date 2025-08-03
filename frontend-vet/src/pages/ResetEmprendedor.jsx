@@ -17,7 +17,7 @@ const ResetEmprendedor = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/emprendedores/recuperarpassword/${token}`
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/recuperarpassword/${token}`
         await axios.get(url)
         setTokenValid(true)
       } catch {
@@ -36,7 +36,7 @@ const ResetEmprendedor = () => {
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/emprendedores/cambiarpassword/${token}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/cambiarpassword/${token}`
       const { data } = await axios.post(url, {
         password: password.trim(),
         confirmpassword: confirmPassword.trim(),
