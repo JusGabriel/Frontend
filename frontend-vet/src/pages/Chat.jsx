@@ -15,10 +15,9 @@ const Chat = () => {
   const [info, setInfo] = useState("");
   const mensajesRef = useRef(null);
 
-  const emisorId = user?._id || ""; // Asumiendo que el user tiene _id
+  const emisorId = user?._id || "";
   const emisorRol = rol || "";
 
-  // Iniciar chat solo con receptor
   const iniciarChat = async (e) => {
     e.preventDefault();
     if (!receptorId.trim()) {
@@ -52,14 +51,13 @@ const Chat = () => {
         setMensaje("");
         setInfo("✅ Chat iniciado");
       } else {
-        setInfo("❌ Error iniciando chat");
+        setInfo("❌ Error iniciando chat: " + (data.mensaje || ""));
       }
     } catch (error) {
       setInfo("❌ Error de red: " + error.message);
     }
   };
 
-  // Obtener mensajes
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -74,7 +72,6 @@ const Chat = () => {
     }
   };
 
-  // Polling mensajes cada 3s
   useEffect(() => {
     if (!conversacionId) return;
 
@@ -87,14 +84,12 @@ const Chat = () => {
     return () => clearInterval(interval);
   }, [conversacionId]);
 
-  // Scroll automático al último mensaje
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes]);
 
-  // Enviar mensaje
   const handleEnviar = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "") return;
@@ -131,6 +126,14 @@ const Chat = () => {
     }
   };
 
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto mt-10 p-4 font-sans text-center">
+        <p>Cargando usuario...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-md mx-auto mt-10 p-4 font-sans">
       {!chatActivo ? (
@@ -139,7 +142,8 @@ const Chat = () => {
           className="space-y-4 bg-white p-6 rounded-lg shadow-lg"
         >
           <p className="text-center font-semibold mb-4 text-gray-700">
-            Usuario: <span className="font-bold">{user?.nombre || "Cargando..."}</span> (Rol: {emisorRol})
+            Usuario: <span className="font-bold">{user?.nombre}</span> (Rol:{" "}
+            {emisorRol})
           </p>
 
           <input
