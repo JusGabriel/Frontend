@@ -1,173 +1,132 @@
-import { useState } from 'react'
-import storeAuth from '../../context/storeAuth'
-import storeProfile from '../../context/storeProfile'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import storeAuth from '../../context/storeAuth'
+import storeProfile from '../../context/storeProfile'
 
 export const FormProducto = () => {
   const { token, rol } = storeAuth()
   const { user } = storeProfile()
 
   const [form, setForm] = useState({
-    nombre: '',
-    descripcion: '',
-    precio: '',
-    imagen: '',
-    categoria: '',
-    stock: ''
+    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
   })
-
   const [loading, setLoading] = useState(false)
+  const [productos, setProductos] = useState([])
+  const [editando, setEditando] = useState(null)
 
-  const handleChange = (e) => {
+  const fetchMisProductos = async () => {
+    try {
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${user._id}`
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await axios.get(url, config)
+      setProductos(data)
+    } catch (error) {
+      toast.error('Error al cargar productos')
+    }
+  }
+
+  const handleChange = e => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (rol !== 'editor') return toast.error('Solo emprendedores pueden crear productos')
 
-    if (rol !== 'editor') {
-      toast.error('Solo los emprendedores pueden crear productos')
-      return
+    const { nombre, descripcion, precio, imagen } = form
+    if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
+
+    const config = {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     }
-
-    const { nombre, descripcion, precio, imagen, categoria, stock } = form
-
-    if (!nombre || !descripcion || !precio || !imagen) {
-      toast.error('Por favor completa todos los campos obligatorios (*)')
-      return
-    }
-
-    if (isNaN(Number(precio)) || Number(precio) <= 0) {
-      toast.error('Precio debe ser un número mayor a cero')
-      return
-    }
-
-    if (stock && (isNaN(Number(stock)) || Number(stock) < 0)) {
-      toast.error('Stock debe ser un número igual o mayor a cero')
-      return
+    const body = {
+      ...form,
+      precio: Number(form.precio),
+      stock: form.stock ? Number(form.stock) : 0,
+      categoria: form.categoria || null
     }
 
     try {
       setLoading(true)
-
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos`
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      if (editando) {
+        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, body, config)
+        toast.success(`Producto actualizado ✅`)
+        setEditando(null)
+      } else {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, body, config)
+        toast.success(`Producto "${form.nombre}" registrado exitosamente ✅`)
       }
-
-      const body = {
-        nombre,
-        descripcion,
-        precio: Number(precio),
-        imagen,
-        categoria: categoria || null,
-        stock: stock ? Number(stock) : 0
-      }
-
-      await axios.post(url, body, config)
-
-      toast.success(`✅ ¡Producto "${body.nombre}" registrado exitosamente!`)
-
-      setForm({
-        nombre: '',
-        descripcion: '',
-        precio: '',
-        imagen: '',
-        categoria: '',
-        stock: ''
-      })
-    } catch (error) {
-      toast.error(error.response?.data?.mensaje || 'Error al registrar producto')
+      setForm({ nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: '' })
+      fetchMisProductos()
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error en la operación')
     } finally {
       setLoading(false)
     }
   }
 
+  const handleDelete = async (id) => {
+    if (!confirm('¿Seguro que deseas eliminar este producto?')) return
+    try {
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      await axios.delete(url, config)
+      toast.success('Producto eliminado ✅')
+      fetchMisProductos()
+    } catch (err) {
+      toast.error('Error al eliminar producto')
+    }
+  }
+
+  const handleEdit = (producto) => {
+    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
+    setEditando(producto._id)
+  }
+
+  useEffect(() => {
+    if (rol === 'editor') fetchMisProductos()
+  }, [])
+
   return (
-    <form
-      onSubmit={handleSubmit}
-      className='bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md grid gap-6'
-    >
-      <div>
-        <label className='font-semibold block mb-1'>Nombre del producto *</label>
-        <input
-          name='nombre'
-          value={form.nombre}
-          onChange={handleChange}
-          className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400'
-        />
-      </div>
+    <div className="grid gap-10">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md grid gap-6">
+        <h2 className="text-2xl font-bold">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
 
-      <div>
-        <label className='font-semibold block mb-1'>Descripción *</label>
-        <textarea
-          name='descripcion'
-          value={form.descripcion}
-          onChange={handleChange}
-          rows='3'
-          className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400'
-        />
-      </div>
+        <input name='nombre' value={form.nombre} onChange={handleChange} placeholder='Nombre *' className='input' />
+        <textarea name='descripcion' value={form.descripcion} onChange={handleChange} placeholder='Descripción *' rows='2' className='input' />
+        <input type='number' name='precio' value={form.precio} onChange={handleChange} placeholder='Precio *' className='input' />
+        <input type='number' name='stock' value={form.stock} onChange={handleChange} placeholder='Stock' className='input' />
+        <input name='imagen' value={form.imagen} onChange={handleChange} placeholder='URL imagen *' className='input' />
+        <input name='categoria' value={form.categoria} onChange={handleChange} placeholder='ID categoría' className='input' />
 
-      <div className='grid grid-cols-2 gap-4'>
-        <div>
-          <label className='font-semibold block mb-1'>Precio *</label>
-          <input
-            type='number'
-            name='precio'
-            value={form.precio}
-            onChange={handleChange}
-            className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400'
-          />
+        <div className='text-right'>
+          <button disabled={loading} className='btn-primary'>
+            {loading ? 'Guardando...' : (editando ? 'Actualizar' : 'Registrar')}
+          </button>
         </div>
+      </form>
 
-        <div>
-          <label className='font-semibold block mb-1'>Stock</label>
-          <input
-            type='number'
-            name='stock'
-            value={form.stock}
-            onChange={handleChange}
-            className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400'
-          />
+      {productos.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">Mis productos</h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            {productos.map((prod) => (
+              <div key={prod._id} className="border p-4 rounded-lg flex flex-col gap-2">
+                <img src={prod.imagen} alt={prod.nombre} className="w-full h-48 object-cover rounded" />
+                <h3 className="font-bold text-lg">{prod.nombre}</h3>
+                <p className="text-sm">{prod.descripcion}</p>
+                <p className="text-blue-500 font-semibold">${prod.precio}</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => handleEdit(prod)} className="btn-secondary">Editar</button>
+                  <button onClick={() => handleDelete(prod._id)} className="btn-danger">Eliminar</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-
-      <div>
-        <label className='font-semibold block mb-1'>URL de la imagen *</label>
-        <input
-          name='imagen'
-          value={form.imagen}
-          onChange={handleChange}
-          placeholder='https://...'
-          className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400'
-        />
-      </div>
-
-      <div>
-        <label className='font-semibold block mb-1'>ID Categoría</label>
-        <input
-          name='categoria'
-          value={form.categoria}
-          onChange={handleChange}
-          placeholder='(Opcional)'
-          className='w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400'
-        />
-      </div>
-
-      <div className='text-right'>
-        <button
-          type='submit'
-          disabled={loading}
-          className='bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60'
-        >
-          {loading ? 'Guardando...' : 'Registrar Producto'}
-        </button>
-      </div>
-    </form>
+      )}
+    </div>
   )
 }
+
