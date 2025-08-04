@@ -23,71 +23,69 @@ export const FormProducto = () => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  if (rol !== 'editor') {
-    toast.error('Solo los emprendedores pueden crear productos');
-    return;
+    if (rol !== 'editor') {
+      toast.error('Solo los emprendedores pueden crear productos')
+      return
+    }
+
+    const { nombre, descripcion, precio, imagen, categoria, stock } = form
+
+    if (!nombre || !descripcion || !precio || !imagen) {
+      toast.error('Por favor completa todos los campos obligatorios (*)')
+      return
+    }
+
+    if (isNaN(Number(precio)) || Number(precio) <= 0) {
+      toast.error('Precio debe ser un número mayor a cero')
+      return
+    }
+
+    if (stock && (isNaN(Number(stock)) || Number(stock) < 0)) {
+      toast.error('Stock debe ser un número igual o mayor a cero')
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos`
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+
+      const body = {
+        nombre,
+        descripcion,
+        precio: Number(precio),
+        imagen,
+        categoria: categoria || null,
+        stock: stock ? Number(stock) : 0
+      }
+
+      await axios.post(url, body, config)
+
+      toast.success(`✅ ¡Producto "${body.nombre}" registrado exitosamente!`)
+
+      setForm({
+        nombre: '',
+        descripcion: '',
+        precio: '',
+        imagen: '',
+        categoria: '',
+        stock: ''
+      })
+    } catch (error) {
+      toast.error(error.response?.data?.mensaje || 'Error al registrar producto')
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const { nombre, descripcion, precio, imagen, categoria, stock } = form;
-
-  if (!nombre || !descripcion || !precio || !imagen) {
-    toast.error('Por favor completa todos los campos obligatorios (*)');
-    return;
-  }
-
-  if (isNaN(Number(precio)) || Number(precio) <= 0) {
-    toast.error('Precio debe ser un número mayor a cero');
-    return;
-  }
-
-  if (stock && (isNaN(Number(stock)) || Number(stock) < 0)) {
-    toast.error('Stock debe ser un número igual o mayor a cero');
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos`;
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    };
-
-    const body = {
-      nombre,
-      descripcion,
-      precio: Number(precio),
-      imagen,
-      categoria: categoria || null,
-      stock: stock ? Number(stock) : 0,
-    };
-
-    await axios.post(url, body, config);
-
-    toast.success(`Producto "${body.nombre}" guardado exitosamente ✅`);
-
-    setForm({
-      nombre: '',
-      descripcion: '',
-      precio: '',
-      imagen: '',
-      categoria: '',
-      stock: '',
-    });
-  } catch (error) {
-    toast.error(error.response?.data?.mensaje || 'Error al registrar producto');
-  } finally {
-    setLoading(false);
-  }
-    };
-
-
 
   return (
     <form
