@@ -1,14 +1,19 @@
-import { Form } from '../components/create/Form'
+import { FormProducto } from '../components/create/FormProducto'
 
 const Create = () => {
-    return (
-        <div>
-            <h1 className='font-black text-4xl text-gray-500'>Agregar</h1>
-            <hr className='my-4 border-t-2 border-gray-300' />
-            <p className='mb-8'>Este módulo te permite gestionar registros</p>
-            <Form />
-        </div>
-    )
+  return (
+    <section className='p-8 max-w-3xl mx-auto'>
+      <h1 className='text-3xl md:text-4xl font-black text-gray-800 dark:text-gray-200 mb-2'>
+        Agregar Producto
+      </h1>
+      <hr className='border-b-2 border-blue-500 w-24 mb-4' />
+      <p className='text-gray-600 dark:text-gray-300 mb-8'>
+        Completa el formulario para registrar un nuevo producto en tu catálogo.
+      </p>
+
+      <FormProducto />
+    </section>
+  )
 }
 
 export default Create
