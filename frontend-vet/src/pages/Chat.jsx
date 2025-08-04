@@ -1,54 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const Chat = () => {
   const [chatActivo, setChatActivo] = useState(false);
-  const [usuario, setUsuario] = useState("");
+  const [emisorId, setEmisorId] = useState("");
+  const [emisorRol, setEmisorRol] = useState("Administrador");
+  const [receptorId, setReceptorId] = useState("");
+  const [receptorRol, setReceptorRol] = useState("Emprendedor");
   const [mensaje, setMensaje] = useState("");
+  const [mensajes, setMensajes] = useState([]);
+  const [conversacionId, setConversacionId] = useState(null);
   const [info, setInfo] = useState("");
 
-  // IDs fijos para prueba (ajusta con los tuyos)
-  const EMISOR_ID = "688fc1ce099b264cc4bbfddd"; // Admin
-  const EMISOR_ROL = "Administrador";
-  const RECEPTOR_ID = "688fb656f4d4f55eee1baa45"; // Emprendedor
-  const RECEPTOR_ROL = "Emprendedor";
-
-  const handleIngresar = (e) => {
+  const iniciarChat = async (e) => {
     e.preventDefault();
-    if (usuario.trim() === "") {
-      alert("Por favor ingresa un nombre de usuario");
-      return;
+    if (!emisorId || !receptorId) return alert("Completa los campos requeridos");
+
+    // Enviamos un mensaje inicial vacío para crear la conversación si no existe
+    try {
+      const res = await fetch("https://backend-production-bd1d.up.railway.app/api/chat/mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emisorId,
+          emisorRol,
+          receptorId,
+          receptorRol,
+          contenido: "📨 Conversación iniciada"
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setConversacionId(data.data.conversacion);
+        setChatActivo(true);
+        setMensaje("");
+        setInfo("✅ Chat iniciado");
+      } else {
+        setInfo("❌ Error iniciando chat");
+      }
+    } catch (error) {
+      setInfo("❌ Error de red: " + error.message);
     }
-    setChatActivo(true);
-    setInfo("");
   };
+
+  useEffect(() => {
+    const obtenerMensajes = async () => {
+      if (!conversacionId) return;
+      try {
+        const res = await fetch(
+          `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
+        );
+        const data = await res.json();
+        setMensajes(data);
+      } catch (error) {
+        console.log("Error cargando mensajes", error);
+      }
+    };
+    obtenerMensajes();
+  }, [conversacionId]);
 
   const handleEnviar = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "") return;
 
-    setInfo("Enviando...");
     try {
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            emisorId: EMISOR_ID,
-            emisorRol: EMISOR_ROL,
-            receptorId: RECEPTOR_ID,
-            receptorRol: RECEPTOR_ROL,
-            contenido: mensaje,
-          }),
+            emisorId,
+            emisorRol,
+            receptorId,
+            receptorRol,
+            contenido: mensaje
+          })
         }
       );
-
       const data = await res.json();
       if (res.ok) {
-        setInfo("✅ Mensaje enviado");
+        setMensajes([...mensajes, data.data]);
         setMensaje("");
+        setInfo("");
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
@@ -58,55 +91,78 @@ const Chat = () => {
   };
 
   return (
-    <>
+    <div className="max-w-md mx-auto mt-10 p-4">
       {!chatActivo ? (
-        <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded shadow">
-          <form onSubmit={handleIngresar} className="flex flex-col gap-4">
-            <input
-              type="text"
-              placeholder="Ingresa tu nombre de usuario"
-              value={usuario}
-              onChange={(e) => setUsuario(e.target.value)}
-              className="rounded border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-            />
-            <button
-              type="submit"
-              className="bg-purple-700 text-white py-2 rounded hover:bg-purple-900 transition"
-            >
-              Ingresar al chat
-            </button>
-          </form>
-        </div>
+        <form onSubmit={iniciarChat} className="space-y-3 bg-white p-4 rounded shadow">
+          <input
+            type="text"
+            placeholder="ID del emisor"
+            value={emisorId}
+            onChange={(e) => setEmisorId(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+          <select
+            value={emisorRol}
+            onChange={(e) => setEmisorRol(e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option>Administrador</option>
+            <option>Emprendedor</option>
+            <option>Cliente</option>
+          </select>
+
+          <input
+            type="text"
+            placeholder="ID del receptor"
+            value={receptorId}
+            onChange={(e) => setReceptorId(e.target.value)}
+            className="w-full border rounded p-2"
+          />
+          <select
+            value={receptorRol}
+            onChange={(e) => setReceptorRol(e.target.value)}
+            className="w-full border rounded p-2"
+          >
+            <option>Administrador</option>
+            <option>Emprendedor</option>
+            <option>Cliente</option>
+          </select>
+
+          <button className="w-full bg-purple-700 text-white py-2 rounded hover:bg-purple-900">
+            Ingresar al chat
+          </button>
+        </form>
       ) : (
-        <div className="max-w-md mx-auto mt-10 flex flex-col h-[400px] bg-white rounded shadow">
-          <div className="flex-grow p-4 overflow-y-auto border-b border-gray-300">
-            <p className="text-center text-gray-600">¡Hola, {usuario}!</p>
-            <p className="text-center text-gray-600">
-              Envía un mensaje al emprendedor.
-            </p>
+        <div className="bg-white rounded shadow flex flex-col h-[500px]">
+          <div className="flex-grow overflow-y-auto p-4 space-y-2">
+            {mensajes.map((msg) => (
+              <div
+                key={msg._id}
+                className={`max-w-[70%] p-2 rounded-md text-sm shadow ${
+                  msg.emisor === emisorId ? "bg-green-200 self-end" : "bg-gray-200 self-start"
+                }`}
+              >
+                {msg.contenido}
+              </div>
+            ))}
           </div>
 
-          <form onSubmit={handleEnviar} className="p-4 flex gap-2 border-t border-gray-300">
+          <form onSubmit={handleEnviar} className="p-3 flex gap-2 border-t">
             <input
               type="text"
-              placeholder="Escribe tu mensaje"
+              placeholder="Escribe un mensaje"
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
-              className="flex-grow rounded border border-gray-300 py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-600"
+              className="flex-grow border rounded p-2"
             />
-            <button
-              type="submit"
-              className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-900 transition"
-            >
+            <button className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-900">
               Enviar
             </button>
           </form>
-          {info && (
-            <p className="text-center text-sm mt-2 px-4 text-gray-700">{info}</p>
-          )}
+          {info && <p className="text-center text-sm text-gray-600 mt-1">{info}</p>}
         </div>
       )}
-    </>
+    </div>
   );
 };
 
