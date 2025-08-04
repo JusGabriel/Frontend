@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import storeAuth from "./path/to/storeAuth"; // Ajusta la ruta real
-import storeProfile from "./path/to/storeProfile"; // Ajusta la ruta real
+import storeAuth from "../context/storeAuth";
+import storeProfile from "../context/storeProfile";
 
 const Chat = () => {
-  // Obtén token, rol e id usuario autenticado desde el store
-  // Por ejemplo, supongamos que el storeProfile guarda el usuario con su id y rol
-  const emisorId = storeProfile((state) => state.user?._id || "");
-  const emisorRol = storeProfile((state) => state.user?.rol || "");
-  // Si no usas user.rol, podrías obtenerlo desde storeAuth o ajustar según tu modelo
-
   const [chatActivo, setChatActivo] = useState(false);
+  const user = storeProfile((state) => state.user);
+  const rol = storeAuth((state) => state.rol);
+
   const [receptorId, setReceptorId] = useState("");
   const [receptorRol, setReceptorRol] = useState("Emprendedor");
   const [mensaje, setMensaje] = useState("");
@@ -18,22 +15,51 @@ const Chat = () => {
   const [info, setInfo] = useState("");
   const mensajesRef = useRef(null);
 
-  // Iniciar chat sin enviar mensaje inicial
-  const iniciarChat = (e) => {
+  const emisorId = user?._id || ""; // Asumiendo que el user tiene _id
+  const emisorRol = rol || "";
+
+  // Iniciar chat solo con receptor
+  const iniciarChat = async (e) => {
     e.preventDefault();
-    if (!emisorId.trim() || !receptorId.trim()) {
-      alert("Completa los campos requeridos");
+    if (!receptorId.trim()) {
+      alert("Completa el ID del receptor");
       return;
     }
-    // Crear id conversación basado en IDs ordenados para que sea único y consistente
-    const idConv = [emisorId, receptorId].sort().join("_");
-    setConversacionId(idConv);
-    setChatActivo(true);
-    setMensaje("");
-    setInfo("✅ Chat iniciado");
+    if (!emisorId || !emisorRol) {
+      alert("No se encontró información del usuario emisor");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emisorId,
+            emisorRol,
+            receptorId,
+            receptorRol,
+            contenido: "📨 Conversación iniciada",
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setConversacionId(data.data.conversacion);
+        setChatActivo(true);
+        setMensaje("");
+        setInfo("✅ Chat iniciado");
+      } else {
+        setInfo("❌ Error iniciando chat");
+      }
+    } catch (error) {
+      setInfo("❌ Error de red: " + error.message);
+    }
   };
 
-  // Obtener mensajes de la conversación
+  // Obtener mensajes
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -48,11 +74,11 @@ const Chat = () => {
     }
   };
 
-  // Polling cada 3 segundos para refrescar mensajes
+  // Polling mensajes cada 3s
   useEffect(() => {
     if (!conversacionId) return;
 
-    obtenerMensajes(); // carga inicial
+    obtenerMensajes();
 
     const interval = setInterval(() => {
       obtenerMensajes();
@@ -61,7 +87,7 @@ const Chat = () => {
     return () => clearInterval(interval);
   }, [conversacionId]);
 
-  // Auto scroll al último mensaje
+  // Scroll automático al último mensaje
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
@@ -72,6 +98,11 @@ const Chat = () => {
   const handleEnviar = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "") return;
+
+    if (!emisorId || !emisorRol) {
+      setInfo("❌ No se encontró información del emisor");
+      return;
+    }
 
     try {
       const res = await fetch(
@@ -92,7 +123,6 @@ const Chat = () => {
       if (res.ok) {
         setMensaje("");
         setInfo("");
-        // No añadimos mensaje manualmente porque el polling lo refresca
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
@@ -108,11 +138,9 @@ const Chat = () => {
           onSubmit={iniciarChat}
           className="space-y-4 bg-white p-6 rounded-lg shadow-lg"
         >
-          {/* No mostramos inputs para emisor, vienen del store */}
-          <div className="p-2 bg-green-100 rounded text-green-800 font-medium">
-            Usuario autenticado: <strong>{emisorId || "Cargando..."}</strong> - Rol:{" "}
-            <strong>{emisorRol || "Cargando..."}</strong>
-          </div>
+          <p className="text-center font-semibold mb-4 text-gray-700">
+            Usuario: <span className="font-bold">{user?.nombre || "Cargando..."}</span> (Rol: {emisorRol})
+          </p>
 
           <input
             type="text"
@@ -133,8 +161,7 @@ const Chat = () => {
 
           <button
             type="submit"
-            disabled={!emisorId || !emisorRol} // Deshabilitar si no hay usuario autenticado
-            className="w-full bg-purple-700 text-white py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-purple-700 text-white py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors"
           >
             Ingresar al chat
           </button>
@@ -189,7 +216,8 @@ const Chat = () => {
             />
             <button
               type="submit"
-              className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-900 transition-colors"
+              disabled={!mensaje.trim()}
+              className="bg-green-700 disabled:bg-green-300 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-900 transition-colors"
             >
               Enviar
             </button>
