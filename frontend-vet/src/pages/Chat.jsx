@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from "react";
+import storeAuth from "./path/to/storeAuth"; // Ajusta la ruta real
+import storeProfile from "./path/to/storeProfile"; // Ajusta la ruta real
 
 const Chat = () => {
+  // Obtén token, rol e id usuario autenticado desde el store
+  // Por ejemplo, supongamos que el storeProfile guarda el usuario con su id y rol
+  const emisorId = storeProfile((state) => state.user?._id || "");
+  const emisorRol = storeProfile((state) => state.user?.rol || "");
+  // Si no usas user.rol, podrías obtenerlo desde storeAuth o ajustar según tu modelo
+
   const [chatActivo, setChatActivo] = useState(false);
-  const [emisorId, setEmisorId] = useState("");
-  const [emisorRol, setEmisorRol] = useState("Administrador");
   const [receptorId, setReceptorId] = useState("");
   const [receptorRol, setReceptorRol] = useState("Emprendedor");
   const [mensaje, setMensaje] = useState("");
@@ -12,45 +18,22 @@ const Chat = () => {
   const [info, setInfo] = useState("");
   const mensajesRef = useRef(null);
 
-  // Función para iniciar chat
-  const iniciarChat = async (e) => {
+  // Iniciar chat sin enviar mensaje inicial
+  const iniciarChat = (e) => {
     e.preventDefault();
     if (!emisorId.trim() || !receptorId.trim()) {
       alert("Completa los campos requeridos");
       return;
     }
-
-    try {
-      // Crear o iniciar conversación enviando mensaje inicial
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            emisorId,
-            emisorRol,
-            receptorId,
-            receptorRol,
-            contenido: "📨 Conversación iniciada",
-          }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        setConversacionId(data.data.conversacion);
-        setChatActivo(true);
-        setMensaje("");
-        setInfo("Mensajes no leidos");
-      } else {
-        setInfo("❌ Error iniciando chat");
-      }
-    } catch (error) {
-      setInfo("❌ Error de red: " + error.message);
-    }
+    // Crear id conversación basado en IDs ordenados para que sea único y consistente
+    const idConv = [emisorId, receptorId].sort().join("_");
+    setConversacionId(idConv);
+    setChatActivo(true);
+    setMensaje("");
+    setInfo("✅ Chat iniciado");
   };
 
-  // Función para obtener mensajes del backend
+  // Obtener mensajes de la conversación
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -65,7 +48,7 @@ const Chat = () => {
     }
   };
 
-  // Efecto para cargar mensajes inicialmente y hacer polling cada 3 segundos
+  // Polling cada 3 segundos para refrescar mensajes
   useEffect(() => {
     if (!conversacionId) return;
 
@@ -85,7 +68,7 @@ const Chat = () => {
     }
   }, [mensajes]);
 
-  // Función para enviar mensajes
+  // Enviar mensaje
   const handleEnviar = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "") return;
@@ -107,10 +90,9 @@ const Chat = () => {
       );
       const data = await res.json();
       if (res.ok) {
-        // Aquí no agregamos manualmente para evitar duplicados,
-        // el polling actualizará la lista en unos segundos.
         setMensaje("");
         setInfo("");
+        // No añadimos mensaje manualmente porque el polling lo refresca
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
@@ -126,22 +108,11 @@ const Chat = () => {
           onSubmit={iniciarChat}
           className="space-y-4 bg-white p-6 rounded-lg shadow-lg"
         >
-          <input
-            type="text"
-            placeholder="ID del emisor"
-            value={emisorId}
-            onChange={(e) => setEmisorId(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-          />
-          <select
-            value={emisorRol}
-            onChange={(e) => setEmisorRol(e.target.value)}
-            className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-          >
-            <option>Administrador</option>
-            <option>Emprendedor</option>
-            <option>Cliente</option>
-          </select>
+          {/* No mostramos inputs para emisor, vienen del store */}
+          <div className="p-2 bg-green-100 rounded text-green-800 font-medium">
+            Usuario autenticado: <strong>{emisorId || "Cargando..."}</strong> - Rol:{" "}
+            <strong>{emisorRol || "Cargando..."}</strong>
+          </div>
 
           <input
             type="text"
@@ -162,7 +133,8 @@ const Chat = () => {
 
           <button
             type="submit"
-            className="w-full bg-purple-700 text-white py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors"
+            disabled={!emisorId || !emisorRol} // Deshabilitar si no hay usuario autenticado
+            className="w-full bg-purple-700 text-white py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Ingresar al chat
           </button>
