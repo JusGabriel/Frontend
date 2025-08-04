@@ -1,12 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import storeAuth from "../context/storeAuth";
-import storeProfile from "../context/storeProfile";
 
 const Chat = () => {
   const [chatActivo, setChatActivo] = useState(false);
-  const user = storeProfile((state) => state.user);
-  const rol = storeAuth((state) => state.rol);
-
+  const [emisorId, setEmisorId] = useState("");
+  const [emisorRol, setEmisorRol] = useState("Administrador");
   const [receptorId, setReceptorId] = useState("");
   const [receptorRol, setReceptorRol] = useState("Emprendedor");
   const [mensaje, setMensaje] = useState("");
@@ -15,21 +12,16 @@ const Chat = () => {
   const [info, setInfo] = useState("");
   const mensajesRef = useRef(null);
 
-  const emisorId = user?._id || "";
-  const emisorRol = rol || "";
-
+  // Función para iniciar chat
   const iniciarChat = async (e) => {
     e.preventDefault();
-    if (!receptorId.trim()) {
-      alert("Completa el ID del receptor");
-      return;
-    }
-    if (!emisorId || !emisorRol) {
-      alert("No se encontró información del usuario emisor");
+    if (!emisorId.trim() || !receptorId.trim()) {
+      alert("Completa los campos requeridos");
       return;
     }
 
     try {
+      // Crear o iniciar conversación enviando mensaje inicial
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
         {
@@ -51,13 +43,14 @@ const Chat = () => {
         setMensaje("");
         setInfo("✅ Chat iniciado");
       } else {
-        setInfo("❌ Error iniciando chat: " + (data.mensaje || ""));
+        setInfo("❌ Error iniciando chat");
       }
     } catch (error) {
       setInfo("❌ Error de red: " + error.message);
     }
   };
 
+  // Función para obtener mensajes del backend
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -72,10 +65,11 @@ const Chat = () => {
     }
   };
 
+  // Efecto para cargar mensajes inicialmente y hacer polling cada 3 segundos
   useEffect(() => {
     if (!conversacionId) return;
 
-    obtenerMensajes();
+    obtenerMensajes(); // carga inicial
 
     const interval = setInterval(() => {
       obtenerMensajes();
@@ -84,20 +78,17 @@ const Chat = () => {
     return () => clearInterval(interval);
   }, [conversacionId]);
 
+  // Auto scroll al último mensaje
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes]);
 
+  // Función para enviar mensajes
   const handleEnviar = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "") return;
-
-    if (!emisorId || !emisorRol) {
-      setInfo("❌ No se encontró información del emisor");
-      return;
-    }
 
     try {
       const res = await fetch(
@@ -116,6 +107,8 @@ const Chat = () => {
       );
       const data = await res.json();
       if (res.ok) {
+        // Aquí no agregamos manualmente para evitar duplicados,
+        // el polling actualizará la lista en unos segundos.
         setMensaje("");
         setInfo("");
       } else {
@@ -126,14 +119,6 @@ const Chat = () => {
     }
   };
 
-  if (!user) {
-    return (
-      <div className="max-w-md mx-auto mt-10 p-4 font-sans text-center">
-        <p>Cargando usuario...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-md mx-auto mt-10 p-4 font-sans">
       {!chatActivo ? (
@@ -141,10 +126,22 @@ const Chat = () => {
           onSubmit={iniciarChat}
           className="space-y-4 bg-white p-6 rounded-lg shadow-lg"
         >
-          <p className="text-center font-semibold mb-4 text-gray-700">
-            Usuario: <span className="font-bold">{user?.nombre}</span> (Rol:{" "}
-            {emisorRol})
-          </p>
+          <input
+            type="text"
+            placeholder="ID del emisor"
+            value={emisorId}
+            onChange={(e) => setEmisorId(e.target.value)}
+            className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
+          />
+          <select
+            value={emisorRol}
+            onChange={(e) => setEmisorRol(e.target.value)}
+            className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
+          >
+            <option>Administrador</option>
+            <option>Emprendedor</option>
+            <option>Cliente</option>
+          </select>
 
           <input
             type="text"
@@ -220,8 +217,7 @@ const Chat = () => {
             />
             <button
               type="submit"
-              disabled={!mensaje.trim()}
-              className="bg-green-700 disabled:bg-green-300 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-900 transition-colors"
+              className="bg-green-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-900 transition-colors"
             >
               Enviar
             </button>
@@ -233,3 +229,4 @@ const Chat = () => {
 };
 
 export default Chat;
+//version buena
