@@ -14,8 +14,10 @@ export const FormProducto = () => {
   const [loading, setLoading] = useState(false)
   const [productos, setProductos] = useState([])
   const [editando, setEditando] = useState(null)
+  const [fetchHecho, setFetchHecho] = useState(false)
 
   const fetchMisProductos = async () => {
+    if (!user || !user._id) return
     try {
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${user._id}`
       const config = { headers: { Authorization: `Bearer ${token}` } }
@@ -23,6 +25,8 @@ export const FormProducto = () => {
       setProductos(data)
     } catch (error) {
       toast.error('Error al cargar productos')
+    } finally {
+      setFetchHecho(true)
     }
   }
 
@@ -95,8 +99,10 @@ export const FormProducto = () => {
   }
 
   useEffect(() => {
-    if (rol === 'editor') fetchMisProductos()
-  }, [])
+    if (rol === 'editor' && user?._id) {
+      fetchMisProductos()
+    }
+  }, [user])
 
   return (
     <div className="grid gap-10">
@@ -121,7 +127,9 @@ export const FormProducto = () => {
       {/* Lista de productos */}
       <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
         <h2 className="text-xl font-bold mb-4">Mis productos</h2>
-        {productos.length === 0 ? (
+        {!fetchHecho ? (
+          <p className='text-gray-500'>Cargando productos...</p>
+        ) : productos.length === 0 ? (
           <p className='text-gray-500'>Aún no has registrado productos.</p>
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
