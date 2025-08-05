@@ -35,7 +35,9 @@ export const FormProducto = () => {
     if (rol !== 'editor') return toast.error('Solo emprendedores pueden crear productos')
 
     const { nombre, descripcion, precio, imagen } = form
-    if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
+    if (!nombre || !descripcion || !precio || !imagen) {
+      return toast.error('Completa todos los campos obligatorios')
+    }
 
     const config = {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -80,8 +82,16 @@ export const FormProducto = () => {
   }
 
   const handleEdit = (producto) => {
-    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
+    setForm({
+      nombre: producto.nombre,
+      descripcion: producto.descripcion,
+      precio: String(producto.precio),
+      imagen: producto.imagen,
+      categoria: producto.categoria || '',
+      stock: String(producto.stock || '')
+    })
     setEditando(producto._id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   useEffect(() => {
@@ -90,8 +100,9 @@ export const FormProducto = () => {
 
   return (
     <div className="grid gap-10">
+      {/* Formulario */}
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md grid gap-6">
-        <h2 className="text-2xl font-bold">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+        <h2 className="text-2xl font-bold">{editando ? 'Editar producto' : 'Registrar nuevo producto'}</h2>
 
         <input name='nombre' value={form.nombre} onChange={handleChange} placeholder='Nombre *' className='input' />
         <textarea name='descripcion' value={form.descripcion} onChange={handleChange} placeholder='Descripción *' rows='2' className='input' />
@@ -107,9 +118,12 @@ export const FormProducto = () => {
         </div>
       </form>
 
-      {productos.length > 0 && (
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
-          <h2 className="text-xl font-bold mb-4">Mis productos</h2>
+      {/* Lista de productos */}
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
+        <h2 className="text-xl font-bold mb-4">Mis productos</h2>
+        {productos.length === 0 ? (
+          <p className='text-gray-500'>Aún no has registrado productos.</p>
+        ) : (
           <div className="grid md:grid-cols-2 gap-4">
             {productos.map((prod) => (
               <div key={prod._id} className="border p-4 rounded-lg flex flex-col gap-2">
@@ -124,9 +138,8 @@ export const FormProducto = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
-//version buena
