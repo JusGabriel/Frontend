@@ -17,7 +17,7 @@ const ResetCliente = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/clientes/recuperarpassword/${token}`
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/recuperarpassword/${token}`
         await axios.get(url)
         setTokenValid(true)
       } catch {
@@ -36,7 +36,7 @@ const ResetCliente = () => {
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/clientes/nuevo-password/${token}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/nuevo-password/${token}`
       const { data } = await axios.post(url, {
         password: password.trim(),
         confirmpassword: confirmPassword.trim(),
@@ -108,3 +108,4 @@ const ResetCliente = () => {
 }
 
 export default ResetCliente
+
