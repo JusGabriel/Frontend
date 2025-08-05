@@ -18,7 +18,7 @@ const Reset = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/recuperarpassword/${token}`
+        const url = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/comprobar-token/${token}`
         await axios.get(url)
         setTokenValid(true)
       } catch (error) {
@@ -120,4 +120,5 @@ const Reset = () => {
 }
 
 export default Reset
+
 
