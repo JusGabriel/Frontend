@@ -60,6 +60,7 @@ const Header = ({ onChangeSection, active }) => {
 export const Home = () => {
   const [section, setSection] = useState('inicio')
   const [emprendimientos, setEmprendimientos] = useState([])
+  const [productos, setProductos] = useState([])
 
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
@@ -68,11 +69,12 @@ export const Home = () => {
       .catch(error => console.error('Error al cargar emprendimientos:', error))
   }, [])
 
-  const productosMock = [
-    { id: 1, nombre: 'Camiseta artesanal', precio: 20, imagen: 'https://via.placeholder.com/150' },
-    { id: 2, nombre: 'Joyería fina', precio: 45, imagen: 'https://via.placeholder.com/150' },
-    { id: 3, nombre: 'Arte en madera', precio: 70, imagen: 'https://via.placeholder.com/150' }
-  ]
+  useEffect(() => {
+    fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos')
+      .then(res => res.json())
+      .then(data => setProductos(data))
+      .catch(error => console.error('Error al cargar productos:', error))
+  }, [])
 
   return (
     <div style={{ fontFamily: "'Poppins', sans-serif", color: '#10394D', maxWidth: 1200, margin: 'auto' }}>
@@ -144,45 +146,54 @@ export const Home = () => {
               </div>
             </section>
 
-            {/* Productos Destacados */}
+            {/* Productos Destacados desde la API */}
             <section>
               <h2 style={{ borderBottom: '3px solid #007bff', display: 'inline-block', paddingBottom: '0.25rem' }}>
                 Productos Destacados
               </h2>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
                 gap: '1.5rem',
                 marginTop: '1.5rem'
               }}>
-                {productosMock.map(producto => (
-                  <div key={producto.id} style={{
-                    border: '1px solid #ccc',
-                    borderRadius: 8,
-                    padding: '1rem',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                    backgroundColor: '#fff'
-                  }}>
-                    <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', borderRadius: 5 }} />
-                    <h3 style={{ marginTop: 10 }}>{producto.nombre}</h3>
-                    <p style={{ color: '#28a745', fontWeight: '700' }}>${producto.precio}</p>
-                    <button style={{
-                      padding: '0.5rem 1rem',
-                      backgroundColor: '#007bff',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: 5,
-                      cursor: 'pointer',
-                      fontWeight: '600'
+                {productos.length === 0 ? (
+                  <p>Cargando productos...</p>
+                ) : (
+                  productos.map(producto => (
+                    <div key={producto._id} style={{
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                      padding: '1rem',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                      backgroundColor: '#fff',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
                     }}>
-                      Ver más
-                    </button>
-                  </div>
-                ))}
+                      <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', borderRadius: 5, height: 150, objectFit: 'cover' }} />
+                      <h3 style={{ marginTop: 10 }}>{producto.nombre}</h3>
+                      <p style={{ fontSize: '0.9rem', color: '#666' }}>{producto.descripcion}</p>
+                      <p style={{ color: '#28a745', fontWeight: '700', margin: '0.5rem 0' }}>${producto.precio}</p>
+                      <button style={{
+                        padding: '0.5rem 1rem',
+                        backgroundColor: '#007bff',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 5,
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        alignSelf: 'flex-start'
+                      }}>
+                        Ver más
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </section>
 
-            {/* Emprendimientos Destacados desde la API */}
+            {/* Emprendimientos desde API */}
             <section style={{ marginTop: '3rem' }}>
               <h2 style={{ borderBottom: '3px solid #007bff', display: 'inline-block', paddingBottom: '0.25rem' }}>
                 Explora Emprendimientos
