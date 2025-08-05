@@ -1,29 +1,32 @@
 import { useState, useEffect, useRef } from "react";
 
 const Chat = () => {
+  // Simulamos usuario autenticado (reemplaza por tu sistema auth real)
+  const usuarioId = "64d73a0123456789abcdef01"; 
+  const usuarioRol = "Emprendedor"; // Cambia según sea Administrador, Cliente, Emprendedor
+
   const [vista, setVista] = useState("chat"); // chat | quejas
 
   // Estados para CHAT
-  const [usuarioId, setUsuarioId] = useState(""); // Para cargar conversaciones
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionActiva, setConversacionActiva] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [mensaje, setMensaje] = useState("");
   const [info, setInfo] = useState("");
 
-  // Estados para QUEJAS (ya los tienes)
+  // Estados para QUEJAS
   const [quejas, setQuejas] = useState([]);
+  const [quejaActiva, setQuejaActiva] = useState(null);
+  const [mensajesQueja, setMensajesQueja] = useState([]);
+  const [mensajeQueja, setMensajeQueja] = useState("");
+  const [infoQueja, setInfoQueja] = useState("");
 
   const mensajesRef = useRef(null);
+  const mensajesQuejaRef = useRef(null);
 
-  // Cargar conversaciones para usuario
+  // Cargar conversaciones al montar y cuando usuarioId cambia
   const cargarConversaciones = async () => {
-    if (!usuarioId.trim()) {
-      setConversaciones([]);
-      setConversacionActiva(null);
-      setMensajes([]);
-      return;
-    }
+    if (!usuarioId) return;
     try {
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
@@ -59,37 +62,18 @@ const Chat = () => {
     }
   };
 
-  // Polling mensajes cada 3 segundos
-  useEffect(() => {
-    if (!conversacionActiva) return;
-
-    cargarMensajes(conversacionActiva._id);
-
-    const interval = setInterval(() => {
-      cargarMensajes(conversacionActiva._id);
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [conversacionActiva]);
-
-  // Auto scroll
-  useEffect(() => {
-    if (mensajesRef.current) {
-      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-    }
-  }, [mensajes]);
-
-  // Enviar mensaje
+  // Enviar mensaje chat
   const handleEnviarMensaje = async (e) => {
     e.preventDefault();
     if (mensaje.trim() === "" || !conversacionActiva) return;
 
-    // Para enviar, necesitamos saber emisorId y receptorId/roles.
-    // Extraemos participantes para asignar roles correctamente:
-    // Asumiremos que usuarioId es emisor y el otro participante es receptor.
     const emisorId = usuarioId;
-    const emisorRol = conversacionActiva.participantes.find(p => p.id._id === usuarioId)?.rol || "Usuario";
-    const receptor = conversacionActiva.participantes.find(p => p.id._id !== usuarioId);
+    const emisorRol =
+      conversacionActiva.participantes.find((p) => p.id._id === usuarioId)?.rol ||
+      "Usuario";
+    const receptor = conversacionActiva.participantes.find(
+      (p) => p.id._id !== usuarioId
+    );
     const receptorId = receptor?.id._id || "";
     const receptorRol = receptor?.rol || "";
 
@@ -111,7 +95,6 @@ const Chat = () => {
       const data = await res.json();
       if (res.ok) {
         setMensaje("");
-        // No agregamos el mensaje manualmente porque el polling lo actualizará
         setInfo("");
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
@@ -121,23 +104,112 @@ const Chat = () => {
     }
   };
 
-  // Cargar quejas (mantener tu lógica)
+  // Polling mensajes chat
+  useEffect(() => {
+    if (!conversacionActiva) return;
+
+    cargarMensajes(conversacionActiva._id);
+    const interval = setInterval(() => {
+      cargarMensajes(conversacionActiva._id);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [conversacionActiva]);
+
+  // Auto scroll chat
+  useEffect(() => {
+    if (mensajesRef.current) {
+      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+    }
+  }, [mensajes]);
+
+  // Cargar quejas con mensajes
   const cargarQuejas = async () => {
     try {
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
       );
+      if (!res.ok) throw new Error("Error cargando quejas");
       const data = await res.json();
       setQuejas(data);
+      setQuejaActiva(null);
+      setMensajesQueja([]);
+      setInfoQueja("");
     } catch (error) {
-      console.error("Error cargando quejas", error);
+      setInfoQueja("❌ " + error.message);
+      setQuejas([]);
+      setQuejaActiva(null);
+      setMensajesQueja([]);
     }
   };
 
-  useEffect(() => {
-    if (vista === "quejas") {
-      cargarQuejas();
+  // Seleccionar queja y cargar mensajes
+  const seleccionarQueja = (queja) => {
+    setQuejaActiva(queja);
+    setMensajesQueja(queja.mensajes || []);
+  };
+
+  // Enviar mensaje queja
+  const enviarMensajeQueja = async (e) => {
+    e.preventDefault();
+    if (mensajeQueja.trim() === "" || !quejaActiva) return;
+
+    try {
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emisorId: usuarioId,
+            emisorRol: usuarioRol,
+            contenido: mensajeQueja.trim(),
+            // puedes agregar id de queja si el backend lo necesita
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setMensajeQueja("");
+        setInfoQueja("");
+        // Refrescar mensajes queja
+        cargarQuejas();
+        seleccionarQueja(quejaActiva); // recarga mensajes del chat queja seleccionado
+      } else {
+        setInfoQueja("❌ Error: " + (data.mensaje || "Error desconocido"));
+      }
+    } catch (error) {
+      setInfoQueja("❌ Error de red: " + error.message);
     }
+  };
+
+  // Polling mensajes queja
+  useEffect(() => {
+    if (!quejaActiva) return;
+
+    const interval = setInterval(() => {
+      cargarQuejas();
+      seleccionarQueja(quejaActiva);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [quejaActiva]);
+
+  // Auto scroll mensajes queja
+  useEffect(() => {
+    if (mensajesQuejaRef.current) {
+      mensajesQuejaRef.current.scrollTop = mensajesQuejaRef.current.scrollHeight;
+    }
+  }, [mensajesQueja]);
+
+  // Carga inicial de conversaciones
+  useEffect(() => {
+    cargarConversaciones();
+  }, []);
+
+  // Carga inicial quejas solo si la vista cambia a quejas
+  useEffect(() => {
+    if (vista === "quejas") cargarQuejas();
   }, [vista]);
 
   return (
@@ -168,31 +240,7 @@ const Chat = () => {
 
       {/* VISTA CHAT */}
       {vista === "chat" && (
-        <div>
-          {/* Input para cargar conversaciones */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              cargarConversaciones();
-            }}
-            className="mb-4 flex gap-2"
-          >
-            <input
-              type="text"
-              placeholder="Ingresa tu ID de usuario"
-              value={usuarioId}
-              onChange={(e) => setUsuarioId(e.target.value)}
-              className="flex-grow border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-              required
-            />
-            <button
-              type="submit"
-              className="bg-purple-700 text-white px-5 py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors"
-            >
-              Cargar Conversaciones
-            </button>
-          </form>
-
+        <>
           {/* Lista de conversaciones */}
           <div className="mb-4 max-h-56 overflow-y-auto border border-gray-300 rounded-md p-2 bg-white">
             {conversaciones.length === 0 ? (
@@ -278,58 +326,130 @@ const Chat = () => {
                   Enviar
                 </button>
               </form>
+              {info && (
+                <p
+                  className={`text-center mt-2 ${
+                    info.startsWith("✅") ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  {info}
+                </p>
+              )}
             </div>
           )}
-
-          {info && (
-            <p
-              className={`text-center mt-2 ${
-                info.startsWith("✅") ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {info}
-            </p>
-          )}
-        </div>
+        </>
       )}
 
-      {/* VISTA QUEJAS (mantén tu código para quejas) */}
+      {/* VISTA QUEJAS */}
       {vista === "quejas" && (
-        <div className="bg-white rounded-lg shadow-md p-4 space-y-4 max-h-[600px] overflow-y-auto">
-          {quejas.length === 0 ? (
-            <p className="text-center text-gray-500">No hay quejas registradas.</p>
-          ) : (
-            quejas.map((q) => (
-              <div
-                key={q._id}
-                className="border border-gray-200 p-4 rounded-md shadow-sm"
-              >
-                <p className="text-sm text-gray-600">
-                  <strong>Emisor:</strong>{" "}
-                  {q.participantes.find((p) => p.rol === "Emprendedor")?.id
-                    ?.nombre || ""}
-                  {" "}
-                  {q.participantes.find((p) => p.rol === "Emprendedor")?.id
-                    ?.apellido || ""}
-                </p>
-                <p className="text-sm text-gray-600">
-                  <strong>Receptor:</strong>{" "}
-                  {q.participantes.find((p) => p.rol === "Administrador")?.id
-                    ?.nombre || ""}
-                  {" "}
-                  {q.participantes.find((p) => p.rol === "Administrador")?.id
-                    ?.apellido || ""}
-                </p>
-                <p className="mt-2 text-gray-800">
-                  <strong>Último mensaje:</strong>{" "}
-                  {q.mensajes[q.mensajes.length - 1]?.contenido}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(q.updatedAt).toLocaleString()}
-                </p>
-              </div>
-            ))
-          )}
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Lista quejas */}
+          <div className="md:w-1/3 bg-white rounded-lg shadow-md p-2 max-h-[600px] overflow-y-auto">
+            <h2 className="font-semibold mb-2 text-center">Tus Quejas</h2>
+            {quejas.length === 0 ? (
+              <p className="text-center text-gray-500">No tienes quejas registradas.</p>
+            ) : (
+              quejas.map((q) => (
+                <button
+                  key={q._id}
+                  onClick={() => seleccionarQueja(q)}
+                  className={`w-full text-left px-3 py-2 rounded-md mb-1 ${
+                    quejaActiva?._id === q._id
+                      ? "bg-purple-700 text-white"
+                      : "hover:bg-purple-100"
+                  }`}
+                >
+                  <p className="font-semibold">
+                    Emisor:{" "}
+                    {q.participantes.find((p) => p.rol === "Emprendedor")?.id?.nombre ||
+                      ""}
+                    {" "}
+                    {q.participantes.find((p) => p.rol === "Emprendedor")?.id?.apellido || ""}
+                  </p>
+                  <p className="font-semibold">
+                    Receptor:{" "}
+                    {q.participantes.find((p) => p.rol === "Administrador")?.id?.nombre || ""}
+                    {" "}
+                    {q.participantes.find((p) => p.rol === "Administrador")?.id?.apellido || ""}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate max-w-full">
+                    Último mensaje:{" "}
+                    {q.mensajes && q.mensajes.length > 0
+                      ? q.mensajes[q.mensajes.length - 1].contenido
+                      : "Sin mensajes"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(q.updatedAt).toLocaleString()}
+                  </p>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Chat queja */}
+          <div className="md:w-2/3 bg-white rounded-lg shadow-md flex flex-col h-[600px]">
+            {!quejaActiva ? (
+              <p className="m-auto text-gray-500">Selecciona una queja para ver y responder.</p>
+            ) : (
+              <>
+                <div
+                  ref={mensajesQuejaRef}
+                  className="flex-grow overflow-y-auto p-4 space-y-3 bg-gray-50"
+                >
+                  {mensajesQueja.length === 0 ? (
+                    <p className="text-center text-gray-400">No hay mensajes aún.</p>
+                  ) : (
+                    mensajesQueja.map((msg) => {
+                      const esEmisor = msg.emisor === usuarioId;
+                      return (
+                        <div
+                          key={msg._id}
+                          className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm break-words ${
+                            esEmisor
+                              ? "bg-blue-200 self-end text-right"
+                              : "bg-gray-200 self-start text-left"
+                          }`}
+                        >
+                          {msg.contenido}
+                          <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <form
+                  onSubmit={enviarMensajeQueja}
+                  className="p-4 flex gap-3 border-t border-gray-300"
+                >
+                  <input
+                    type="text"
+                    placeholder="Escribe un mensaje"
+                    value={mensajeQueja}
+                    onChange={(e) => setMensajeQueja(e.target.value)}
+                    className="flex-grow border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    className="bg-blue-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-900 transition-colors"
+                  >
+                    Enviar
+                  </button>
+                </form>
+                {infoQueja && (
+                  <p
+                    className={`text-center mt-2 ${
+                      infoQueja.startsWith("✅") ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {infoQueja}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
