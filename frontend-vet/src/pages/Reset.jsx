@@ -41,7 +41,7 @@ const Reset = () => {
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/clientes/nuevo-password/${token}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/nuevo-password/${token}`
       const { data } = await axios.post(url, {
         password: pw,
         confirmpassword: cpw,
