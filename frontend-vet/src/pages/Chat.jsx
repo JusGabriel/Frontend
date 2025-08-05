@@ -62,7 +62,7 @@ const Chat = () => {
     if (!conversacionId) return;
     try {
       const res = await fetch(
-        https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}
+        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
       );
       const data = await res.json();
       setMensajes(data);
@@ -195,21 +195,21 @@ const Chat = () => {
       <div className="flex justify-center mb-6 gap-4">
         <button
           onClick={() => setVista("chat")}
-          className={px-4 py-2 rounded-full font-semibold transition-colors ${
+          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
             vista === "chat"
               ? "bg-purple-700 text-white"
               : "bg-gray-200 text-gray-700 hover:bg-purple-200"
-          }}
+          }`}
         >
           💬 Chat
         </button>
         <button
           onClick={() => setVista("quejas")}
-          className={px-4 py-2 rounded-full font-semibold transition-colors ${
+          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
             vista === "quejas"
               ? "bg-purple-700 text-white"
               : "bg-gray-200 text-gray-700 hover:bg-purple-200"
-          }}
+          }`}
         >
           📢 Quejas
         </button>
@@ -265,9 +265,9 @@ const Chat = () => {
               </button>
               {info && (
                 <p
-                  className={text-center mt-2 ${
+                  className={`text-center mt-2 ${
                     info.startsWith("✅") ? "text-green-600" : "text-red-600"
-                  }}
+                  }`}
                 >
                   {info}
                 </p>
@@ -289,9 +289,9 @@ const Chat = () => {
                   return (
                     <div
                       key={msg._id}
-                      className={max-w-[70%] p-3 rounded-xl shadow-sm text-sm break-words
+                      className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm break-words
                       ${esEmisor ? "bg-green-200 self-end text-right" : "bg-gray-200 self-start text-left"}
-                    }
+                    `}
                     >
                       {msg.contenido}
                       <div className="text-xs text-gray-500 mt-1">
@@ -351,11 +351,11 @@ const Chat = () => {
                   <button
                     key={q._id}
                     onClick={() => seleccionarQueja(q)}
-                    className={w-full text-left mb-2 p-3 rounded-md border transition-colors ${
+                    className={`w-full text-left mb-2 p-3 rounded-md border transition-colors ${
                       isSelected
                         ? "border-purple-700 bg-purple-50"
                         : "border-gray-200 hover:bg-purple-100"
-                    }}
+                    }`}
                   >
                     <p className="font-semibold text-purple-700">
                       Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
@@ -402,11 +402,11 @@ const Chat = () => {
                       return (
                         <div
                           key={msg._id}
-                          className={max-w-[75%] p-3 rounded-xl shadow-sm text-sm break-words ${
+                          className={`max-w-[75%] p-3 rounded-xl shadow-sm text-sm break-words ${
                             esMio
                               ? "bg-green-200 self-end text-right ml-auto"
                               : "bg-gray-200 self-start text-left mr-auto"
-                          }}
+                          }`}
                         >
                           {msg.contenido}
                           <div className="text-xs text-gray-500 mt-1">
