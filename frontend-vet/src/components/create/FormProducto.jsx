@@ -9,7 +9,7 @@ export const FormProducto = () => {
   const { user } = storeProfile()
 
   const [form, setForm] = useState({
-    nombre: '', descripcion: '', precio: '', imagen: null, categoria: '', stock: ''
+    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
   })
   const [loading, setLoading] = useState(false)
   const [productos, setProductos] = useState([])
@@ -26,19 +26,8 @@ export const FormProducto = () => {
     }
   }
 
-  useEffect(() => {
-    if (rol === 'editor' && user?._id) {
-      fetchMisProductos()
-    }
-  }, [rol, user])
-
   const handleChange = e => {
-    const { name, value, files } = e.target
-    if (name === 'imagen') {
-      setForm({ ...form, imagen: files[0] })
-    } else {
-      setForm({ ...form, [name]: value })
-    }
+    setForm({ ...form, [e.target.name]: e.target.value })
   }
 
   const handleSubmit = async (e) => {
@@ -49,27 +38,26 @@ export const FormProducto = () => {
     if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
 
     const config = {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     }
-    const formData = new FormData()
-    formData.append('nombre', form.nombre)
-    formData.append('descripcion', form.descripcion)
-    formData.append('precio', form.precio)
-    formData.append('categoria', form.categoria)
-    formData.append('stock', form.stock || 0)
-    formData.append('imagen', form.imagen)
+    const body = {
+      ...form,
+      precio: Number(form.precio),
+      stock: form.stock ? Number(form.stock) : 0,
+      categoria: form.categoria || null
+    }
 
     try {
       setLoading(true)
       if (editando) {
-        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, formData, config)
-        toast.success('Producto actualizado ✅')
+        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, body, config)
+        toast.success(`Producto actualizado ✅`)
         setEditando(null)
       } else {
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, formData, config)
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, body, config)
         toast.success(`Producto "${form.nombre}" registrado exitosamente ✅`)
       }
-      setForm({ nombre: '', descripcion: '', precio: '', imagen: null, categoria: '', stock: '' })
+      setForm({ nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: '' })
       fetchMisProductos()
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error en la operación')
@@ -92,14 +80,13 @@ export const FormProducto = () => {
   }
 
   const handleEdit = (producto) => {
-    setForm({
-      ...producto,
-      precio: String(producto.precio),
-      stock: String(producto.stock || ''),
-      imagen: null // no cargamos archivo anterior
-    })
+    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
     setEditando(producto._id)
   }
+
+  useEffect(() => {
+    if (rol === 'editor') fetchMisProductos()
+  }, [])
 
   return (
     <div className="grid gap-10">
@@ -110,7 +97,7 @@ export const FormProducto = () => {
         <textarea name='descripcion' value={form.descripcion} onChange={handleChange} placeholder='Descripción *' rows='2' className='input' />
         <input type='number' name='precio' value={form.precio} onChange={handleChange} placeholder='Precio *' className='input' />
         <input type='number' name='stock' value={form.stock} onChange={handleChange} placeholder='Stock' className='input' />
-        <input type='file' name='imagen' accept='image/*' onChange={handleChange} className='input' />
+        <input name='imagen' value={form.imagen} onChange={handleChange} placeholder='URL imagen *' className='input' />
         <input name='categoria' value={form.categoria} onChange={handleChange} placeholder='ID categoría' className='input' />
 
         <div className='text-right'>
@@ -142,3 +129,4 @@ export const FormProducto = () => {
     </div>
   )
 }
+//version buena
