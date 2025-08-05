@@ -9,7 +9,7 @@ export const FormProducto = () => {
   const { user } = storeProfile()
 
   const [form, setForm] = useState({
-    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
+    nombre: '', descripcion: '', precio: '', imagen: null, categoria: '', stock: ''
   })
   const [loading, setLoading] = useState(false)
   const [productos, setProductos] = useState([])
@@ -26,8 +26,19 @@ export const FormProducto = () => {
     }
   }
 
+  useEffect(() => {
+    if (rol === 'editor' && user?._id) {
+      fetchMisProductos()
+    }
+  }, [rol, user])
+
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value })
+    const { name, value, files } = e.target
+    if (name === 'imagen') {
+      setForm({ ...form, imagen: files[0] })
+    } else {
+      setForm({ ...form, [name]: value })
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -38,26 +49,27 @@ export const FormProducto = () => {
     if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
 
     const config = {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
     }
-    const body = {
-      ...form,
-      precio: Number(form.precio),
-      stock: form.stock ? Number(form.stock) : 0,
-      categoria: form.categoria || null
-    }
+    const formData = new FormData()
+    formData.append('nombre', form.nombre)
+    formData.append('descripcion', form.descripcion)
+    formData.append('precio', form.precio)
+    formData.append('categoria', form.categoria)
+    formData.append('stock', form.stock || 0)
+    formData.append('imagen', form.imagen)
 
     try {
       setLoading(true)
       if (editando) {
-        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, body, config)
-        toast.success(`✅ Producto actualizado correctamente`)
+        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, formData, config)
+        toast.success('Producto actualizado ✅')
         setEditando(null)
       } else {
-        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, body, config)
-        toast.success(`✅ Producto "${form.nombre}" registrado exitosamente`)
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, formData, config)
+        toast.success(`Producto "${form.nombre}" registrado exitosamente ✅`)
       }
-      setForm({ nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: '' })
+      setForm({ nombre: '', descripcion: '', precio: '', imagen: null, categoria: '', stock: '' })
       fetchMisProductos()
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error en la operación')
@@ -72,7 +84,7 @@ export const FormProducto = () => {
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`
       const config = { headers: { Authorization: `Bearer ${token}` } }
       await axios.delete(url, config)
-      toast.success('✅ Producto eliminado exitosamente')
+      toast.success('Producto eliminado ✅')
       fetchMisProductos()
     } catch (err) {
       toast.error('Error al eliminar producto')
@@ -80,24 +92,25 @@ export const FormProducto = () => {
   }
 
   const handleEdit = (producto) => {
-    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
+    setForm({
+      ...producto,
+      precio: String(producto.precio),
+      stock: String(producto.stock || ''),
+      imagen: null // no cargamos archivo anterior
+    })
     setEditando(producto._id)
   }
-
-  useEffect(() => {
-    if (rol === 'editor') fetchMisProductos()
-  }, [])
 
   return (
     <div className="grid gap-10">
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md grid gap-6">
-        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+        <h2 className="text-2xl font-bold">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
 
         <input name='nombre' value={form.nombre} onChange={handleChange} placeholder='Nombre *' className='input' />
         <textarea name='descripcion' value={form.descripcion} onChange={handleChange} placeholder='Descripción *' rows='2' className='input' />
         <input type='number' name='precio' value={form.precio} onChange={handleChange} placeholder='Precio *' className='input' />
         <input type='number' name='stock' value={form.stock} onChange={handleChange} placeholder='Stock' className='input' />
-        <input name='imagen' value={form.imagen} onChange={handleChange} placeholder='URL imagen *' className='input' />
+        <input type='file' name='imagen' accept='image/*' onChange={handleChange} className='input' />
         <input name='categoria' value={form.categoria} onChange={handleChange} placeholder='ID categoría' className='input' />
 
         <div className='text-right'>
@@ -107,18 +120,16 @@ export const FormProducto = () => {
         </div>
       </form>
 
-      <section className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
-        <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">📦 Mis productos</h2>
-        {productos.length === 0 ? (
-          <p className='text-gray-500 dark:text-gray-300'>Aún no tienes productos registrados.</p>
-        ) : (
+      {productos.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
+          <h2 className="text-xl font-bold mb-4">Mis productos</h2>
           <div className="grid md:grid-cols-2 gap-4">
             {productos.map((prod) => (
-              <div key={prod._id} className="border p-4 rounded-lg flex flex-col gap-2 shadow-sm dark:border-gray-700">
+              <div key={prod._id} className="border p-4 rounded-lg flex flex-col gap-2">
                 <img src={prod.imagen} alt={prod.nombre} className="w-full h-48 object-cover rounded" />
-                <h3 className="font-bold text-lg text-gray-800 dark:text-white">{prod.nombre}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">{prod.descripcion}</p>
-                <p className="text-blue-600 dark:text-blue-400 font-semibold">${prod.precio}</p>
+                <h3 className="font-bold text-lg">{prod.nombre}</h3>
+                <p className="text-sm">{prod.descripcion}</p>
+                <p className="text-blue-500 font-semibold">${prod.precio}</p>
                 <div className="flex gap-2 justify-end">
                   <button onClick={() => handleEdit(prod)} className="btn-secondary">Editar</button>
                   <button onClick={() => handleDelete(prod._id)} className="btn-danger">Eliminar</button>
@@ -126,8 +137,8 @@ export const FormProducto = () => {
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   )
 }
