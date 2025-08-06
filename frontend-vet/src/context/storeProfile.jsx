@@ -34,7 +34,7 @@ const getEndpointPrefix = (rol) => {
 const storeProfile = create((set) => ({
   user: null,
 
-  clear:User  () => set({ user: null }),
+  clearUser: () => set({ user: null }),
 
   profile: async () => {
     try {
@@ -46,7 +46,6 @@ const storeProfile = create((set) => ({
       const respuesta = await axios.get(url, getAuthHeaders());
       set({ user: respuesta.data });
     } catch (error) {
-      console.error(error);
       toast.error("No se pudo obtener el perfil del usuario");
     }
   },
@@ -62,7 +61,6 @@ const storeProfile = create((set) => ({
       set({ user: respuesta.data });
       toast.success("Perfil actualizado correctamente");
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.msg || "Error al actualizar perfil");
     }
   },
@@ -76,9 +74,7 @@ const storeProfile = create((set) => ({
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/actualizarpassword/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       toast.success(respuesta?.data?.msg || "Contraseña actualizada");
-      return respuesta;
     } catch (error) {
-      console.error(error);
       toast.error(error.response?.data?.msg || "Error al actualizar contraseña");
     }
   }
