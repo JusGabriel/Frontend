@@ -1,17 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import storeAuth from "../context/storeAuth";
 
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
 
+  // Vista activa: "chat" o "quejas"
+  const [vista, setVista] = useState("chat");
+
+  // Estados para Chat General
   const [conversacionId, setConversacionId] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [mensajes, setMensajes] = useState([]);
   const [conversaciones, setConversaciones] = useState([]);
+
+  // Estados para Quejas
+  const [quejas, setQuejas] = useState([]);
+  const [quejaSeleccionada, setQuejaSeleccionada] = useState(null);
+  const [mensajeQueja, setMensajeQueja] = useState("");
+  const [mensajesQueja, setMensajesQueja] = useState([]);
+
+  // Mensajes de info / error
+  const [info, setInfo] = useState("");
+
+  // Ref para hacer scroll automático en ambas vistas
   const mensajesRef = useRef(null);
 
-  // Carga conversaciones del usuario
+  // --- Funciones para Chat General ---
+
+  // Cargar conversaciones del usuario
   const cargarConversaciones = async () => {
+    if (!usuarioId) return;
     try {
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
@@ -20,10 +38,11 @@ const Chat = () => {
       setConversaciones(data);
     } catch (error) {
       console.error("Error cargando conversaciones", error);
+      setInfo("❌ Error cargando conversaciones");
     }
   };
 
-  // Carga mensajes de la conversación actual
+  // Obtener mensajes de la conversación seleccionada
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -34,31 +53,11 @@ const Chat = () => {
       setMensajes(data);
     } catch (error) {
       console.error("Error cargando mensajes", error);
+      setInfo("❌ Error cargando mensajes");
     }
   };
 
-  useEffect(() => {
-    if (usuarioId) cargarConversaciones();
-  }, [usuarioId]);
-
-  useEffect(() => {
-    if (conversacionId) {
-      obtenerMensajes();
-      const interval = setInterval(obtenerMensajes, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [conversacionId]);
-
-  // Scroll suave al último mensaje
-  useEffect(() => {
-    if (mensajesRef.current) {
-      mensajesRef.current.scrollTo({
-        top: mensajesRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  }, [mensajes]);
-
+  // Enviar mensaje en chat general (requiere receptorId y receptorRol)
   const handleEnviar = async (e, receptorId, receptorRol) => {
     e.preventDefault();
     if (!mensaje.trim() || !receptorId || !receptorRol) return;
@@ -82,150 +81,348 @@ const Chat = () => {
       const data = await res.json();
       if (res.ok) {
         setMensaje("");
+        setInfo("");
         obtenerMensajes();
         cargarConversaciones();
       } else {
-        alert("Error: " + (data.mensaje || "Error desconocido"));
+        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
     } catch (error) {
-      console.error("Error al enviar mensaje", error);
+      setInfo("❌ Error de red: " + error.message);
     }
   };
 
+  // --- Funciones para Quejas ---
+
+  // Cargar todas las quejas con mensajes
+  const cargarQuejas = async () => {
+    try {
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
+      );
+      const data = await res.json();
+      setQuejas(data);
+    } catch (error) {
+      console.error("Error cargando quejas", error);
+      setInfo("❌ Error cargando quejas");
+    }
+  };
+
+  // Seleccionar una queja para ver chat
+  const seleccionarQueja = (queja) => {
+    setQuejaSeleccionada(queja);
+    setMensajesQueja(queja.mensajes || []);
+    setMensajeQueja("");
+    setInfo("");
+  };
+
+  // Enviar mensaje en queja seleccionada
+  const enviarMensajeQueja = async (e) => {
+    e.preventDefault();
+    if (!mensajeQueja.trim() || !quejaSeleccionada) return;
+
+    try {
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emisorId: usuarioId,
+            emisorRol,
+            contenido: mensajeQueja.trim(),
+            quejaId: quejaSeleccionada._id, // si la API lo requiere para identificar la queja
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        // Añadir nuevo mensaje localmente para mejor UX
+        const nuevoMsg = {
+          _id: data.data._id,
+          contenido: mensajeQueja.trim(),
+          emisor: usuarioId,
+          emisorRol,
+          timestamp: new Date().toISOString(),
+        };
+        setMensajesQueja((prev) => [...prev, nuevoMsg]);
+        setMensajeQueja("");
+        setInfo("");
+      } else {
+        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
+      }
+    } catch (error) {
+      console.error("Error enviando mensaje de queja", error);
+      setInfo("❌ Error de red al enviar mensaje");
+    }
+  };
+
+  // --- Effects ---
+
+  // Cargar conversaciones al montar o cambiar usuarioId
+  useEffect(() => {
+    if (vista === "chat") {
+      cargarConversaciones();
+    }
+  }, [usuarioId, vista]);
+
+  // Actualizar mensajes en chat general cada 3s si hay conversación activa
+  useEffect(() => {
+    if (vista === "chat" && conversacionId) {
+      obtenerMensajes();
+      const interval = setInterval(obtenerMensajes, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [conversacionId, vista]);
+
+  // Cargar quejas si se cambia a vista quejas
+  useEffect(() => {
+    if (vista === "quejas") {
+      cargarQuejas();
+      setQuejaSeleccionada(null);
+      setMensajesQueja([]);
+      setMensajeQueja("");
+    }
+  }, [vista]);
+
+  // Scroll automático en mensajes (chat general o quejas)
+  useEffect(() => {
+    if (mensajesRef.current) {
+      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+    }
+  }, [mensajes, mensajesQueja]);
+
   return (
-    <div className="max-w-4xl mx-auto mt-12 p-4 bg-white rounded-lg shadow-lg">
-      <h2 className="text-3xl font-extrabold text-center text-purple-800 mb-6 tracking-wide">
-        Chat General
-      </h2>
+    <div className="max-w-3xl mx-auto mt-10 p-4 font-sans">
+      {/* Botones para cambiar vista */}
+      <div className="flex justify-center mb-6 gap-4">
+        <button
+          onClick={() => setVista("chat")}
+          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
+            vista === "chat"
+              ? "bg-purple-700 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-purple-200"
+          }`}
+        >
+          💬 Chat General
+        </button>
+        <button
+          onClick={() => setVista("quejas")}
+          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
+            vista === "quejas"
+              ? "bg-purple-700 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-purple-200"
+          }`}
+        >
+          📢 Quejas
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[600px]">
-        {/* Lista de conversaciones */}
-        <aside className="col-span-1 border rounded-lg shadow-sm overflow-y-auto bg-gray-50">
-          <h3 className="text-xl font-semibold text-gray-700 px-6 py-4 border-b">
-            Conversaciones
-          </h3>
-          {conversaciones.length === 0 ? (
-            <p className="p-6 text-gray-400 italic text-center">
-              No tienes conversaciones aún.
-            </p>
-          ) : (
-            <ul>
-              {conversaciones.map((conv) => {
-                const otro = conv.participantes.find(
-                  (p) => p.id._id !== usuarioId
-                );
-                const seleccionado = conv._id === conversacionId;
+      {info && (
+        <div className="mb-4 text-center text-red-600 font-medium">{info}</div>
+      )}
 
-                return (
-                  <li key={conv._id} className="border-b last:border-b-0">
-                    <button
-                      onClick={() => setConversacionId(conv._id)}
-                      className={`flex items-center gap-4 w-full px-6 py-4 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-colors ${
-                        seleccionado
-                          ? "bg-purple-200 font-semibold shadow-inner"
-                          : "bg-transparent"
-                      }`}
-                      aria-current={seleccionado ? "true" : "false"}
-                    >
-                      {/* Avatar con iniciales */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-400 text-white flex items-center justify-center font-bold text-lg select-none">
-                        {otro.id.nombre.charAt(0)}
-                        {otro.id.apellido.charAt(0)}
-                      </div>
-
-                      <div className="flex flex-col text-left">
-                        <span className="text-purple-900 text-lg leading-tight truncate">
-                          {otro.id.nombre} {otro.id.apellido}
-                        </span>
-                        <span className="text-sm text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full w-max font-medium select-none uppercase tracking-widest">
-                          {otro.rol}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </aside>
-
-        {/* Chat actual */}
-        <section className="col-span-2 flex flex-col border rounded-lg shadow-sm bg-white">
-          {/* Mensajes */}
-          <div
-            ref={mensajesRef}
-            className="flex-grow overflow-y-auto p-6 space-y-4 bg-gray-50"
-            role="log"
-            aria-live="polite"
-            aria-relevant="additions"
-          >
-            {mensajes.length === 0 ? (
-              <p className="text-center text-gray-400 italic mt-12">
-                No hay mensajes aún. Comienza la conversación.
-              </p>
+      {/* VISTA CHAT GENERAL */}
+      {vista === "chat" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-lg shadow-lg p-4 h-[500px]">
+          {/* Lista de conversaciones */}
+          <div className="border rounded-md p-3 max-h-full overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-2 text-purple-800">Conversaciones</h3>
+            {conversaciones.length === 0 ? (
+              <p className="text-sm text-gray-500">No hay conversaciones aún.</p>
             ) : (
-              mensajes.map((msg) => {
-                const esMio = msg.emisor === usuarioId;
-
+              conversaciones.map((conv) => {
+                const otro = conv.participantes.find((p) => p.id._id !== usuarioId);
+                const isActive = conv._id === conversacionId;
                 return (
-                  <div
-                    key={msg._id}
-                    className={`max-w-[75%] px-5 py-3 rounded-2xl relative break-words text-sm shadow-sm ${
-                      esMio
-                        ? "bg-green-200 text-green-900 self-end ml-auto rounded-br-none"
-                        : "bg-purple-100 text-purple-900 self-start mr-auto rounded-bl-none"
+                  <button
+                    key={conv._id}
+                    onClick={() => setConversacionId(conv._id)}
+                    className={`w-full text-left p-2 mb-2 rounded-md border transition-colors ${
+                      isActive
+                        ? "bg-purple-100 border-purple-700"
+                        : "border-gray-200 hover:bg-purple-50"
                     }`}
-                    aria-label={esMio ? "Mensaje enviado" : "Mensaje recibido"}
                   >
-                    {msg.contenido}
-
-                    <div className="mt-1 text-xs text-gray-500 italic select-none">
-                      {msg.emisorRol}
-                    </div>
-                  </div>
+                    <p className="font-medium text-purple-800">
+                      {otro?.id?.nombre} {otro?.id?.apellido}
+                    </p>
+                    <p className="text-xs text-gray-500">{otro?.rol}</p>
+                  </button>
                 );
               })
             )}
           </div>
 
-          {/* Input para enviar mensaje */}
-          {conversacionId && (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const conv = conversaciones.find((c) => c._id === conversacionId);
-                const receptor = conv?.participantes?.find(
-                  (p) => p.id._id !== usuarioId
-                );
-                if (receptor) {
-                  handleEnviar(e, receptor.id._id, receptor.rol);
-                }
-              }}
-              className="border-t px-6 py-4 flex gap-4 items-center bg-white"
-              aria-label="Enviar mensaje"
+          {/* Mensajes y form de envío */}
+          <div className="border rounded-md flex flex-col max-h-full">
+            <div
+              ref={mensajesRef}
+              className="flex-grow overflow-y-auto p-3 bg-gray-50"
             >
-              <input
-                type="text"
-                value={mensaje}
-                onChange={(e) => setMensaje(e.target.value)}
-                className="flex-grow border border-gray-300 rounded-full px-5 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                placeholder="Escribe un mensaje..."
-                autoComplete="off"
-                aria-required="true"
-                aria-label="Campo para escribir mensaje"
-              />
-              <button
-                type="submit"
-                disabled={!mensaje.trim()}
-                className={`bg-purple-700 text-white px-6 py-3 rounded-full font-semibold shadow-md hover:bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-600 transition disabled:bg-purple-300 disabled:cursor-not-allowed`}
-                aria-disabled={!mensaje.trim()}
+              {mensajes.length === 0 ? (
+                <p className="text-center text-gray-500">No hay mensajes aún.</p>
+              ) : (
+                mensajes.map((msg) => {
+                  const esMio = msg.emisor === usuarioId;
+                  return (
+                    <div
+                      key={msg._id}
+                      className={`max-w-[70%] p-3 rounded-md mb-2 text-sm break-words ${
+                        esMio
+                          ? "bg-green-200 self-end text-right ml-auto"
+                          : "bg-gray-200 self-start text-left mr-auto"
+                      }`}
+                    >
+                      {msg.contenido}
+                      <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Formulario para enviar mensajes solo si hay conversación */}
+            {conversacionId && (
+              <form
+                onSubmit={(e) => {
+                  const conv = conversaciones.find((c) => c._id === conversacionId);
+                  const receptor = conv?.participantes?.find((p) => p.id._id !== usuarioId);
+                  if (receptor) {
+                    handleEnviar(e, receptor.id._id, receptor.rol);
+                  }
+                }}
+                className="p-3 border-t flex gap-3 bg-white"
               >
-                Enviar
-              </button>
-            </form>
-          )}
-        </section>
-      </div>
+                <input
+                  type="text"
+                  value={mensaje}
+                  onChange={(e) => setMensaje(e.target.value)}
+                  className="flex-grow border border-gray-300 rounded-lg px-4 py-2"
+                  placeholder="Escribe un mensaje"
+                  autoComplete="off"
+                />
+                <button
+                  type="submit"
+                  className="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-900"
+                >
+                  Enviar
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* VISTA QUEJAS */}
+      {vista === "quejas" && (
+        <div className="bg-white rounded-lg shadow-md p-4 space-y-4 flex flex-col md:flex-row gap-6 h-[500px]">
+          {/* Lista de quejas */}
+          <div className="md:w-1/2 max-h-full overflow-y-auto border border-gray-300 rounded-md p-2">
+            {quejas.length === 0 ? (
+              <p className="text-center text-gray-500 mt-4">No hay quejas registradas.</p>
+            ) : (
+              quejas.map((q) => {
+                const emprendedor = q.participantes.find((p) => p.rol === "Emprendedor")?.id;
+                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
+                const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
+                const isSelected = quejaSeleccionada?._id === q._id;
+
+                return (
+                  <button
+                    key={q._id}
+                    onClick={() => seleccionarQueja(q)}
+                    className={`w-full text-left mb-2 p-3 rounded-md border transition-colors ${
+                      isSelected
+                        ? "border-purple-700 bg-purple-50"
+                        : "border-gray-200 hover:bg-purple-100"
+                    }`}
+                  >
+                    <p className="font-semibold text-purple-700">
+                      Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Receptor: {admin?.nombre} {admin?.apellido}
+                    </p>
+                    <p className="mt-1 text-gray-800 text-sm line-clamp-2">
+                      <strong>Último mensaje:</strong>{" "}
+                      {ultimoMensaje?.contenido || "Sin mensajes"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(q.updatedAt).toLocaleString()}
+                    </p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {/* Chat queja seleccionada */}
+          <div className="md:w-1/2 bg-gray-50 rounded-md flex flex-col max-h-full">
+            {quejaSeleccionada ? (
+              <>
+                <div className="bg-white p-3 border-b border-gray-300 font-semibold text-purple-800">
+                  Chat Queja con{" "}
+                  {
+                    quejaSeleccionada.participantes.find(
+                      (p) => p.rol !== emisorRol
+                    )?.id?.nombre
+                  }
+                </div>
+                <div
+                  ref={mensajesRef}
+                  className="flex-grow overflow-y-auto p-4 space-y-3"
+                >
+                  {mensajesQueja.length === 0 ? (
+                    <p className="text-center text-gray-500 mt-4">No hay mensajes aún.</p>
+                  ) : (
+                    mensajesQueja.map((msg) => {
+                      const esMio = msg.emisor === usuarioId;
+                      return (
+                        <div
+                          key={msg._id}
+                          className={`max-w-[75%] p-3 rounded-xl shadow-sm text-sm break-words ${
+                            esMio
+                              ? "bg-green-200 self-end text-right ml-auto"
+                              : "bg-gray-200 self-start text-left mr-auto"
+                          }`}
+                        >
+                          {msg.contenido}
+                          <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <form
+                  onSubmit={enviarMensajeQueja}
+                  className="p-4 flex gap-2 border-t border-gray-300 bg-white"
+                >
+                  <input
+                    type="text"
+                    placeholder="Escribe tu respuesta..."
+                    value={mensajeQueja}
+                    onChange={(e) => setMensajeQueja(e.target.value)}
+                    className="flex-grow border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-purple-900 transition-colors"
+                  >
+                    Enviar
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div className="flex-grow flex items-center justify-center text-gray-500">
+                Selecciona una queja para ver y responder.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
