@@ -1,239 +1,141 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import storeAuth from "../../context/storeAuth";
-import { toast } from "react-toastify";
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import storeAuth from '../../context/storeAuth'
+import storeProfile from '../../context/storeProfile'
 
-const API_BASE_URL = "https://backend-production-bd1d.up.railway.app/api/productos";
+export const FormProducto = () => {
+  const { token, rol } = storeAuth()
+  const { user } = storeProfile()
 
-export const ProductosDashboard = () => {
-  const { token, id: emprendedorId, rol } = storeAuth();
-
-  const [productos, setProductos] = useState([]);
   const [form, setForm] = useState({
-    nombre: "",
-    descripcion: "",
-    precio: "",
-    imagen: "",
-    categoria: "",
-    stock: "",
-  });
-  const [editandoId, setEditandoId] = useState(null);
-  const [loading, setLoading] = useState(false);
+    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
+  })
+  const [loading, setLoading] = useState(false)
+  const [productos, setProductos] = useState([])
+  const [editando, setEditando] = useState(null)
 
-  // Configuración axios con token en headers para requests autenticados
-  const axiosConfig = {
-    headers: { Authorization: `Bearer ${token}` },
-  };
-
-  // Obtener productos de este emprendedor
-  const cargarProductos = async () => {
+  // Obtener productos del emprendedor
+  const fetchMisProductos = async () => {
     try {
-      setLoading(true);
-      // Aquí usas el endpoint que busca productos por emprendedor
-      const res = await axios.get(`${API_BASE_URL}/emprendedor/${emprendedorId}`);
-      setProductos(res.data);
-      setLoading(false);
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${user._id}`
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await axios.get(url, config)
+      setProductos(data)
     } catch (error) {
-      setLoading(false);
-      toast.error("Error al cargar productos");
-      console.error(error);
+      toast.error('Error al cargar productos')
     }
-  };
+  }
 
-  useEffect(() => {
-    if (emprendedorId && token && rol === "emprendedor") {
-      cargarProductos();
+  // Manejar cambios en el formulario
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  // Registrar o actualizar producto
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (rol !== 'editor') return toast.error('Solo emprendedores pueden crear productos')
+
+    const { nombre, descripcion, precio, imagen } = form
+    if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
+
+    const config = {
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     }
-  }, [emprendedorId, token, rol]);
-
-  // Manejo del formulario para crear o actualizar producto
-  const handleChange = (e) => {
-    setForm({
+    const body = {
       ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+      precio: Number(form.precio),
+      stock: form.stock ? Number(form.stock) : 0,
+      categoria: form.categoria || null
+    }
 
-  // Crear producto
-  const handleCrearProducto = async () => {
     try {
-      if (!form.nombre || !form.precio) {
-        toast.warn("Debe ingresar al menos nombre y precio");
-        return;
+      setLoading(true)
+      if (editando) {
+        await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/productos/${editando}`, body, config)
+        toast.success(`Producto actualizado ✅`)
+        setEditando(null)
+      } else {
+        await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/productos`, body, config)
+        toast.success(`Producto "${form.nombre}" registrado exitosamente ✅`)
       }
-
-      const body = {
-        nombre: form.nombre,
-        descripcion: form.descripcion,
-        precio: Number(form.precio),
-        imagen: form.imagen,
-        categoria: form.categoria,
-        stock: Number(form.stock),
-      };
-
-      const res = await axios.post(API_BASE_URL, body, axiosConfig);
-      toast.success("Producto creado");
-      setForm({
-        nombre: "",
-        descripcion: "",
-        precio: "",
-        imagen: "",
-        categoria: "",
-        stock: "",
-      });
-      cargarProductos();
-    } catch (error) {
-      toast.error("Error al crear producto");
-      console.error(error);
+      setForm({ nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: '' })
+      fetchMisProductos()
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error en la operación')
+    } finally {
+      setLoading(false)
     }
-  };
-
-  // Preparar formulario para editar
-  const editarProducto = (producto) => {
-    setForm({
-      nombre: producto.nombre || "",
-      descripcion: producto.descripcion || "",
-      precio: producto.precio || "",
-      imagen: producto.imagen || "",
-      categoria: producto.categoria?._id || "",
-      stock: producto.stock || "",
-    });
-    setEditandoId(producto._id);
-  };
-
-  // Actualizar producto
-  const handleActualizarProducto = async () => {
-    try {
-      if (!editandoId) return;
-
-      const body = {
-        nombre: form.nombre,
-        descripcion: form.descripcion,
-        precio: Number(form.precio),
-        imagen: form.imagen,
-        categoria: form.categoria,
-        stock: Number(form.stock),
-      };
-
-      const res = await axios.put(`${API_BASE_URL}/${editandoId}`, body, axiosConfig);
-      toast.success("Producto actualizado");
-      setForm({
-        nombre: "",
-        descripcion: "",
-        precio: "",
-        imagen: "",
-        categoria: "",
-        stock: "",
-      });
-      setEditandoId(null);
-      cargarProductos();
-    } catch (error) {
-      toast.error("Error al actualizar producto");
-      console.error(error);
-    }
-  };
+  }
 
   // Eliminar producto
-  const eliminarProducto = async (id) => {
+  const handleDelete = async (id) => {
+    if (!confirm('¿Seguro que deseas eliminar este producto?')) return
     try {
-      if (!window.confirm("¿Seguro que quieres eliminar este producto?")) return;
-
-      await axios.delete(`${API_BASE_URL}/${id}`, axiosConfig);
-      toast.success("Producto eliminado");
-      cargarProductos();
-    } catch (error) {
-      toast.error("Error al eliminar producto");
-      console.error(error);
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`
+      const config = { headers: { Authorization: `Bearer ${token}` } }
+      await axios.delete(url, config)
+      toast.success('Producto eliminado ✅')
+      fetchMisProductos()
+    } catch (err) {
+      toast.error('Error al eliminar producto')
     }
-  };
+  }
+
+  // Cargar producto al formulario
+  const handleEdit = (producto) => {
+    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
+    setEditando(producto._id)
+  }
+
+  // Cargar productos al montar el componente
+  useEffect(() => {
+    if (rol === 'editor') fetchMisProductos()
+  }, [rol, user?._id])
 
   return (
-    <div style={{ maxWidth: 600, margin: "auto" }}>
-      <h2>{editandoId ? "Editar Producto" : "Crear Producto"}</h2>
-      <input
-        type="text"
-        name="nombre"
-        placeholder="Nombre"
-        value={form.nombre}
-        onChange={handleChange}
-      />
-      <br />
-      <textarea
-        name="descripcion"
-        placeholder="Descripción"
-        value={form.descripcion}
-        onChange={handleChange}
-      />
-      <br />
-      <input
-        type="number"
-        name="precio"
-        placeholder="Precio"
-        value={form.precio}
-        onChange={handleChange}
-      />
-      <br />
-      <input
-        type="text"
-        name="imagen"
-        placeholder="URL imagen"
-        value={form.imagen}
-        onChange={handleChange}
-      />
-      <br />
-      <input
-        type="text"
-        name="categoria"
-        placeholder="ID Categoría"
-        value={form.categoria}
-        onChange={handleChange}
-      />
-      <br />
-      <input
-        type="number"
-        name="stock"
-        placeholder="Stock"
-        value={form.stock}
-        onChange={handleChange}
-      />
-      <br />
-      {editandoId ? (
-        <>
-          <button onClick={handleActualizarProducto}>Actualizar Producto</button>
-          <button
-            onClick={() => {
-              setForm({
-                nombre: "",
-                descripcion: "",
-                precio: "",
-                imagen: "",
-                categoria: "",
-                stock: "",
-              });
-              setEditandoId(null);
-            }}
-          >
-            Cancelar
+    <div className="grid gap-10">
+      {/* Formulario */}
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md grid gap-6">
+        <h2 className="text-2xl font-bold">{editando ? 'Editar producto' : 'Nuevo producto'}</h2>
+
+        <input name='nombre' value={form.nombre} onChange={handleChange} placeholder='Nombre *' className='input' />
+        <textarea name='descripcion' value={form.descripcion} onChange={handleChange} placeholder='Descripción *' rows='2' className='input' />
+        <input type='number' name='precio' value={form.precio} onChange={handleChange} placeholder='Precio *' className='input' />
+        <input type='number' name='stock' value={form.stock} onChange={handleChange} placeholder='Stock' className='input' />
+        <input name='imagen' value={form.imagen} onChange={handleChange} placeholder='URL imagen *' className='input' />
+        <input name='categoria' value={form.categoria} onChange={handleChange} placeholder='ID categoría' className='input' />
+
+        <div className='text-right'>
+          <button disabled={loading} className='btn-primary'>
+            {loading ? 'Guardando...' : (editando ? 'Actualizar' : 'Registrar')}
           </button>
-        </>
-      ) : (
-        <button onClick={handleCrearProducto}>Crear Producto</button>
-      )}
+        </div>
+      </form>
 
-      <hr />
-
-      <h3>Mis Productos</h3>
-      {loading && <p>Cargando productos...</p>}
-      {productos.length === 0 && !loading && <p>No hay productos.</p>}
-      <ul>
-        {productos.map((p) => (
-          <li key={p._id} style={{ marginBottom: 10 }}>
-            <strong>{p.nombre}</strong> - Precio: ${p.precio} - Stock: {p.stock} <br />
-            <button onClick={() => editarProducto(p)}>Editar</button>{" "}
-            <button onClick={() => eliminarProducto(p._id)}>Eliminar</button>
-          </li>
-        ))}
-      </ul>
+      {/* Lista de productos */}
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow">
+        <h2 className="text-xl font-bold mb-4">Mis productos</h2>
+        {productos.length === 0 ? (
+          <p className="text-gray-500">Aún no has registrado productos.</p>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {productos.map((prod) => (
+              <div key={prod._id} className="border p-4 rounded-lg flex flex-col gap-2">
+                <img src={prod.imagen} alt={prod.nombre} className="w-full h-48 object-cover rounded" />
+                <h3 className="font-bold text-lg">{prod.nombre}</h3>
+                <p className="text-sm">{prod.descripcion}</p>
+                <p className="text-blue-500 font-semibold">${prod.precio}</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => handleEdit(prod)} className="btn-secondary">Editar</button>
+                  <button onClick={() => handleDelete(prod._id)} className="btn-danger">Eliminar</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  );
-};
+  )
+}
