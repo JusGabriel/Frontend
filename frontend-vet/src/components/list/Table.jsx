@@ -10,7 +10,7 @@ const Table = ({ entidad }) => {
     const navigate = useNavigate();  // Inicializas useNavigate
 
     const listarRegistros = async () => {
-        const url = `${import.meta.env.VITE_BACKEND_URL}/${entidad}/todos`;
+        const url = `${import.meta.env.VITE_BACKEND_URL}/${entidad}/api/todos`;
         const storedUser = JSON.parse(localStorage.getItem("auth-token"));
 
         const headers = {
@@ -83,3 +83,4 @@ const Table = ({ entidad }) => {
 };
 
 export default Table;
+
