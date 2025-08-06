@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import storeAuth from '../../context/storeAuth'
-import storeProfile from '../../context/storeProfile'
 
 export const FormProducto = () => {
-  const { token, rol } = storeAuth()
-  const { user } = storeProfile()
+  const { token, rol, id: emprendedorId } = storeAuth()
 
   const [form, setForm] = useState({
-    nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    imagen: '',
+    categoria: '',
+    stock: ''
   })
   const [loading, setLoading] = useState(false)
   const [productos, setProductos] = useState([])
@@ -17,8 +20,9 @@ export const FormProducto = () => {
 
   // Obtener productos del emprendedor
   const fetchMisProductos = async () => {
+    if (!emprendedorId) return
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${user._id}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${emprendedorId}`
       const config = { headers: { Authorization: `Bearer ${token}` } }
       const { data } = await axios.get(url, config)
       setProductos(data)
@@ -35,14 +39,20 @@ export const FormProducto = () => {
   // Registrar o actualizar producto
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (rol !== 'editor') return toast.error('Solo emprendedores pueden crear productos')
+
+    if (rol !== 'emprendedor' && rol !== 'editor') {
+      return toast.error('Solo emprendedores pueden crear productos')
+    }
 
     const { nombre, descripcion, precio, imagen } = form
-    if (!nombre || !descripcion || !precio || !imagen) return toast.error('Completa todos los campos obligatorios')
+    if (!nombre || !descripcion || !precio || !imagen) {
+      return toast.error('Completa todos los campos obligatorios')
+    }
 
     const config = {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     }
+
     const body = {
       ...form,
       precio: Number(form.precio),
@@ -83,16 +93,23 @@ export const FormProducto = () => {
     }
   }
 
-  // Cargar producto al formulario
+  // Cargar producto al formulario para editar
   const handleEdit = (producto) => {
-    setForm({ ...producto, precio: String(producto.precio), stock: String(producto.stock || '') })
+    setForm({
+      nombre: producto.nombre,
+      descripcion: producto.descripcion,
+      precio: String(producto.precio),
+      imagen: producto.imagen,
+      categoria: producto.categoria || '',
+      stock: String(producto.stock || '')
+    })
     setEditando(producto._id)
   }
 
   // Cargar productos al montar el componente
   useEffect(() => {
-    if (rol === 'editor') fetchMisProductos()
-  }, [rol, user?._id])
+    if ((rol === 'emprendedor' || rol === 'editor') && emprendedorId) fetchMisProductos()
+  }, [rol, emprendedorId])
 
   return (
     <div className="grid gap-10">
