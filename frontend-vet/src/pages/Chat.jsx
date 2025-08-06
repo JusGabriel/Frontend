@@ -1,17 +1,16 @@
 import { useState, useEffect, useRef } from "react";
+import storeAuth from "../context/storeAuth";
 
 const Chat = () => {
-  const [vista, setVista] = useState("chat"); // 'chat' | 'quejas'
-  // Estado para Chat general
-  const [usuarioId, setUsuarioId] = useState(""); // ID del usuario actual
-  const [emisorRol, setEmisorRol] = useState("Administrador");
+  const { id: usuarioId, rol: emisorRol } = storeAuth();
+
+  const [vista, setVista] = useState("chat");
   const [conversacionId, setConversacionId] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [mensajes, setMensajes] = useState([]);
   const [conversaciones, setConversaciones] = useState([]);
   const [info, setInfo] = useState("");
 
-  // Estado para Quejas
   const [quejas, setQuejas] = useState([]);
   const [quejaSeleccionada, setQuejaSeleccionada] = useState(null);
   const [mensajeQueja, setMensajeQueja] = useState("");
@@ -19,9 +18,8 @@ const Chat = () => {
 
   const mensajesRef = useRef(null);
 
-  // --- CHAT GENERAL ---
-
   const cargarConversaciones = async () => {
+    if (!usuarioId) return;
     try {
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
@@ -49,9 +47,7 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    if (usuarioId) {
-      cargarConversaciones();
-    }
+    cargarConversaciones();
   }, [usuarioId]);
 
   useEffect(() => {
@@ -77,8 +73,6 @@ const Chat = () => {
           body: JSON.stringify({
             emisorId: usuarioId,
             emisorRol,
-            receptorId: "", // Aquí puedes definir el receptor si es necesario
-            receptorRol: "", // Aquí puedes definir el rol del receptor si es necesario
             contenido: mensaje.trim(),
           }),
         }
@@ -87,6 +81,7 @@ const Chat = () => {
       if (res.ok) {
         setMensaje("");
         setInfo("");
+        obtenerMensajes(); // refrescar mensajes al enviar
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
@@ -94,8 +89,6 @@ const Chat = () => {
       setInfo("❌ Error de red: " + error.message);
     }
   };
-
-  // --- QUEJAS ---
 
   const cargarQuejas = async () => {
     try {
@@ -166,7 +159,6 @@ const Chat = () => {
 
   return (
     <div className="max-w-3xl mx-auto mt-10 p-4 font-sans">
-      {/* Botones para cambiar vista */}
       <div className="flex justify-center mb-6 gap-4">
         <button
           onClick={() => setVista("chat")}
@@ -190,77 +182,36 @@ const Chat = () => {
         </button>
       </div>
 
-      {/* --- VISTA CHAT --- */}
+      {/* CHAT GENERAL */}
       {vista === "chat" && (
         <>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              cargarConversaciones();
-            }}
-            className="space-y-4 bg-white p-6 rounded-lg shadow-md"
-          >
-            <input
-              type="text"
-              placeholder="ID del usuario"
-              value={usuarioId}
-              onChange={(e) => setUsuarioId(e.target.value)}
-              className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-            />
-            <select
-              value={emisorRol}
-              onChange={(e) => setEmisorRol(e.target.value)}
-              className="w-full border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-purple-600"
-            >
-              <option>Administrador</option>
-              <option>Emprendedor</option>
-              <option>Cliente</option>
-            </select>
-
-            <button
-              type="button"
-              onClick={cargarConversaciones}
-              className="w-full bg-purple-700 text-white py-3 rounded-md font-semibold hover:bg-purple-900 transition-colors"
-            >
-              Cargar Conversaciones
-            </button>
-            {info && (
-              <p
-                className={`text-center mt-2 ${
-                  info.startsWith("✅") ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {info}
-              </p>
-            )}
-          </form>
-
           <div className="bg-white rounded-lg shadow-lg flex flex-col h-[500px]">
             <div
               ref={mensajesRef}
               className="flex-grow overflow-y-auto p-4 space-y-3 bg-gray-50"
             >
-              {mensajes.length === 0 && (
-                <p className="text-center text-gray-400">
-                  No hay mensajes aún.
-                </p>
-              )}
-              {mensajes.map((msg) => {
-                const esEmisor = msg.emisor === usuarioId;
-                return (
-                  <div
-                    key={msg._id}
-                    className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm break-words
-                    ${esEmisor ? "bg-green-200 self-end text-right" : "bg-gray-200 self-start text-left"}
-                    `}
-                  >
-                    {msg.contenido}
-                    <div className="text-xs text-gray-500 mt-1">
-                      {msg.emisorRol}
+              {mensajes.length === 0 ? (
+                <p className="text-center text-gray-400">No hay mensajes aún.</p>
+              ) : (
+                mensajes.map((msg) => {
+                  const esEmisor = msg.emisor === usuarioId;
+                  return (
+                    <div
+                      key={msg._id}
+                      className={`max-w-[70%] p-3 rounded-xl shadow-sm text-sm break-words ${
+                        esEmisor
+                          ? "bg-green-200 self-end text-right"
+                          : "bg-gray-200 self-start text-left"
+                      }`}
+                    >
+                      {msg.contenido}
+                      <div className="text-xs text-gray-500 mt-1">
+                        {msg.emisorRol}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             <form
@@ -286,25 +237,17 @@ const Chat = () => {
         </>
       )}
 
-      {/* --- VISTA QUEJAS --- */}
+      {/* QUEJAS */}
       {vista === "quejas" && (
         <div className="bg-white rounded-lg shadow-md p-4 space-y-4 flex flex-col md:flex-row gap-6">
-          {/* Lista de quejas */}
           <div className="md:w-1/2 max-h-[500px] overflow-y-auto border border-gray-300 rounded-md p-2">
             {quejas.length === 0 ? (
-              <p className="text-center text-gray-500 mt-4">
-                No hay quejas registradas.
-              </p>
+              <p className="text-center text-gray-500 mt-4">No hay quejas registradas.</p>
             ) : (
               quejas.map((q) => {
-                const emprendedor = q.participantes.find(
-                  (p) => p.rol === "Emprendedor"
-                )?.id;
-                const admin = q.participantes.find(
-                  (p) => p.rol === "Administrador"
-                )?.id;
+                const emprendedor = q.participantes.find((p) => p.rol === "Emprendedor")?.id;
+                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
                 const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
-
                 const isSelected = quejaSeleccionada?._id === q._id;
 
                 return (
@@ -336,7 +279,6 @@ const Chat = () => {
             )}
           </div>
 
-          {/* Chat de queja seleccionada */}
           <div className="md:w-1/2 bg-gray-50 rounded-md flex flex-col h-[500px]">
             {quejaSeleccionada ? (
               <>
@@ -353,9 +295,7 @@ const Chat = () => {
                   className="flex-grow overflow-y-auto p-4 space-y-3"
                 >
                   {mensajesQueja.length === 0 ? (
-                    <p className="text-center text-gray-500 mt-4">
-                      No hay mensajes aún.
-                    </p>
+                    <p className="text-center text-gray-500 mt-4">No hay mensajes aún.</p>
                   ) : (
                     mensajesQueja.map((msg) => {
                       const esMio = msg.emisor === usuarioId;
@@ -369,9 +309,7 @@ const Chat = () => {
                           }`}
                         >
                           {msg.contenido}
-                          <div className="text-xs text-gray-500 mt-1">
-                            {msg.emisorRol}
-                          </div>
+                          <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
                         </div>
                       );
                     })
@@ -411,4 +349,3 @@ const Chat = () => {
 };
 
 export default Chat;
-
