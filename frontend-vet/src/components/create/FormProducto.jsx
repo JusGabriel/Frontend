@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import storeAuth from '../../context/storeAuth'
-import storeProfile from '../../context/storeProfile'
+// ya no es necesario storeProfile si solo usas el id del auth
+// import storeProfile from '../../context/storeProfile'
 
 export const FormProducto = () => {
-  const { token, rol } = storeAuth()
-  const { user } = storeProfile()
+  const { token, rol, id } = storeAuth() // obtener el id del usuario directamente
+  // const { user } = storeProfile()  // ya no necesario
 
   const [form, setForm] = useState({
     nombre: '', descripcion: '', precio: '', imagen: '', categoria: '', stock: ''
@@ -18,7 +19,8 @@ export const FormProducto = () => {
   // Obtener productos del emprendedor
   const fetchMisProductos = async () => {
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${user._id}`
+      if (!id) return // si no hay id no buscar
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/emprendedor/${id}`
       const config = { headers: { Authorization: `Bearer ${token}` } }
       const { data } = await axios.get(url, config)
       setProductos(data)
@@ -70,10 +72,10 @@ export const FormProducto = () => {
   }
 
   // Eliminar producto
-  const handleDelete = async (id) => {
+  const handleDelete = async (idProd) => {
     if (!confirm('¿Seguro que deseas eliminar este producto?')) return
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/${id}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/productos/${idProd}`
       const config = { headers: { Authorization: `Bearer ${token}` } }
       await axios.delete(url, config)
       toast.success('Producto eliminado ✅')
@@ -91,8 +93,8 @@ export const FormProducto = () => {
 
   // Cargar productos al montar el componente
   useEffect(() => {
-    if (rol === 'editor') fetchMisProductos()
-  }, [rol, user?._id])
+    if (rol === 'editor' && id) fetchMisProductos()
+  }, [rol, id])
 
   return (
     <div className="grid gap-10">
