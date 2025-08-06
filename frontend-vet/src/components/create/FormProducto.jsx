@@ -11,14 +11,14 @@ export const FormProducto = () => {
     descripcion: "",
     precio: "",
     imagen: "",
-    // categoria: "",  <-- eliminado
+    // categoria: "",  <-- eliminado por ahora
     stock: "",
   });
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
   const [error, setError] = useState(null);
 
-  // Función para cargar productos del emprendedor
+  // Cargar productos del emprendedor
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -35,24 +35,24 @@ export const FormProducto = () => {
     }
   };
 
+  // Cargar productos al iniciar o cuando cambia emprendedorId
   useEffect(() => {
     cargarProductos();
   }, [emprendedorId]);
 
-  // Manejar cambio en formulario
+  // Manejar cambio en inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Resetear formulario
+  // Resetear formulario y estados
   const resetForm = () => {
     setForm({
       nombre: "",
       descripcion: "",
       precio: "",
       imagen: "",
-      // categoria: "",  <-- eliminado
       stock: "",
     });
     setModoEdicion(false);
@@ -71,7 +71,7 @@ export const FormProducto = () => {
         "https://backend-production-bd1d.up.railway.app/api/productos",
         {
           ...form,
-          categoria: null, // obligatorio null para evitar error backend
+          categoria: null, // mantenemos null si no se usa categoria
           precio: Number(form.precio),
           stock: Number(form.stock),
         },
@@ -86,7 +86,7 @@ export const FormProducto = () => {
     }
   };
 
-  // Preparar para editar producto
+  // Preparar formulario para editar producto existente
   const editarProducto = (producto) => {
     setModoEdicion(true);
     setProductoEditId(producto._id);
@@ -95,7 +95,6 @@ export const FormProducto = () => {
       descripcion: producto.descripcion || "",
       precio: producto.precio || "",
       imagen: producto.imagen || "",
-      // categoria: producto.categoria?._id || "",  <-- eliminado
       stock: producto.stock || "",
     });
     setError(null);
@@ -112,7 +111,7 @@ export const FormProducto = () => {
         `https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId}`,
         {
           ...form,
-          categoria: null, // obligatorio null para evitar error backend
+          categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
         },
@@ -148,7 +147,7 @@ export const FormProducto = () => {
     }
   };
 
-  // Submit formulario
+  // Enviar formulario
   const handleSubmit = (e) => {
     e.preventDefault();
     if (modoEdicion) {
@@ -165,6 +164,7 @@ export const FormProducto = () => {
       {/* Formulario Crear/Editar */}
       <form onSubmit={handleSubmit} style={styles.form}>
         {error && <p style={styles.error}>{error}</p>}
+
         <input
           style={styles.input}
           name="nombre"
@@ -198,14 +198,6 @@ export const FormProducto = () => {
           value={form.imagen}
           onChange={handleChange}
         />
-        {/* <input
-          style={styles.input}
-          name="categoria"
-          placeholder="ID Categoría"
-          value={form.categoria}
-          onChange={handleChange}
-        /> */}
-
         <input
           style={styles.input}
           name="stock"
