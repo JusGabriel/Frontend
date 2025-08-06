@@ -6,7 +6,7 @@ import storeAuth from '../context/storeAuth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { token, setToken, setRol } = storeAuth();
+  const { token, setToken, setRol, setId } = storeAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -65,8 +65,17 @@ const Login = () => {
 
       if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
 
+      // Mapeo de roles
+      const roleMap = {
+        admin: "Administrador",
+        editor: "Emprendedor",
+        user: "Cliente"
+      };
+
       setToken(result.token);
-      setRol(data.role);
+      setRol(roleMap[data.role] || result.rol);
+      setId(result._id);
+
       toast.success("Inicio de sesión exitoso");
       setTimeout(() => navigate('/dashboard'), 1500);
 
@@ -75,7 +84,6 @@ const Login = () => {
     }
   };
 
-  // URLs directas de Google OAuth
   const GOOGLE_CLIENT_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
@@ -115,7 +123,6 @@ const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute top-2 right-3 text-gray-500 hover:text-gray-700"
                 >
-                  {/* SVG ocultar/mostrar */}
                   {showPassword ? (
                     <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" />
