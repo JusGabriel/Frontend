@@ -1,4 +1,3 @@
-// storeAuth.js
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -7,11 +6,11 @@ const storeAuth = create(
     (set) => ({
       token: null,
       rol: null,
-      id: null, // <-- nuevo
+      id: null,
       setToken: (token) => set({ token }),
       setRol: (rol) => set({ rol }),
-      setId: (id) => set({ id }), // <-- nuevo setter
-      clearToken: () => set({ token: null, rol: null, id: null }) // limpiar todo
+      setId: (id) => set({ id }),
+      clearToken: () => set({ token: null, rol: null, id: null })
     }),
     { name: "auth-token" }
   )
