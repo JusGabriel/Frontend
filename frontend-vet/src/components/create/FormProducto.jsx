@@ -11,7 +11,7 @@ export const FormProducto = () => {
     descripcion: "",
     precio: "",
     imagen: "",
-    categoria: "",
+    // categoria: "",  <-- eliminado
     stock: "",
   });
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -52,7 +52,7 @@ export const FormProducto = () => {
       descripcion: "",
       precio: "",
       imagen: "",
-      categoria: "",
+      // categoria: "",  <-- eliminado
       stock: "",
     });
     setModoEdicion(false);
@@ -71,6 +71,7 @@ export const FormProducto = () => {
         "https://backend-production-bd1d.up.railway.app/api/productos",
         {
           ...form,
+          categoria: null, // obligatorio null para evitar error backend
           precio: Number(form.precio),
           stock: Number(form.stock),
         },
@@ -94,7 +95,7 @@ export const FormProducto = () => {
       descripcion: producto.descripcion || "",
       precio: producto.precio || "",
       imagen: producto.imagen || "",
-      categoria: producto.categoria?._id || "",
+      // categoria: producto.categoria?._id || "",  <-- eliminado
       stock: producto.stock || "",
     });
     setError(null);
@@ -111,6 +112,7 @@ export const FormProducto = () => {
         `https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId}`,
         {
           ...form,
+          categoria: null, // obligatorio null para evitar error backend
           precio: Number(form.precio),
           stock: Number(form.stock),
         },
@@ -196,13 +198,14 @@ export const FormProducto = () => {
           value={form.imagen}
           onChange={handleChange}
         />
-        <input
+        {/* <input
           style={styles.input}
           name="categoria"
           placeholder="ID Categoría"
           value={form.categoria}
           onChange={handleChange}
-        />
+        /> */}
+
         <input
           style={styles.input}
           name="stock"
