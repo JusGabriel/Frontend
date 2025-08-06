@@ -1,4 +1,3 @@
-// storeProfile.js
 import { create } from "zustand";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -18,7 +17,6 @@ const getAuthHeaders = () => {
   };
 };
 
-// NUEVO: Mapeo entre el rol guardado (ej: "Administrador") y el tipo de endpoint
 const getEndpointPrefix = (rol) => {
   switch (rol) {
     case "Administrador":
@@ -36,7 +34,7 @@ const getEndpointPrefix = (rol) => {
 const storeProfile = create((set) => ({
   user: null,
 
-  clearUser: () => set({ user: null }),
+  clear:User  () => set({ user: null }),
 
   profile: async () => {
     try {
