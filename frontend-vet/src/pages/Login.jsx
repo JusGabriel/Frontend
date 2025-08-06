@@ -11,19 +11,6 @@ const Login = () => {
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Detectar token y rol desde la URL
-  useEffect(() => {
-    const query = new URLSearchParams(location.search);
-    const tokenFromUrl = query.get('token');
-    const rolFromUrl = query.get('rol');
-
-    if (tokenFromUrl && rolFromUrl) {
-      setToken(tokenFromUrl);
-      setRol(rolFromUrl);
-      navigate('/dashboard');
-    }
-  }, [location.search, setToken, setRol, navigate]);
-
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (token) {
@@ -31,7 +18,7 @@ const Login = () => {
     }
   }, [token, navigate]);
 
-  const loginUser = async (data) => {
+  const loginUser  = async (data) => {
     try {
       let endpoint = "";
       switch (data.role) {
@@ -55,25 +42,16 @@ const Login = () => {
         body: JSON.stringify({ email: data.email, password: data.password })
       });
 
-      const contentType = response.headers.get("content-type");
-      let result;
-      if (contentType && contentType.includes("application/json")) {
-        result = await response.json();
-      } else {
-        throw new Error("No existen estos datos para el rol seleccionado");
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.msg || "Credenciales incorrectas");
       }
 
-      if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
+      const result = await response.json();
 
-      // Mapeo de roles
-      const roleMap = {
-        admin: "Administrador",
-        editor: "Emprendedor",
-        user: "Cliente"
-      };
-
+      // Guardar el token, rol e id
       setToken(result.token);
-      setRol(roleMap[data.role] || result.rol);
+      setRol(result.rol);
       setId(result._id);
 
       toast.success("Inicio de sesión exitoso");
@@ -96,7 +74,7 @@ const Login = () => {
           <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-500">Bienvenido(a) de nuevo</h1>
           <small className="text-gray-400 block my-4 text-sm">Por favor ingresa tus datos</small>
 
-          <form onSubmit={handleSubmit(loginUser)}>
+          <form onSubmit={handleSubmit(loginUser )}>
             <div className="mb-3">
               <label className="mb-2 block text-sm font-semibold">Correo electrónico</label>
               <input
