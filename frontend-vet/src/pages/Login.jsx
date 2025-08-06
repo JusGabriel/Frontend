@@ -6,12 +6,11 @@ import storeAuth from '../context/storeAuth';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { token, setToken, setRol, setId } = storeAuth(); // <- agrega setId
+  const { token, setToken, setRol, setId } = storeAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Detectar token y rol desde la URL (OAuth)
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
@@ -24,7 +23,6 @@ const Login = () => {
     }
   }, [location.search, setToken, setRol, navigate]);
 
-  // Redirigir si ya está autenticado
   useEffect(() => {
     if (token) {
       navigate('/dashboard');
@@ -65,10 +63,9 @@ const Login = () => {
 
       if (!response.ok) throw new Error(result.msg || "Credenciales incorrectas");
 
-      // Guardar token, rol e ID
       setToken(result.token);
-      setRol(result.rol);     // usa el rol devuelto por el backend
-      setId(result._id);      // nuevo: guardar ID
+      setRol(data.role);   // <-- uso data.role aquí
+      setId(result._id);
 
       toast.success("Inicio de sesión exitoso");
       setTimeout(() => navigate('/dashboard'), 1500);
@@ -78,7 +75,6 @@ const Login = () => {
     }
   };
 
-  // URLs directas de Google OAuth
   const GOOGLE_CLIENT_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
