@@ -1,14 +1,13 @@
+// storeProfile.js
 import { create } from "zustand";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-// Obtener token y rol desde Zustand persistido
 const getStoredAuth = () => {
   const stored = JSON.parse(localStorage.getItem("auth-token"));
   return stored?.state || {};
 };
 
-// Encabezados de autenticación
 const getAuthHeaders = () => {
   const { token } = getStoredAuth();
   return {
@@ -19,6 +18,21 @@ const getAuthHeaders = () => {
   };
 };
 
+// NUEVO: Mapeo entre el rol guardado (ej: "Administrador") y el tipo de endpoint
+const getEndpointPrefix = (rol) => {
+  switch (rol) {
+    case "Administrador":
+      return "administradores";
+    case "Cliente":
+      return "clientes";
+    case "Emprendedor":
+      return "emprendedores";
+    default:
+      toast.error("Rol no reconocido");
+      return null;
+  }
+};
+
 const storeProfile = create((set) => ({
   user: null,
 
@@ -27,27 +41,12 @@ const storeProfile = create((set) => ({
   profile: async () => {
     try {
       const { rol } = getStoredAuth();
-      let endpoint = "";
+      const prefix = getEndpointPrefix(rol);
+      if (!prefix) return;
 
-      switch (rol) {
-        case "admin":
-          endpoint = "/api/administradores/perfil";
-          break;
-        case "user":
-          endpoint = "/api/clientes/perfil";
-          break;
-        case "editor":
-          endpoint = "/api/emprendedores/perfil";
-          break;
-        default:
-          toast.error("Rol no reconocido");
-          return;
-      }
-
-      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/perfil`;
       const respuesta = await axios.get(url, getAuthHeaders());
       set({ user: respuesta.data });
-
     } catch (error) {
       console.error(error);
       toast.error("No se pudo obtener el perfil del usuario");
@@ -57,24 +56,10 @@ const storeProfile = create((set) => ({
   updateProfile: async (data, id) => {
     try {
       const { rol } = getStoredAuth();
-      let endpoint = "";
+      const prefix = getEndpointPrefix(rol);
+      if (!prefix) return;
 
-      switch (rol) {
-        case "admin":
-          endpoint = `/api/administradores/admin/${id}`;
-          break;
-        case "user":
-          endpoint = `/api/clientes/cliente/${id}`;
-          break;
-        case "editor":
-          endpoint = `/api/emprendedores/emprendedor/${id}`;
-          break;
-        default:
-          toast.error("Rol no reconocido");
-          return;
-      }
-
-      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       set({ user: respuesta.data });
       toast.success("Perfil actualizado correctamente");
@@ -87,24 +72,10 @@ const storeProfile = create((set) => ({
   updatePasswordProfile: async (data, id) => {
     try {
       const { rol } = getStoredAuth();
-      let endpoint = "";
+      const prefix = getEndpointPrefix(rol);
+      if (!prefix) return;
 
-      switch (rol) {
-        case "admin":
-          endpoint = `/api/administradores/admin/actualizarpassword/${id}`;
-          break;
-        case "user":
-          endpoint = `/api/clientes/cliente/actualizarpassword/${id}`;
-          break;
-        case "editor":
-          endpoint = `/api/emprendedores/emprendedor/actualizarpassword/${id}`;
-          break;
-        default:
-          toast.error("Rol no reconocido");
-          return;
-      }
-
-      const url = `${import.meta.env.VITE_BACKEND_URL}${endpoint}`;
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/actualizarpassword/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       toast.success(respuesta?.data?.msg || "Contraseña actualizada");
       return respuesta;
