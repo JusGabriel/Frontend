@@ -17,6 +17,7 @@ export const FormProducto = () => {
   const [productoEditId, setProductoEditId] = useState(null);
   const [error, setError] = useState(null);
 
+  // Cargar productos del emprendedor
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -148,179 +149,298 @@ export const FormProducto = () => {
   };
 
   return (
-    <div
-      style={{
-        background: "#ffffff",
-        padding: "1.5rem",
-        borderRadius: "15px",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-        width: "100%",
-        maxWidth: "750px",
-        marginLeft: 0, // queda pegado a la izquierda, si quieres centrado cambia a 'auto'
-        fontFamily: "'Playfair Display', serif",
-      }}
-    >
-      <h2
+    <>
+      {/* FORMULARIO */}
+      <div
         style={{
-          fontSize: "1.6rem",
-          fontWeight: "600",
-          color: "#3B2F2F",
-          marginBottom: "1rem",
-          textAlign: "center",
+          background: "#ffffff",
+          padding: "1.5rem",
+          borderRadius: "15px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+          width: "100%",
+          maxWidth: "750px",
+          marginLeft: 0,
+          fontFamily: "'Playfair Display', serif",
         }}
       >
-        {modoEdicion ? "Editar Producto" : "Crear Producto"}
-      </h2>
-
-      <hr
-        style={{
-          border: "none",
-          borderTop: "2px solid #ccc",
-          marginBottom: "1rem",
-        }}
-      />
-
-      {error && (
-        <p
+        <h2
           style={{
-            backgroundColor: "#fee2e2",
-            color: "#b91c1c",
-            padding: "0.75rem",
-            borderRadius: "8px",
+            fontSize: "1.6rem",
+            fontWeight: "600",
+            color: "#3B2F2F",
             marginBottom: "1rem",
-            fontFamily: "'Arial', sans-serif",
+            textAlign: "center",
           }}
         >
-          {error}
-        </p>
-      )}
+          {modoEdicion ? "Editar Producto" : "Crear Producto"}
+        </h2>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.8rem",
-          fontFamily: "'Arial', sans-serif",
-          color: "#333",
-        }}
-      >
-        <input
-          type="text"
-          name="nombre"
-          placeholder="Nombre"
-          value={form.nombre}
-          onChange={handleChange}
-          required
+        <hr
           style={{
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            fontSize: "1rem",
+            border: "none",
+            borderTop: "2px solid #ccc",
+            marginBottom: "1rem",
           }}
         />
 
-        <input
-          type="text"
-          name="descripcion"
-          placeholder="Descripción"
-          value={form.descripcion}
-          onChange={handleChange}
-          style={{
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            fontSize: "1rem",
-          }}
-        />
-
-        <input
-          type="number"
-          name="precio"
-          placeholder="Precio"
-          step="0.01"
-          value={form.precio}
-          onChange={handleChange}
-          required
-          min="0"
-          style={{
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            fontSize: "1rem",
-          }}
-        />
-
-        <input
-          type="text"
-          name="imagen"
-          placeholder="URL Imagen"
-          value={form.imagen}
-          onChange={handleChange}
-          style={{
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            fontSize: "1rem",
-          }}
-        />
-
-        <input
-          type="number"
-          name="stock"
-          placeholder="Stock"
-          value={form.stock}
-          onChange={handleChange}
-          min="0"
-          style={{
-            padding: "0.5rem",
-            border: "1px solid #ccc",
-            borderRadius: "10px",
-            fontSize: "1rem",
-          }}
-        />
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1rem" }}>
-          <button
-            type="submit"
+        {error && (
+          <p
             style={{
-              padding: "0.5rem 1.5rem",
-              backgroundColor: "#AA4A44",
-              color: "white",
-              border: "none",
-              borderRadius: "25px",
-              fontSize: "1rem",
-              cursor: "pointer",
-              transition: "background-color 0.3s",
+              backgroundColor: "#fee2e2",
+              color: "#b91c1c",
+              padding: "0.75rem",
+              borderRadius: "8px",
+              marginBottom: "1rem",
+              fontFamily: "'Arial', sans-serif",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
           >
-            {modoEdicion ? "Actualizar" : "Crear"}
-          </button>
+            {error}
+          </p>
+        )}
 
-          {modoEdicion && (
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.8rem",
+            fontFamily: "'Arial', sans-serif",
+            color: "#333",
+          }}
+        >
+          <input
+            type="text"
+            name="nombre"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            required
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "10px",
+              fontSize: "1rem",
+            }}
+          />
+
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={form.descripcion}
+            onChange={handleChange}
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "10px",
+              fontSize: "1rem",
+            }}
+          />
+
+          <input
+            type="number"
+            name="precio"
+            placeholder="Precio"
+            step="0.01"
+            value={form.precio}
+            onChange={handleChange}
+            required
+            min="0"
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "10px",
+              fontSize: "1rem",
+            }}
+          />
+
+          <input
+            type="text"
+            name="imagen"
+            placeholder="URL Imagen"
+            value={form.imagen}
+            onChange={handleChange}
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "10px",
+              fontSize: "1rem",
+            }}
+          />
+
+          <input
+            type="number"
+            name="stock"
+            placeholder="Stock"
+            value={form.stock}
+            onChange={handleChange}
+            min="0"
+            style={{
+              padding: "0.5rem",
+              border: "1px solid #ccc",
+              borderRadius: "10px",
+              fontSize: "1rem",
+            }}
+          />
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: "1rem",
+              marginTop: "1rem",
+            }}
+          >
             <button
-              type="button"
-              onClick={resetForm}
+              type="submit"
               style={{
                 padding: "0.5rem 1.5rem",
-                backgroundColor: "#ccc",
-                color: "#333",
+                backgroundColor: "#AA4A44",
+                color: "white",
                 border: "none",
                 borderRadius: "25px",
                 fontSize: "1rem",
                 cursor: "pointer",
                 transition: "background-color 0.3s",
               }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#aaa")}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#ccc")}
+              onMouseOver={(e) =>
+                (e.currentTarget.style.backgroundColor = "#8C3E39")
+              }
+              onMouseOut={(e) =>
+                (e.currentTarget.style.backgroundColor = "#AA4A44")
+              }
             >
-              Cancelar
+              {modoEdicion ? "Actualizar" : "Crear"}
             </button>
-          )}
-        </div>
-      </form>
-    </div>
+
+            {modoEdicion && (
+              <button
+                type="button"
+                onClick={resetForm}
+                style={{
+                  padding: "0.5rem 1.5rem",
+                  backgroundColor: "#ccc",
+                  color: "#333",
+                  border: "none",
+                  borderRadius: "25px",
+                  fontSize: "1rem",
+                  cursor: "pointer",
+                  transition: "background-color 0.3s",
+                }}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#aaa")
+                }
+                onMouseOut={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#ccc")
+                }
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* LISTA DE PRODUCTOS */}
+      <div style={styles.listaContainer}>
+        {loading ? (
+          <p>Cargando productos...</p>
+        ) : productos.length === 0 ? (
+          <p>No tienes productos aún.</p>
+        ) : (
+          productos.map((prod) => (
+            <div key={prod._id} style={styles.productoCard}>
+              <div style={styles.productoInfo}>
+                <strong>{prod.nombre}</strong>
+                <p>{prod.descripcion}</p>
+                <p>
+                  Precio: <b>${prod.precio.toFixed(2)}</b>
+                </p>
+                <p>Stock: {prod.stock}</p>
+                {prod.imagen && (
+                  <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />
+                )}
+                <p>
+                  Categoría:{" "}
+                  {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
+                </p>
+              </div>
+              <div style={styles.buttonsCard}>
+                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
+                  Editar
+                </button>
+                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
+                  Borrar
+                </button>
+                <button
+                  style={styles.buttonBuy}
+                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
+                >
+                  Comprar
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </>
   );
+};
+
+const styles = {
+  listaContainer: {
+    maxWidth: 750,
+    margin: "1.5rem auto 0 auto",
+    padding: 15,
+    display: "flex",
+    flexDirection: "column",
+    gap: 15,
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  },
+  productoCard: {
+    display: "flex",
+    flexDirection: "column",
+    border: "1px solid #ddd",
+    borderRadius: 6,
+    padding: 15,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+    backgroundColor: "#fff",
+  },
+  productoInfo: {
+    marginBottom: 10,
+  },
+  imagen: {
+    maxWidth: "100%",
+    height: "auto",
+    borderRadius: 6,
+    marginTop: 10,
+  },
+  buttonsCard: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  buttonEdit: {
+    backgroundColor: "#ffc107",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 4,
+    cursor: "pointer",
+  },
+  buttonDelete: {
+    backgroundColor: "#dc3545",
+    color: "white",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 4,
+    cursor: "pointer",
+  },
+  buttonBuy: {
+    backgroundColor: "#4a9716ff",
+    color: "white",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 4,
+    cursor: "pointer",
+  },
 };
