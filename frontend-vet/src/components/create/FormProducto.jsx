@@ -353,36 +353,36 @@ export const FormProducto = () => {
           productos.map((prod) => (
             <div
               key={prod._id}
-              className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex flex-row"
+              className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex overflow-hidden"
               style={{ minWidth: "180px" }}
             >
-              <div className="flex-shrink-0 mr-4" style={{ maxWidth: "100px" }}>
+              <div className="flex-shrink-0 w-24 h-24 mr-4 overflow-hidden rounded-lg">
                 {prod.imagen ? (
                   <img
                     src={prod.imagen}
                     alt={prod.nombre}
-                    className="rounded-lg object-cover w-full h-full"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="bg-gray-200 rounded-lg w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                  <div className="bg-gray-200 w-full h-full flex items-center justify-center text-gray-500 text-sm rounded-lg">
                     Sin imagen
                   </div>
                 )}
               </div>
-              <div className="flex flex-col justify-between flex-grow">
+              <div className="flex flex-col justify-between flex-grow min-w-0">
                 <div>
-                  <strong className="block text-lg mb-1">{prod.nombre}</strong>
-                  <p className="text-sm mb-1">{prod.descripcion}</p>
+                  <strong className="block text-lg mb-1 truncate">{prod.nombre}</strong>
+                  <p className="text-sm mb-1 truncate">{prod.descripcion}</p>
                   <p className="text-sm mb-1">
                     Precio: <b>${prod.precio.toFixed(2)}</b>
                   </p>
                   <p className="text-sm mb-1">Stock: {prod.stock}</p>
-                  <p className="text-sm mb-2">
+                  <p className="text-sm mb-2 truncate">
                     Categoría:{" "}
                     {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
                   </p>
                 </div>
-                <div className="flex gap-2 justify-end mt-auto">
+                <div className="flex gap-2 justify-end mt-auto flex-wrap">
                   <button
                     className="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded-md transition"
                     onClick={() => editarProducto(prod)}
