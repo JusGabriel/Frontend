@@ -10,25 +10,25 @@ const Dashboard = () => {
 
   // Links basados en rutas definidas en App.jsx
   // Se oculta "Listar" para el rol Emprendedor
-  const menuLinks = {
-    Administrador: [
-      { to: '/dashboard', label: 'Perfil' },
-      { to: '/dashboard/listar', label: 'Listar' },
-      { to: '/dashboard/crear', label: 'Crear' },
-      { to: '/dashboard/chat', label: 'Chat' },
-    ],
-    Emprendedor: [
-      { to: '/dashboard', label: 'Perfil' },
-      // No mostrar listar para emprendedor
-      { to: '/dashboard/crear', label: 'Crear' },
-      { to: '/dashboard/chat', label: 'Chat' },
-    ],
-    Cliente: [
-      { to: '/dashboard', label: 'Perfil' },
-      { to: '/dashboard/listar', label: 'Listar' },
-      { to: '/dashboard/chat', label: 'Chat' },
-    ],
-  };
+const menuLinks = {
+  Administrador: [
+    { to: '/dashboard', label: 'Perfil' },
+    { to: '/dashboard/listar', label: 'Listar' },
+    { to: '/dashboard/crear', label: 'Crear' },
+    { to: '/dashboard/chat', label: 'Chat' },
+  ],
+  Emprendedor: [
+    { to: '/dashboard', label: 'Perfil' },
+    // No mostrar listar para emprendedor
+    { to: '/dashboard/crear', label: 'Crear' },
+    { to: '/dashboard/chat', label: 'Chat' },
+  ],
+  Cliente: [
+    { to: '/dashboard', label: 'Perfil' },
+    { to: '/dashboard/inicio', label: 'Inicio' },  // Cambio aquí (antes listar)
+    { to: '/dashboard/chat', label: 'Chat' },
+  ],
+};
 
   // Obtener menú para el rol actual o vacío
   const links = menuLinks[user?.rol] || [];
@@ -99,3 +99,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
