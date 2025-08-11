@@ -147,151 +147,180 @@ export const FormProducto = () => {
     }
   };
 
-return (
-  <div className="max-w-[1200px] mx-auto p-6 flex flex-col md:flex-row gap-12">
-    {/* Formulario */}
-    <section className="flex-[0_0_45%] bg-[#F7E5D2] p-8 rounded-xl shadow-inner">
-      {/* Header formulario ocupando todo el ancho */}
-      <h2 className="text-3xl font-bold text-[#AA4A44] mb-8 border-b-4 border-[#AA4A44] pb-3 w-full text-center">
-        Mis Productos
+  return (
+    <div
+      style={{
+        background: "#ffffff",
+        padding: "1.5rem",
+        borderRadius: "15px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+        width: "100%",
+        maxWidth: "750px",
+        marginLeft: 0, // queda pegado a la izquierda, si quieres centrado cambia a 'auto'
+        fontFamily: "'Playfair Display', serif",
+      }}
+    >
+      <h2
+        style={{
+          fontSize: "1.6rem",
+          fontWeight: "600",
+          color: "#3B2F2F",
+          marginBottom: "1rem",
+          textAlign: "center",
+        }}
+      >
+        {modoEdicion ? "Editar Producto" : "Crear Producto"}
       </h2>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-gray-800">
-        {error && (
-          <p className="bg-red-100 text-red-700 p-3 rounded mb-6">{error}</p>
-        )}
+      <hr
+        style={{
+          border: "none",
+          borderTop: "2px solid #ccc",
+          marginBottom: "1rem",
+        }}
+      />
 
+      {error && (
+        <p
+          style={{
+            backgroundColor: "#fee2e2",
+            color: "#b91c1c",
+            padding: "0.75rem",
+            borderRadius: "8px",
+            marginBottom: "1rem",
+            fontFamily: "'Arial', sans-serif",
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.8rem",
+          fontFamily: "'Arial', sans-serif",
+          color: "#333",
+        }}
+      >
         <input
-          className="p-3 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none text-lg"
+          type="text"
           name="nombre"
           placeholder="Nombre"
           value={form.nombre}
           onChange={handleChange}
           required
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "10px",
+            fontSize: "1rem",
+          }}
         />
+
         <input
-          className="p-3 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none text-lg"
+          type="text"
           name="descripcion"
           placeholder="Descripción"
           value={form.descripcion}
           onChange={handleChange}
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "10px",
+            fontSize: "1rem",
+          }}
         />
+
         <input
-          className="p-3 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none text-lg"
+          type="number"
           name="precio"
           placeholder="Precio"
-          type="number"
           step="0.01"
           value={form.precio}
           onChange={handleChange}
           required
           min="0"
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "10px",
+            fontSize: "1rem",
+          }}
         />
+
         <input
-          className="p-3 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none text-lg"
+          type="text"
           name="imagen"
           placeholder="URL Imagen"
           value={form.imagen}
           onChange={handleChange}
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "10px",
+            fontSize: "1rem",
+          }}
         />
+
         <input
-          className="p-3 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none text-lg"
+          type="number"
           name="stock"
           placeholder="Stock"
-          type="number"
           value={form.stock}
           onChange={handleChange}
           min="0"
+          style={{
+            padding: "0.5rem",
+            border: "1px solid #ccc",
+            borderRadius: "10px",
+            fontSize: "1rem",
+          }}
         />
 
-        <div className="flex justify-end gap-6 mt-6">
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem", marginTop: "1rem" }}>
           <button
             type="submit"
-            className="bg-[#AA4A44] hover:bg-[#933834] text-white font-semibold py-3 px-8 rounded transition"
+            style={{
+              padding: "0.5rem 1.5rem",
+              backgroundColor: "#AA4A44",
+              color: "white",
+              border: "none",
+              borderRadius: "25px",
+              fontSize: "1rem",
+              cursor: "pointer",
+              transition: "background-color 0.3s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
           >
             {modoEdicion ? "Actualizar" : "Crear"}
           </button>
+
           {modoEdicion && (
             <button
               type="button"
               onClick={resetForm}
-              className="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-3 px-8 rounded transition"
+              style={{
+                padding: "0.5rem 1.5rem",
+                backgroundColor: "#ccc",
+                color: "#333",
+                border: "none",
+                borderRadius: "25px",
+                fontSize: "1rem",
+                cursor: "pointer",
+                transition: "background-color 0.3s",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#aaa")}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#ccc")}
             >
               Cancelar
             </button>
           )}
         </div>
       </form>
-    </section>
-
-    {/* Lista de productos */}
-    <section className="flex-[0_0_55%]">
-      <h2 className="text-3xl font-bold text-[#AA4A44] mb-8 border-b-4 border-[#AA4A44] pb-3 w-full text-center">
-        Mis Productos
-      </h2>
-
-      <div className="flex flex-col gap-8">
-        {loading ? (
-          <p className="text-center text-gray-600">Cargando productos...</p>
-        ) : productos.length === 0 ? (
-          <p className="text-center text-gray-600">No tienes productos aún.</p>
-        ) : (
-          productos.map((prod) => (
-            <div
-              key={prod._id}
-              className="bg-white border border-[#E0C7B6] rounded-xl p-6 shadow hover:shadow-lg transition flex gap-6 items-center"
-            >
-              <div className="w-1 bg-[#AA4A44] rounded-l-xl" />
-
-              {prod.imagen ? (
-                <img
-                  src={prod.imagen}
-                  alt={prod.nombre}
-                  className="w-32 h-32 object-cover rounded-lg"
-                />
-              ) : (
-                <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">
-                  Sin imagen
-                </div>
-              )}
-
-              <div className="flex-1">
-                <h3 className="font-semibold text-xl text-[#AA4A44]">{prod.nombre}</h3>
-                <p className="text-base text-gray-700">{prod.descripcion}</p>
-                <p className="mt-2 text-[#28a745] font-bold text-lg">${prod.precio.toFixed(2)}</p>
-                <p className="text-base text-gray-600">Stock: {prod.stock}</p>
-                <p className="text-base text-gray-600">
-                  Categoría: {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4 min-w-[120px]">
-                <button
-                  onClick={() => editarProducto(prod)}
-                  className="bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded transition"
-                >
-                  Editar
-                </button>
-                <button
-                  onClick={() => eliminarProducto(prod._id)}
-                  className="bg-red-600 hover:bg-red-700 text-white py-2 rounded transition"
-                >
-                  Borrar
-                </button>
-                <button
-                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
-                  className="bg-green-600 hover:bg-green-700 text-white py-2 rounded transition"
-                >
-                  Comprar
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </section>
-  </div>
-);
+    </div>
+  );
 };
-
-
