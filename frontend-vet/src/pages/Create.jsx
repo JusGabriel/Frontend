@@ -13,6 +13,9 @@ const Create = () => {
     >
       {/* ENCABEZADO */}
       <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900 relative z-10 w-full max-w-3xl mx-auto">
+        <h1 className="text-3xl md:text-4xl font-black text-gray-800 dark:text-gray-200 mb-2">
+          Agregar Producto
+        </h1>
         <hr className="border-b-2 border-[#AA4A44] w-24 mb-4" />
         <p className="text-gray-600 dark:text-gray-300">
           Completa el formulario para registrar un nuevo producto en tu catálogo.
