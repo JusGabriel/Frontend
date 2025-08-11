@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';  // <-- agregado para navegación
+import { useNavigate } from 'react-router-dom';  // <-- navegación
 import fondoblanco from '../assets/fondoblanco.jpg';
 import Servicios from './pgPrueba/Servicios';
 
 const HomeContent = () => {
-  const navigate = useNavigate();  // <-- hook navegación
+  const navigate = useNavigate();
 
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
@@ -24,15 +24,18 @@ const HomeContent = () => {
       .catch(error => console.error('Error al cargar productos:', error));
   }, []);
 
-  // Función para navegar al detalle
-  const handleVerMas = (id) => {
+  // Navegar a detalle emprendimiento
+  const handleVerMasEmprendimiento = (id) => {
+    navigate(`/dashboard/detalle-emprendimiento/${id}`);
+  };
+
+  // Navegar a detalle producto, ahora apunta también a detalle-emprendimiento
+  const handleVerMasProducto = (id) => {
     navigate(`/dashboard/detalle-emprendimiento/${id}`);
   };
 
   return (
     <>
-      {/* Nota: Aquí NO va Header ni Footer */}
-
       {section === 'inicio' && (
         <>
           {/* HERO */}
@@ -51,7 +54,7 @@ const HomeContent = () => {
               </div>
               <div className="flex-1 flex justify-center md:justify-end">
                 <img
-                  src={fondoblanco} // Si quieres el heroImage, cámbialo aquí
+                  src={fondoblanco}
                   alt="Hero"
                   className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
                 />
@@ -59,7 +62,7 @@ const HomeContent = () => {
             </div>
           </main>
 
-          {/* Línea decorativa entre Hero y Productos */}
+          {/* Línea decorativa */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* PRODUCTOS DESTACADOS */}
@@ -79,10 +82,8 @@ const HomeContent = () => {
                       key={producto._id}
                       className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex"
                     >
-                      {/* Línea vertical */}
                       <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
 
-                      {/* Contenido producto */}
                       <div className="flex-1">
                         <img
                           src={producto.imagen}
@@ -94,7 +95,7 @@ const HomeContent = () => {
                         <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
                         <button
                           className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
-                          onClick={() => handleVerMas(producto._id)} // <-- aquí
+                          onClick={() => handleVerMasProducto(producto._id)}
                         >
                           Ver más
                         </button>
@@ -106,7 +107,7 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* Línea decorativa entre Productos y Emprendimientos */}
+          {/* Línea decorativa */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* EMPRENDIMIENTOS */}
@@ -118,7 +119,6 @@ const HomeContent = () => {
               backgroundPosition: 'center',
             }}
           >
-            {/* Líneas diagonales sutiles */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -140,7 +140,8 @@ const HomeContent = () => {
                   emprendimientos.map((emp) => (
                     <div
                       key={emp._id}
-                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all"
+                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                      onClick={() => handleVerMasEmprendimiento(emp._id)}
                     >
                       <img
                         src={emp.logo}
