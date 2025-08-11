@@ -342,36 +342,60 @@ export const FormProducto = () => {
       </div>
 
       {/* LISTA DE PRODUCTOS */}
-      <div style={styles.listaContainer}>
+      <div
+        className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full max-w-[750px] mx-auto mt-6 px-4"
+      >
         {loading ? (
           <p>Cargando productos...</p>
         ) : productos.length === 0 ? (
           <p>No tienes productos aún.</p>
         ) : (
           productos.map((prod) => (
-            <div key={prod._id} style={styles.productoCard}>
-              <div style={styles.productoInfo}>
-                <strong>{prod.nombre}</strong>
-                <p>{prod.descripcion}</p>
-                <p>
-                  Precio: <b>${prod.precio.toFixed(2)}</b>
-                </p>
-                <p>Stock: {prod.stock}</p>
-                {prod.imagen && (
-                  <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />
+            <div
+              key={prod._id}
+              className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex flex-row"
+              style={{ minWidth: "180px" }}
+            >
+              <div className="flex-shrink-0 mr-4" style={{ maxWidth: "100px" }}>
+                {prod.imagen ? (
+                  <img
+                    src={prod.imagen}
+                    alt={prod.nombre}
+                    className="rounded-lg object-cover w-full h-full"
+                  />
+                ) : (
+                  <div className="bg-gray-200 rounded-lg w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                    Sin imagen
+                  </div>
                 )}
-                <p>
-                  Categoría:{" "}
-                  {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
-                </p>
               </div>
-              <div style={styles.buttonsCard}>
-                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
-                  Editar
-                </button>
-                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
-                  Borrar
-                </button>
+              <div className="flex flex-col justify-between flex-grow">
+                <div>
+                  <strong className="block text-lg mb-1">{prod.nombre}</strong>
+                  <p className="text-sm mb-1">{prod.descripcion}</p>
+                  <p className="text-sm mb-1">
+                    Precio: <b>${prod.precio.toFixed(2)}</b>
+                  </p>
+                  <p className="text-sm mb-1">Stock: {prod.stock}</p>
+                  <p className="text-sm mb-2">
+                    Categoría:{" "}
+                    {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end mt-auto">
+                  <button
+                    className="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded-md transition"
+                    onClick={() => editarProducto(prod)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md transition"
+                    onClick={() => eliminarProducto(prod._id)}
+                  >
+                    Borrar
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -379,67 +403,4 @@ export const FormProducto = () => {
       </div>
     </>
   );
-};
-
-const styles = {
-  listaContainer: {
-    maxWidth: 750,
-    margin: "1.5rem auto 0 auto",
-    padding: 15,
-    display: "flex",
-    flexWrap: "wrap", // para permitir varias filas
-    gap: 15,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    justifyContent: "space-between",
-  },
-  productoCard: {
-    flex: "1 1 calc(25% - 15px)", // ancho aprox 25% menos espacio de gap
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-    border: "1px solid #ddd",
-    borderRadius: 6,
-    padding: 15,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-    backgroundColor: "#fff",
-    maxWidth: "calc(25% - 15px)", // para no crecer demasiado
-    minWidth: "180px",
-  },
-  productoInfo: {
-    marginBottom: 10,
-  },
-  imagen: {
-    maxWidth: "100%",
-    height: "auto",
-    borderRadius: 6,
-    marginTop: 10,
-  },
-  buttonsCard: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  buttonEdit: {
-    backgroundColor: "#ffc107",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonDelete: {
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonBuy: {
-    backgroundColor: "#4a9716ff",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
 };
