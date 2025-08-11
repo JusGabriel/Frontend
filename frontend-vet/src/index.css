@@ -1,8 +1,13 @@
-@import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;900&family=Roboto:wght@400;700;900&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* o si usas @layer: */
+@layer utilities;
+
+/* luego tus estilos */
 body {
-    font-family: 'Roboto', sans-serif;
-}         
+  font-family: 'Roboto', sans-serif;
+}
