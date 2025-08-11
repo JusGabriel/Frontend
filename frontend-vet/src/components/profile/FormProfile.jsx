@@ -26,7 +26,6 @@ const FormularioPerfil = () => {
             reset({
                 nombre: user?.nombre,
                 apellido: user?.apellido,
-                direccion: user?.direccion,
                 telefono: user?.telefono,
                 email: user?.email,
             });
@@ -75,15 +74,7 @@ const FormularioPerfil = () => {
                         {errors.telefono && <p style={errorText}>{errors.telefono.message}</p>}
                     </div>
 
-                    <div style={inputGroup}>
-                        <input
-                            type="text"
-                            placeholder="Dirección"
-                            style={inputStyle}
-                            {...register("direccion", { required: "La dirección es obligatoria" })}
-                        />
-                        {errors.direccion && <p style={errorText}>{errors.direccion.message}</p>}
-                    </div>
+                    {/* Dirección eliminada */}
 
                     <div style={inputGroup}>
                         <input
