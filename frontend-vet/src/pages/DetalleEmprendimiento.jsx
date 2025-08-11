@@ -88,7 +88,7 @@ const DetalleEmprendimiento = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {emprendimiento.productos.map((prod) => (
                     <div
-                      key={prod.id || prod._id}
+                      key={prod._id || prod.id}
                       className="group border rounded-xl p-4 bg-gray-50 hover:bg-white shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col items-center text-center"
                     >
                       <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 group-hover:border-[#AA4A44] transition-all mb-3">
@@ -99,8 +99,10 @@ const DetalleEmprendimiento = () => {
                         />
                       </div>
                       <p className="text-base font-medium text-gray-800">{prod.nombre}</p>
-                      {prod.valor && (
-                        <p className="text-sm text-gray-500 mt-1">Valor: ${prod.valor}</p>
+                      {(prod.precio || prod.valor) && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          Valor: ${prod.precio ?? prod.valor}
+                        </p>
                       )}
                     </div>
                   ))}
