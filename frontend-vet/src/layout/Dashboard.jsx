@@ -8,8 +8,6 @@ const Dashboard = () => {
   const { clearToken } = storeAuth();
   const { user } = storeProfile();
 
-  // Links basados en rutas definidas en App.jsx
-  // Se oculta "Listar" para el rol Emprendedor
   const menuLinks = {
     Administrador: [
       { to: '/dashboard', label: 'Perfil' },
@@ -19,21 +17,19 @@ const Dashboard = () => {
     ],
     Emprendedor: [
       { to: '/dashboard', label: 'Perfil' },
-      // No mostrar listar para emprendedor
       { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
     ],
     Cliente: [
       { to: '/dashboard', label: 'Perfil' },
-      { to: '/dashboard/inicio', label: 'Inicio' },  // Cambio aquí (antes listar)
+      { to: '/dashboard/inicio', label: 'Inicio' },
       { to: '/dashboard/chat', label: 'Chat' },
+      { to: '/dashboard/favoritos', label: 'Favoritos' },  // <-- Aquí añadí Favoritos para clientes
     ],
   };
 
-  // Obtener menú para el rol actual o vacío
   const links = menuLinks[user?.rol] || [];
 
-  // Función para comparar la url actual con el link activo
   const isActive = (to) => {
     if (to === '/dashboard') {
       return urlActual === '/dashboard' || urlActual === '/dashboard/';
@@ -59,13 +55,27 @@ const Dashboard = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => clearToken()}
-          className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
-          title="Cerrar sesión"
-        >
-          Salir
-        </button>
+
+        {/* Aquí agregamos el enlace a Favoritos */}
+        <div className="flex items-center gap-4">
+          {user?.rol === 'Cliente' && (
+            <Link
+              to="/dashboard/favoritos"
+              className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
+              title="Favoritos"
+            >
+              Favoritos
+            </Link>
+          )}
+
+          <button
+            onClick={() => clearToken()}
+            className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
+            title="Cerrar sesión"
+          >
+            Salir
+          </button>
+        </div>
       </header>
 
       {/* Navegación horizontal (menú) */}
