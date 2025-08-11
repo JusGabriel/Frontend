@@ -393,11 +393,14 @@ const styles = {
     margin: "1.5rem auto 0 auto",
     padding: 15,
     display: "flex",
-    flexDirection: "column",
+    flexWrap: "wrap", // para permitir varias filas
     gap: 15,
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    justifyContent: "space-between",
   },
   productoCard: {
+    flex: "1 1 calc(25% - 15px)", // ancho aprox 25% menos espacio de gap
+    boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     border: "1px solid #ddd",
@@ -405,6 +408,8 @@ const styles = {
     padding: 15,
     boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
     backgroundColor: "#fff",
+    maxWidth: "calc(25% - 15px)", // para no crecer demasiado
+    minWidth: "180px",
   },
   productoInfo: {
     marginBottom: 10,
