@@ -1,49 +1,64 @@
-import CardPassword from '../components/profile/CardPassword';
-import { CardProfile } from '../components/profile/CardProfile';
-import FormProfile from '../components/profile/FormProfile';
-import fondoBlanco from '../assets/fondoblanco.jpg';
+import CardPassword from '../components/profile/CardPassword'
+import { CardProfile } from '../components/profile/CardProfile'
+import FormProfile from '../components/profile/FormProfile'
+import fondoBlanco from '../assets/fondoblanco.jpg' // fondo visual profesional
 
 const Profile = () => {
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="relative flex flex-col min-h-screen"
       style={{
         backgroundImage: `url(${fondoBlanco})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }}
     >
-      {/* Texto introductorio */}
-      <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900">
+      {/* Decoración: lomo azul vertical izquierdo tipo libro */}
+      <div className="hidden md:block absolute top-0 left-0 h-full w-5 bg-blue-700 rounded-tr-lg rounded-br-lg  z-0" />
+
+      {/* Decoración: línea vertical de círculos simulando orificios de encuadernación */}
+<div className="hidden md:flex flex-col absolute top-20 left-8 space-y-6 z-0">
+  {[...Array(18)].map((_, i) => (
+    <div
+      key={i}
+      className="w-3 h-3 bg-blue-300 rounded-full opacity-70"
+    />
+  ))}
+</div>
+
+
+      {/* ENCABEZADO */}
+      <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900 relative z-10">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
           <div className="flex-1 text-center md:text-left">
             <p className="max-w-3xl mx-auto text-center text-gray-700 text-base">
-              Aquí puedes actualizar tus datos personales, contraseña y la información de tu negocio.
+              Este módulo te permite gestionar el perfil del usuario
             </p>
           </div>
         </div>
       </main>
 
-      {/* Contenedor Principal */}
-      <main className="flex-grow px-6 md:px-16 py-10">
+      {/* CONTENIDO PRINCIPAL */}
+      <main className="flex-grow px-6 md:px-16 py-10 relative z-10">
         <div className="flex flex-col md:flex-row gap-8 relative">
-          {/* Línea vertical divisoria */}
+
+          {/* Línea divisoria */}
           <div className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px bg-gray-300"></div>
 
-          {/* Columna izquierda: CardProfile + CardPassword */}
-          <div className="flex flex-col w-full md:w-1/2 pr-0 md:pr-10 space-y-6">
-            <CardProfile />
-            <CardPassword />
+          {/* Columna izquierda: FormProfile */}
+          <div className="w-full md:w-1/2 pr-0 md:pr-10 relative z-10">
+            <FormProfile />
           </div>
 
-          {/* Columna derecha: FormProfile */}
-          <div className="w-full md:w-1/2 pl-0 md:pl-10">
-            <FormProfile />
+          {/* Columna derecha: CardProfile + CardPassword */}
+          <div className="flex flex-col w-full md:w-1/2 pl-0 md:pl-10 space-y-6 relative z-10">
+            <CardProfile />
+            <CardPassword />
           </div>
         </div>
       </main>
     </div>
-  );
-};
+  )
+}
 
-export default Profile;
+export default Profile
