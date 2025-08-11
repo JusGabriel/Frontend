@@ -131,13 +131,12 @@ const Chat = () => {
             emisorId: usuarioId,
             emisorRol,
             contenido: mensajeQueja.trim(),
-            quejaId: quejaSeleccionada._id, // si la API lo requiere para identificar la queja
+            quejaId: quejaSeleccionada._id,
           }),
         }
       );
       const data = await res.json();
       if (res.ok) {
-        // Añadir nuevo mensaje localmente para mejor UX
         const nuevoMsg = {
           _id: data.data._id,
           contenido: mensajeQueja.trim(),
@@ -159,14 +158,12 @@ const Chat = () => {
 
   // --- Effects ---
 
-  // Cargar conversaciones al montar o cambiar usuarioId
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
     }
   }, [usuarioId, vista]);
 
-  // Actualizar mensajes en chat general cada 3s si hay conversación activa
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
@@ -175,7 +172,6 @@ const Chat = () => {
     }
   }, [conversacionId, vista]);
 
-  // Cargar quejas si se cambia a vista quejas
   useEffect(() => {
     if (vista === "quejas") {
       cargarQuejas();
@@ -185,7 +181,6 @@ const Chat = () => {
     }
   }, [vista]);
 
-  // Scroll automático en mensajes (chat general o quejas)
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
@@ -227,12 +222,17 @@ const Chat = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-lg shadow-lg p-4 h-[500px]">
           {/* Lista de conversaciones */}
           <div className="border rounded-md p-3 max-h-full overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2 text-purple-800">Conversaciones</h3>
+            <h3 className="text-lg font-semibold mb-2 text-purple-800">
+              Conversaciones
+            </h3>
             {conversaciones.length === 0 ? (
               <p className="text-sm text-gray-500">No hay conversaciones aún.</p>
             ) : (
               conversaciones.map((conv) => {
-                const otro = conv.participantes.find((p) => p.id._id !== usuarioId);
+                // Protegemos acceso a id._id con chequeo
+                const otro = conv.participantes.find(
+                  (p) => p.id && p.id._id !== usuarioId
+                );
                 const isActive = conv._id === conversacionId;
                 return (
                   <button
@@ -244,10 +244,18 @@ const Chat = () => {
                         : "border-gray-200 hover:bg-purple-50"
                     }`}
                   >
-                    <p className="font-medium text-purple-800">
-                      {otro?.id?.nombre} {otro?.id?.apellido}
-                    </p>
-                    <p className="text-xs text-gray-500">{otro?.rol}</p>
+                    {otro ? (
+                      <>
+                        <p className="font-medium text-purple-800">
+                          {otro.id?.nombre} {otro.id?.apellido}
+                        </p>
+                        <p className="text-xs text-gray-500">{otro.rol}</p>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        Participante desconocido
+                      </p>
+                    )}
                   </button>
                 );
               })
@@ -275,7 +283,9 @@ const Chat = () => {
                       }`}
                     >
                       {msg.contenido}
-                      <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {msg.emisorRol}
+                      </div>
                     </div>
                   );
                 })
@@ -286,8 +296,12 @@ const Chat = () => {
             {conversacionId && (
               <form
                 onSubmit={(e) => {
-                  const conv = conversaciones.find((c) => c._id === conversacionId);
-                  const receptor = conv?.participantes?.find((p) => p.id._id !== usuarioId);
+                  const conv = conversaciones.find(
+                    (c) => c._id === conversacionId
+                  );
+                  const receptor = conv?.participantes?.find(
+                    (p) => p.id && p.id._id !== usuarioId
+                  );
                   if (receptor) {
                     handleEnviar(e, receptor.id._id, receptor.rol);
                   }
@@ -320,11 +334,17 @@ const Chat = () => {
           {/* Lista de quejas */}
           <div className="md:w-1/2 max-h-full overflow-y-auto border border-gray-300 rounded-md p-2">
             {quejas.length === 0 ? (
-              <p className="text-center text-gray-500 mt-4">No hay quejas registradas.</p>
+              <p className="text-center text-gray-500 mt-4">
+                No hay quejas registradas.
+              </p>
             ) : (
               quejas.map((q) => {
-                const emprendedor = q.participantes.find((p) => p.rol === "Emprendedor")?.id;
-                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
+                const emprendedor = q.participantes.find(
+                  (p) => p.rol === "Emprendedor"
+                )?.id;
+                const admin = q.participantes.find(
+                  (p) => p.rol === "Administrador"
+                )?.id;
                 const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
                 const isSelected = quejaSeleccionada?._id === q._id;
 
@@ -363,18 +383,18 @@ const Chat = () => {
               <>
                 <div className="bg-white p-3 border-b border-gray-300 font-semibold text-purple-800">
                   Chat Queja con{" "}
-                  {
-                    quejaSeleccionada.participantes.find(
-                      (p) => p.rol !== emisorRol
-                    )?.id?.nombre
-                  }
+                  {quejaSeleccionada.participantes.find(
+                    (p) => p.rol !== emisorRol
+                  )?.id?.nombre}
                 </div>
                 <div
                   ref={mensajesRef}
                   className="flex-grow overflow-y-auto p-4 space-y-3"
                 >
                   {mensajesQueja.length === 0 ? (
-                    <p className="text-center text-gray-500 mt-4">No hay mensajes aún.</p>
+                    <p className="text-center text-gray-500 mt-4">
+                      No hay mensajes aún.
+                    </p>
                   ) : (
                     mensajesQueja.map((msg) => {
                       const esMio = msg.emisor === usuarioId;
@@ -388,7 +408,9 @@ const Chat = () => {
                           }`}
                         >
                           {msg.contenido}
-                          <div className="text-xs text-gray-500 mt-1">{msg.emisorRol}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {msg.emisorRol}
+                          </div>
                         </div>
                       );
                     })
