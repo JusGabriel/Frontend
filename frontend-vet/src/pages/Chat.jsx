@@ -22,12 +22,11 @@ const Chat = () => {
   // Mensajes de info / error
   const [info, setInfo] = useState("");
 
-  // Ref para hacer scroll automático en ambas vistas
+  // Ref para scroll automático
   const mensajesRef = useRef(null);
 
-  // --- Funciones para Chat General ---
+  // --- Funciones Chat General ---
 
-  // Cargar conversaciones del usuario
   const cargarConversaciones = async () => {
     if (!usuarioId) return;
     try {
@@ -42,7 +41,6 @@ const Chat = () => {
     }
   };
 
-  // Obtener mensajes de la conversación seleccionada
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
@@ -57,7 +55,6 @@ const Chat = () => {
     }
   };
 
-  // Enviar mensaje en chat general (requiere receptorId y receptorRol)
   const handleEnviar = async (e, receptorId, receptorRol) => {
     e.preventDefault();
     if (!mensaje.trim() || !receptorId || !receptorRol) return;
@@ -92,9 +89,8 @@ const Chat = () => {
     }
   };
 
-  // --- Funciones para Quejas ---
+  // --- Funciones Quejas ---
 
-  // Cargar todas las quejas con mensajes
   const cargarQuejas = async () => {
     try {
       const res = await fetch(
@@ -108,7 +104,6 @@ const Chat = () => {
     }
   };
 
-  // Seleccionar una queja para ver chat
   const seleccionarQueja = (queja) => {
     setQuejaSeleccionada(queja);
     setMensajesQueja(queja.mensajes || []);
@@ -116,7 +111,6 @@ const Chat = () => {
     setInfo("");
   };
 
-  // Enviar mensaje en queja seleccionada
   const enviarMensajeQueja = async (e) => {
     e.preventDefault();
     if (!mensajeQueja.trim() || !quejaSeleccionada) return;
@@ -161,6 +155,9 @@ const Chat = () => {
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
+      setQuejaSeleccionada(null);
+      setMensajesQueja([]);
+      setMensajeQueja("");
     }
   }, [usuarioId, vista]);
 
@@ -175,9 +172,9 @@ const Chat = () => {
   useEffect(() => {
     if (vista === "quejas") {
       cargarQuejas();
-      setQuejaSeleccionada(null);
-      setMensajesQueja([]);
-      setMensajeQueja("");
+      setConversacionId(null);
+      setMensajes([]);
+      setMensaje("");
     }
   }, [vista]);
 
@@ -187,49 +184,72 @@ const Chat = () => {
     }
   }, [mensajes, mensajesQueja]);
 
+  // --- Render ---
+
+  // Conversación o Queja activa (para mostrar mensajes)
+  const chatActivo = vista === "chat"
+    ? conversaciones.find((c) => c._id === conversacionId)
+    : quejaSeleccionada;
+
+  // Mensajes activos
+  const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
+
+  // Manejar envío según vista
+  const handleEnviarMensaje = (e) => {
+    if (vista === "chat") {
+      const conv = conversaciones.find((c) => c._id === conversacionId);
+      const receptor = conv?.participantes?.find(
+        (p) => p.id && p.id._id !== usuarioId
+      );
+      if (receptor) {
+        handleEnviar(e, receptor.id._id, receptor.rol);
+      }
+    } else {
+      enviarMensajeQueja(e);
+    }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto mt-10 p-4 font-sans">
-      {/* Botones para cambiar vista */}
-      <div className="flex justify-center mb-6 gap-4">
-        <button
-          onClick={() => setVista("chat")}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
-            vista === "chat"
-              ? "bg-purple-700 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-purple-200"
-          }`}
+    <div className="flex min-h-[500px] max-w-3xl mx-auto bg-white rounded-lg shadow-lg">
+      {/* Sidebar con selector de vista y lista */}
+      <aside className="w-80 border-r border-gray-300 flex flex-col">
+        <div
+          className="py-4 px-6 font-bold text-lg text-center cursor-pointer"
+          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
         >
-          💬 Chat General
-        </button>
-        <button
-          onClick={() => setVista("quejas")}
-          className={`px-4 py-2 rounded-full font-semibold transition-colors ${
-            vista === "quejas"
-              ? "bg-purple-700 text-white"
-              : "bg-gray-200 text-gray-700 hover:bg-purple-200"
-          }`}
-        >
-          📢 Quejas
-        </button>
-      </div>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() => setVista("chat")}
+              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+                vista === "chat"
+                  ? "bg-[#AA4A44] text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+              }`}
+            >
+              💬 Chat General
+            </button>
+            <button
+              onClick={() => setVista("quejas")}
+              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+                vista === "quejas"
+                  ? "bg-[#AA4A44] text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+              }`}
+            >
+              📢 Quejas
+            </button>
+          </div>
+        </div>
 
-      {info && (
-        <div className="mb-4 text-center text-red-600 font-medium">{info}</div>
-      )}
-
-      {/* VISTA CHAT GENERAL */}
-      {vista === "chat" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white rounded-lg shadow-lg p-4 h-[500px]">
-          {/* Lista de conversaciones */}
-          <div className="border rounded-md p-3 max-h-full overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-2 text-purple-800">
-              Conversaciones
-            </h3>
-            {conversaciones.length === 0 ? (
-              <p className="text-sm text-gray-500">No hay conversaciones aún.</p>
+        {/* Lista de conversaciones o quejas */}
+        <div className="flex-grow overflow-y-auto">
+          {vista === "chat" ? (
+            conversaciones.length === 0 ? (
+              <p className="p-4 text-center text-gray-500 flex-grow">
+                No hay conversaciones
+              </p>
             ) : (
               conversaciones.map((conv) => {
-                // Protegemos acceso a id._id con chequeo
                 const otro = conv.participantes.find(
                   (p) => p.id && p.id._id !== usuarioId
                 );
@@ -238,103 +258,23 @@ const Chat = () => {
                   <button
                     key={conv._id}
                     onClick={() => setConversacionId(conv._id)}
-                    className={`w-full text-left p-2 mb-2 rounded-md border transition-colors ${
-                      isActive
-                        ? "bg-purple-100 border-purple-700"
-                        : "border-gray-200 hover:bg-purple-50"
+                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex justify-between items-center ${
+                      isActive ? "bg-[#fceaea]" : ""
                     }`}
                   >
-                    {otro ? (
-                      <>
-                        <p className="font-medium text-purple-800">
-                          {otro.id?.nombre} {otro.id?.apellido}
-                        </p>
-                        <p className="text-xs text-gray-500">{otro.rol}</p>
-                      </>
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        Participante desconocido
-                      </p>
-                    )}
+                    <span>
+                      {otro
+                        ? `${otro.id?.nombre} ${otro.id?.apellido}`
+                        : "Participante desconocido"}
+                    </span>
+                    {/* Opción para futuro eliminar conversación si quieres */}
                   </button>
                 );
               })
-            )}
-          </div>
-
-          {/* Mensajes y form de envío */}
-          <div className="border rounded-md flex flex-col max-h-full">
-            <div
-              ref={mensajesRef}
-              className="flex-grow overflow-y-auto p-3 bg-gray-50"
-            >
-              {mensajes.length === 0 ? (
-                <p className="text-center text-gray-500">No hay mensajes aún.</p>
-              ) : (
-                mensajes.map((msg) => {
-                  const esMio = msg.emisor === usuarioId;
-                  return (
-                    <div
-                      key={msg._id}
-                      className={`max-w-[70%] p-3 rounded-md mb-2 text-sm break-words ${
-                        esMio
-                          ? "bg-green-200 self-end text-right ml-auto"
-                          : "bg-gray-200 self-start text-left mr-auto"
-                      }`}
-                    >
-                      {msg.contenido}
-                      <div className="text-xs text-gray-500 mt-1">
-                        {msg.emisorRol}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Formulario para enviar mensajes solo si hay conversación */}
-            {conversacionId && (
-              <form
-                onSubmit={(e) => {
-                  const conv = conversaciones.find(
-                    (c) => c._id === conversacionId
-                  );
-                  const receptor = conv?.participantes?.find(
-                    (p) => p.id && p.id._id !== usuarioId
-                  );
-                  if (receptor) {
-                    handleEnviar(e, receptor.id._id, receptor.rol);
-                  }
-                }}
-                className="p-3 border-t flex gap-3 bg-white"
-              >
-                <input
-                  type="text"
-                  value={mensaje}
-                  onChange={(e) => setMensaje(e.target.value)}
-                  className="flex-grow border border-gray-300 rounded-lg px-4 py-2"
-                  placeholder="Escribe un mensaje"
-                  autoComplete="off"
-                />
-                <button
-                  type="submit"
-                  className="bg-purple-700 text-white px-4 py-2 rounded-lg hover:bg-purple-900"
-                >
-                  Enviar
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* VISTA QUEJAS */}
-      {vista === "quejas" && (
-        <div className="bg-white rounded-lg shadow-md p-4 space-y-4 flex flex-col md:flex-row gap-6 h-[500px]">
-          {/* Lista de quejas */}
-          <div className="md:w-1/2 max-h-full overflow-y-auto border border-gray-300 rounded-md p-2">
-            {quejas.length === 0 ? (
-              <p className="text-center text-gray-500 mt-4">
+            )
+          ) : vista === "quejas" ? (
+            quejas.length === 0 ? (
+              <p className="p-4 text-center text-gray-500 flex-grow">
                 No hay quejas registradas.
               </p>
             ) : (
@@ -352,13 +292,11 @@ const Chat = () => {
                   <button
                     key={q._id}
                     onClick={() => seleccionarQueja(q)}
-                    className={`w-full text-left mb-2 p-3 rounded-md border transition-colors ${
-                      isSelected
-                        ? "border-purple-700 bg-purple-50"
-                        : "border-gray-200 hover:bg-purple-100"
+                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex flex-col ${
+                      isSelected ? "bg-[#fceaea]" : ""
                     }`}
                   >
-                    <p className="font-semibold text-purple-700">
+                    <p className="font-semibold text-[#AA4A44]">
                       Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
                     </p>
                     <p className="text-sm text-gray-600">
@@ -374,77 +312,125 @@ const Chat = () => {
                   </button>
                 );
               })
-            )}
-          </div>
-
-          {/* Chat queja seleccionada */}
-          <div className="md:w-1/2 bg-gray-50 rounded-md flex flex-col max-h-full">
-            {quejaSeleccionada ? (
-              <>
-                <div className="bg-white p-3 border-b border-gray-300 font-semibold text-purple-800">
-                  Chat Queja con{" "}
-                  {quejaSeleccionada.participantes.find(
-                    (p) => p.rol !== emisorRol
-                  )?.id?.nombre}
-                </div>
-                <div
-                  ref={mensajesRef}
-                  className="flex-grow overflow-y-auto p-4 space-y-3"
-                >
-                  {mensajesQueja.length === 0 ? (
-                    <p className="text-center text-gray-500 mt-4">
-                      No hay mensajes aún.
-                    </p>
-                  ) : (
-                    mensajesQueja.map((msg) => {
-                      const esMio = msg.emisor === usuarioId;
-                      return (
-                        <div
-                          key={msg._id}
-                          className={`max-w-[75%] p-3 rounded-xl shadow-sm text-sm break-words ${
-                            esMio
-                              ? "bg-green-200 self-end text-right ml-auto"
-                              : "bg-gray-200 self-start text-left mr-auto"
-                          }`}
-                        >
-                          {msg.contenido}
-                          <div className="text-xs text-gray-500 mt-1">
-                            {msg.emisorRol}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                <form
-                  onSubmit={enviarMensajeQueja}
-                  className="p-4 flex gap-2 border-t border-gray-300 bg-white"
-                >
-                  <input
-                    type="text"
-                    placeholder="Escribe tu respuesta..."
-                    value={mensajeQueja}
-                    onChange={(e) => setMensajeQueja(e.target.value)}
-                    className="flex-grow border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-purple-700 text-white px-5 py-2 rounded-lg font-semibold hover:bg-purple-900 transition-colors"
-                  >
-                    Enviar
-                  </button>
-                </form>
-              </>
-            ) : (
-              <div className="flex-grow flex items-center justify-center text-gray-500">
-                Selecciona una queja para ver y responder.
-              </div>
-            )}
-          </div>
+            )
+          ) : null}
         </div>
-      )}
+      </aside>
+
+      {/* Chat principal */}
+      <section className="flex-1 flex flex-col">
+        <header
+          className="py-4 px-6 font-bold text-lg"
+          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
+        >
+          {vista === "chat"
+            ? chatActivo
+              ? `Chat con ${
+                  chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)
+                    ?.id?.nombre || "Desconocido"
+                }`
+              : "Selecciona una conversación"
+            : vista === "quejas"
+            ? quejaSeleccionada
+              ? `Chat Queja con ${
+                  quejaSeleccionada.participantes.find(
+                    (p) => p.rol !== emisorRol
+                  )?.id?.nombre || "Desconocido"
+                }`
+              : "Selecciona una queja"
+            : ""}
+        </header>
+
+        <div
+          ref={mensajesRef}
+          className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
+        >
+          {chatActivo ? (
+            mensajesActivos.length === 0 ? (
+              <p className="text-center text-gray-500 mt-10">
+                No hay mensajes aún.
+              </p>
+            ) : (
+              mensajesActivos.map((msg) => {
+                const esMio = 
+                  vista === "chat"
+                    ? msg.emisor === usuarioId
+                    : msg.emisor === usuarioId;
+                return (
+                  <div
+                    key={msg._id || msg.id}
+                    className={`flex ${
+                      esMio ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${
+                        esMio
+                          ? "text-white"
+                          : "bg-white border border-gray-300"
+                      }`}
+                      style={esMio ? { backgroundColor: "#AA4A44" } : {}}
+                    >
+                      {vista === "chat" ? msg.contenido : msg.contenido}
+                      <div className="text-xs text-gray-300 mt-1 text-right">
+                        {msg.emisorRol || ""}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : (
+            <p className="text-center text-gray-500 mt-10">
+              {vista === "chat"
+                ? "Selecciona una conversación"
+                : "Selecciona una queja para comenzar"}
+            </p>
+          )}
+        </div>
+
+        <form
+          onSubmit={handleEnviarMensaje}
+          className="flex p-4 border-t border-gray-300 bg-white"
+        >
+          <input
+            type="text"
+            placeholder={
+              vista === "chat"
+                ? "Escribe un mensaje..."
+                : "Escribe tu respuesta..."
+            }
+            value={vista === "chat" ? mensaje : mensajeQueja}
+            onChange={(e) =>
+              vista === "chat"
+                ? setMensaje(e.target.value)
+                : setMensajeQueja(e.target.value)
+            }
+            className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
+            style={{ boxShadow: "0 0 0 2px transparent" }}
+            onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
+            onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
+            disabled={
+              vista === "chat" ? !conversacionId : !quejaSeleccionada
+            }
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
+            className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: "#AA4A44" }}
+            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
+            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
+          >
+            Enviar
+          </button>
+        </form>
+
+        {info && (
+          <div className="p-2 text-center text-red-600 font-medium">{info}</div>
+        )}
+      </section>
     </div>
   );
 };
