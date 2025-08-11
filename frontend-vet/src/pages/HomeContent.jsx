@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';  // <-- agregado para navegación
 import fondoblanco from '../assets/fondoblanco.jpg';
 import Servicios from './pgPrueba/Servicios';
 
 const HomeContent = () => {
+  const navigate = useNavigate();  // <-- hook navegación
+
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -20,6 +23,11 @@ const HomeContent = () => {
       .then(data => setProductos(data))
       .catch(error => console.error('Error al cargar productos:', error));
   }, []);
+
+  // Función para navegar al detalle
+  const handleVerMas = (id) => {
+    navigate(`/dashboard/detalle-emprendimiento/${id}`);
+  };
 
   return (
     <>
@@ -84,7 +92,10 @@ const HomeContent = () => {
                         <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
                         <p className="text-sm text-gray-600">{producto.descripcion}</p>
                         <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
-                        <button className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">
+                        <button
+                          className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
+                          onClick={() => handleVerMas(producto._id)} // <-- aquí
+                        >
                           Ver más
                         </button>
                       </div>
