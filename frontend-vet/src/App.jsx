@@ -1,7 +1,8 @@
-import { BrowserRouter, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'  // corregí aquí 'react-router' a 'react-router-dom'
 
-// Importa el nuevo componente HomeContent
+// Importa el nuevo componente HomeContent y DetalleEmprendimiento
 import HomeContent from './pages/HomeContent'
+import DetalleEmprendimiento from './pages/DetalleEmprendimiento'
 
 import { Home } from './pages/Home'
 import Login from './pages/Login'
@@ -67,8 +68,10 @@ function App() {
                     <Route path='crear' element={<Create />} />
                     <Route path='actualizar/:id' element={<Update />} />
                     <Route path='chat' element={<Chat />} />
-                    {/* Nueva ruta para mostrar HomeContent en /dashboard/inicio */}
                     <Route path='inicio' element={<HomeContent />} />
+
+                    {/* Ruta nueva para detalle de emprendimiento */}
+                    <Route path='detalle-emprendimiento/:id' element={<DetalleEmprendimiento />} />
                   </Route>
                 </Routes>
               </ProtectedRoute>
