@@ -28,10 +28,6 @@ const Dashboard = () => {
       { to: '/dashboard/listar', label: 'Listar' },
       { to: '/dashboard/chat', label: 'Chat' },
     ],
-    Invitado: [
-      // Invitados no deberían entrar a dashboard, pero si quisieras:
-      { to: '/dashboard', label: 'Perfil' },
-    ],
   };
 
   // Obtener menú para el rol actual o vacío
@@ -104,3 +100,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
