@@ -1,7 +1,6 @@
 import CardPassword from '../components/profile/CardPassword';
 import { CardProfile } from '../components/profile/CardProfile';
 import FormProfile from '../components/profile/FormProfile';
-import Footer from '../components/footer/FooterGeneral';
 import fondoBlanco from '../assets/fondoblanco.jpg';
 
 const Profile = () => {
@@ -14,9 +13,7 @@ const Profile = () => {
         backgroundPosition: 'center',
       }}
     >
-      {/* Si no tienes header, lo omitimos */}
-
-      {/* HERO / HEADER */}
+      {/* Texto introductorio */}
       <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
           <div className="flex-1 text-center md:text-left">
@@ -45,8 +42,6 @@ const Profile = () => {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };
