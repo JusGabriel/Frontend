@@ -13,22 +13,6 @@ const Profile = () => {
         backgroundPosition: 'center',
       }}
     >
-      {/* Decoración: lomo azul vertical izquierdo tipo libro */}
-      <div
-        className="hidden md:block absolute top-0 left-0 w-5 bg-blue-700 rounded-tr-lg rounded-br-lg z-0"
-        style={{ height: 'calc(17 * (0.75rem + 1.5rem))' }} // Altura barra azul acorde a las bolitas y espacios
-      />
-
-      {/* Decoración: línea vertical de círculos simulando orificios de encuadernación */}
-      <div className="hidden md:flex flex-col absolute top-20 left-8 space-y-6 z-0">
-        {[...Array(17)].map((_, i) => (
-          <div
-            key={i}
-            className="w-3 h-3 bg-blue-300 rounded-full opacity-70"
-          />
-        ))}
-      </div>
-
       {/* ENCABEZADO */}
       <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900 relative z-10 w-full">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-10 w-full">
