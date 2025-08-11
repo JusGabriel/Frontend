@@ -1,262 +1,183 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import heroBg from '../pages/Imagenes/fondo.png'
-import Servicios from './pgPrueba/Servicios'
+// Home.jsx
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import fondoblanco from '../assets/fondoblanco.jpg';
+import heroImage from '../assets/QuitoHome.jpg'; // o la imagen que quieras para el hero
+import Servicios from './pgPrueba/Servicios';
 
 const Header = ({ onChangeSection, active }) => {
   const menuItems = [
     { id: 'inicio', label: 'Inicio' },
     { id: 'servicios', label: 'Nosotros' },
-  ]
+  ];
 
   return (
-    <header style={{
-      position: 'sticky',
-      top: 0,
-      backgroundColor: '#fff',
-      borderBottom: '2px solid #007bff',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '1rem 2rem',
-      zIndex: 1000,
-    }}>
-      <h2 style={{ margin: 0, fontWeight: '700', color: '#10394D' }}>QuitoEmprende</h2>
-      <nav style={{ display: 'flex', alignItems: 'center' }}>
-        {menuItems.map(item => (
-          <button
-            key={item.id}
-            onClick={() => onChangeSection(item.id)}
-            style={{
-              margin: '0 1rem',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: active === item.id ? '700' : '400',
-              color: active === item.id ? '#007bff' : '#10394D',
-              fontSize: '1rem',
-            }}
+    <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <h2 className="text-2xl font-extrabold text-[#AA4A44]">QuitoEmprende</h2>
+        <nav className="flex items-center gap-6">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onChangeSection(item.id)}
+              className={`text-sm md:text-base font-semibold transition-colors ${
+                active === item.id
+                  ? 'text-[#AA4A44]'
+                  : 'text-gray-700 hover:text-[#AA4A44]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+          <Link
+            to="/login"
+            className="bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
           >
-            {item.label}
-          </button>
-        ))}
-        <Link to="/login" style={{
-          listStyle: 'none',
-          backgroundColor: '#007bff',
-          color: '#fff',
-          borderRadius: 5,
-          padding: '0.5rem 1rem',
-          fontWeight: '600',
-          textDecoration: 'none',
-          marginLeft: '1rem'
-        }}>
-          Inicio de sesión
-        </Link>
-      </nav>
+            Inicio de sesión
+          </Link>
+        </nav>
+      </div>
     </header>
-  )
-}
+  );
+};
+
+const Footer = () => (
+  <footer className="bg-[#F3E1CE] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#E0C7B6]">
+    © 2025 QuitoEmprende. Todos los derechos reservados.
+  </footer>
+);
 
 export const Home = () => {
-  const [section, setSection] = useState('inicio')
-  const [emprendimientos, setEmprendimientos] = useState([])
-  const [productos, setProductos] = useState([])
+  const [section, setSection] = useState('inicio');
+  const [emprendimientos, setEmprendimientos] = useState([]);
+  const [productos, setProductos] = useState([]);
 
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
-      .then(res => res.json())
-      .then(data => setEmprendimientos(data))
-      .catch(error => console.error('Error al cargar emprendimientos:', error))
-  }, [])
+      .then((res) => res.json())
+      .then((data) => setEmprendimientos(data))
+      .catch((error) => console.error('Error al cargar emprendimientos:', error));
+  }, []);
 
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos')
-      .then(res => res.json())
-      .then(data => setProductos(data))
-      .catch(error => console.error('Error al cargar productos:', error))
-  }, [])
+      .then((res) => res.json())
+      .then((data) => setProductos(data))
+      .catch((error) => console.error('Error al cargar productos:', error));
+  }, []);
 
   return (
-    <div style={{ fontFamily: "'Poppins', sans-serif", color: '#10394D', maxWidth: 1200, margin: 'auto' }}>
+    <>
       <Header onChangeSection={setSection} active={section} />
 
-      <main style={{ padding: '2rem', minHeight: '80vh' }}>
-        {section === 'inicio' && (
-          <>
-            {/* Hero Section */}
-            <section style={{
-              backgroundImage: `url(${heroBg})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              height: '60vh',
-              width: '100%',
-              position: 'relative',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              borderRadius: 8,
-              overflow: 'hidden',
-              marginBottom: '2rem',
-              padding: '2rem'
-            }}>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                zIndex: 1
-              }} />
-              <div style={{ position: 'relative', zIndex: 2, maxWidth: '800px' }}>
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>Conecta, Vende y Crece</h1>
-                <p style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>
+      {section === 'inicio' && (
+        <>
+          {/* HERO */}
+          <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
+              <div className="flex-1 text-center md:text-left">
+                <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
+                  Conecta, vende y crece
+                </h1>
+                <p className="text-xl md:text-2xl mb-6 text-gray-800">
                   QuitoEmprende: Tu espacio digital
                 </p>
-                <p style={{ fontSize: '1.1rem', marginBottom: '2rem' }}>
+                <p className="max-w-2xl text-gray-700 text-base">
                   Un lugar donde los emprendedores promocionan sus productos y reciben su propia página web con URL personalizada.
                 </p>
-                <button style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#007bff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 5,
-                  marginRight: 10,
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '1rem'
-                }}>
-                  Explorar productos
-                </button>
-                <button style={{
-                  padding: '0.75rem 1.5rem',
-                  backgroundColor: '#28a745',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 5,
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '1rem'
-                }}>
-                  Crear mi sitio web
-                </button>
               </div>
-            </section>
+              <div className="flex-1 flex justify-center md:justify-end">
+                <img
+                  src={heroImage}
+                  alt="Hero"
+                  className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
+                />
+              </div>
+            </div>
+          </main>
 
-            {/* Productos Destacados desde la API */}
-            <section>
-              <h2 style={{ borderBottom: '3px solid #007bff', display: 'inline-block', paddingBottom: '0.25rem' }}>
-                Productos Destacados
-              </h2>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                gap: '1.5rem',
-                marginTop: '1.5rem'
-              }}>
+          {/* PRODUCTOS DESTACADOS */}
+          <section className="py-16 px-6 bg-white text-gray-800">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 {productos.length === 0 ? (
-                  <p>Cargando productos...</p>
+                  <p className="col-span-full text-center">Cargando productos...</p>
                 ) : (
-                  productos.map(producto => (
-                    <div key={producto._id} style={{
-                      border: '1px solid #ccc',
-                      borderRadius: 8,
-                      padding: '1rem',
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                      backgroundColor: '#fff',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between'
-                    }}>
-                      <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', borderRadius: 5, height: 150, objectFit: 'cover' }} />
-                      <h3 style={{ marginTop: 10 }}>{producto.nombre}</h3>
-                      <p style={{ fontSize: '0.9rem', color: '#666' }}>{producto.descripcion}</p>
-                      <p style={{ color: '#28a745', fontWeight: '700', margin: '0.5rem 0' }}>${producto.precio}</p>
-                      <button style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#007bff',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 5,
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        alignSelf: 'flex-start'
-                      }}>
+                  productos.map((producto) => (
+                    <div
+                      key={producto._id}
+                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all"
+                    >
+                      <img
+                        src={producto.imagen}
+                        alt={producto.nombre}
+                        className="w-full h-48 object-cover rounded-lg mb-4"
+                      />
+                      <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                      <p className="text-sm text-gray-600">{producto.descripcion}</p>
+                      <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
+                      <button className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">
                         Ver más
                       </button>
                     </div>
                   ))
                 )}
               </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Emprendimientos desde API */}
-            <section style={{ marginTop: '3rem' }}>
-              <h2 style={{ borderBottom: '3px solid #007bff', display: 'inline-block', paddingBottom: '0.25rem' }}>
-                Explora Emprendimientos
-              </h2>
-              <div style={{
-                display: 'flex',
-                overflowX: 'auto',
-                gap: '1rem',
-                padding: '1rem 0',
-                marginTop: '1rem'
-              }}>
+          {/* EMPRENDIMIENTOS */}
+          <section
+            className="py-16 px-4 text-gray-800"
+            style={{
+              backgroundImage: `url(${fondoblanco})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-10">Explora Emprendimientos</h2>
+              <div className="flex overflow-x-auto gap-6 pb-4">
                 {emprendimientos.length === 0 ? (
-                  <p>Cargando emprendimientos...</p>
+                  <p className="text-center w-full">Cargando emprendimientos...</p>
                 ) : (
-                  emprendimientos.map(emp => (
-                    <div key={emp._id} style={{
-                      minWidth: 280,
-                      border: '1px solid #ccc',
-                      borderRadius: 8,
-                      padding: '1rem',
-                      backgroundColor: '#f9f9f9',
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-                      flexShrink: 0
-                    }}>
-                      <img src={emp.logo} alt={emp.nombreComercial} style={{ width: '100%', borderRadius: 6, marginBottom: 10 }} />
-                      <h3>{emp.nombreComercial}</h3>
-                      <p style={{ fontSize: '0.95rem', margin: '0.5rem 0' }}>{emp.descripcion}</p>
-                      <p style={{ fontSize: '0.85rem', color: '#666' }}>
-                        {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
-                      </p>
-                      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  emprendimientos.map((emp) => (
+                    <div
+                      key={emp._id}
+                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all"
+                    >
+                      <img
+                        src={emp.logo}
+                        alt={emp.nombreComercial}
+                        className="w-full h-36 object-cover rounded-lg mb-3"
+                      />
+                      <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
+                      <p className="text-sm text-gray-600">{emp.descripcion}</p>
+                      <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                      <div className="flex gap-3 mt-3 flex-wrap text-sm">
                         {emp.contacto?.sitioWeb && (
-                          <a href={emp.contacto.sitioWeb} target="_blank" rel="noreferrer" style={{ color: '#007bff', textDecoration: 'none' }}>Sitio web</a>
+                          <a href={emp.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">Sitio web</a>
                         )}
                         {emp.contacto?.facebook && (
-                          <a href={emp.contacto.facebook} target="_blank" rel="noreferrer" style={{ color: '#3b5998', textDecoration: 'none' }}>Facebook</a>
+                          <a href={emp.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">Facebook</a>
                         )}
                         {emp.contacto?.instagram && (
-                          <a href={emp.contacto.instagram} target="_blank" rel="noreferrer" style={{ color: '#C13584', textDecoration: 'none' }}>Instagram</a>
+                          <a href={emp.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">Instagram</a>
                         )}
                       </div>
                     </div>
                   ))
                 )}
               </div>
-            </section>
-          </>
-        )}
+            </div>
+          </section>
+        </>
+      )}
 
-        {section === 'servicios' && <Servicios />}
-      </main>
+      {section === 'servicios' && <Servicios />}
 
-      <footer style={{
-        marginTop: '4rem',
-        padding: '1rem 2rem',
-        backgroundColor: '#10394D',
-        color: 'white',
-        textAlign: 'center',
-        borderRadius: 8,
-        fontSize: '0.9rem'
-      }}>
-        © 2025 QuitoEmprende. Todos los derechos reservados.
-      </footer>
-    </div>
-  )
-}
+      <Footer />
+    </>
+  );
+};
