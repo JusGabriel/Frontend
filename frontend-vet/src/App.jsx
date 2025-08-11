@@ -1,54 +1,50 @@
 import { BrowserRouter, Route, Routes } from 'react-router'
-  
+
+// Importa el nuevo componente HomeContent
+import HomeContent from './pages/HomeContent'
+
 import { Home } from './pages/Home'
-  
+
 import Login from './pages/Login'
-  
+
 import { Register } from './pages/Register'
-  
+
 import { Forgot } from './pages/Forgot'
-  
+
 import { Confirm } from './pages/Confirm'
-  
+
 import { NotFound } from './pages/NotFound'
-  
+
 import Dashboard from './layout/Dashboard'
-  
+
 import Profile from './pages/Profile'
-  
+
 import List from './pages/List'
-  
+
 import Details from './pages/Details'
-  
+
 import Create from './pages/Create'
-  
+
 import Update from './pages/Update'
-  
+
 import Chat from './pages/Chat'
-  
+
 import Reset from './pages/Reset'
-  
+
 import ResetAdministrador from './pages/ResetAdministrador'
-  
+
 import ResetCliente from './pages/ResetCliente'
-  
+
 import ResetEmprendedor from './pages/ResetEmprendedor'
 import PublicRoute from './routers/PublicRoute'
 import ProtectedRoute from './routers/ProtectedRoute'
 
-  
 import { useEffect } from 'react'
 import storeProfile from './context/storeProfile'
 import storeAuth from './context/storeAuth'
-  
 
-  
-
-  
-
-  
 function App() {
-    const { profile} = storeProfile()
+  const { profile} = storeProfile()
   const { token } = storeAuth()
 
   useEffect(() => {
@@ -57,33 +53,33 @@ function App() {
     }
   }, [token])
   return (
-  
+
     <>
-  
+
     <BrowserRouter>
-  
+
       <Routes>
-  
+
         
       <Route element={<PublicRoute />}>
         <Route index element={<Home/>}/>
-  
+
         <Route path='login' element={<Login/>}/>
-  
+
         <Route path='register' element={<Register/>}/>
-  
+
         <Route path='forgot/:id' element={<Forgot/>}/>
-  
+
         <Route path='confirm/:token' element={<Confirm/>}/>
-  
+
         <Route path='reset/:token' element={<Reset/>}/>
-  
+
         <Route path='*' element={<NotFound />} />
-  
+
         <Route path='reset/admin/:token' element={<ResetAdministrador />} />
-  
+
         <Route path='reset/cliente/:token' element={<ResetCliente />} />
-  
+
         <Route path='reset/emprendedor/:token' element={<ResetEmprendedor />} />
       </Route>
 
@@ -97,26 +93,25 @@ function App() {
                   <Route path='crear' element={<Create />} />
                   <Route path='actualizar/:id' element={<Update />} />
                   <Route path='chat' element={<Chat />} />
+
+                  {/* Nueva ruta para mostrar HomeContent en /dashboard/inicio */}
+                  <Route path='inicio' element={<HomeContent />} />
+
                 </Route>
               </Routes>
             </ProtectedRoute>
           } />
 
 
-  
 
-  
       </Routes>
-  
-    </BrowserRouter>
-  
-    </>
-  
-  )
-  
-}
-  
 
-  
+    </BrowserRouter>
+
+    </>
+
+  )
+
+}
 
 export default App
