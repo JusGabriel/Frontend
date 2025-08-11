@@ -210,7 +210,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex min-h-[500px] max-w-3xl mx-auto bg-white rounded-lg shadow-lg">
+    <div className="flex w-screen h-screen bg-white">
       {/* Sidebar con selector de vista y lista */}
       <aside className="w-80 border-r border-gray-300 flex flex-col">
         <div
@@ -267,7 +267,6 @@ const Chat = () => {
                         ? `${otro.id?.nombre} ${otro.id?.apellido}`
                         : "Participante desconocido"}
                     </span>
-                    {/* Opción para futuro eliminar conversación si quieres */}
                   </button>
                 );
               })
@@ -352,7 +351,7 @@ const Chat = () => {
               </p>
             ) : (
               mensajesActivos.map((msg) => {
-                const esMio = 
+                const esMio =
                   vista === "chat"
                     ? msg.emisor === usuarioId
                     : msg.emisor === usuarioId;
@@ -410,9 +409,7 @@ const Chat = () => {
             style={{ boxShadow: "0 0 0 2px transparent" }}
             onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
             onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            disabled={
-              vista === "chat" ? !conversacionId : !quejaSeleccionada
-            }
+            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
             autoComplete="off"
           />
           <button
