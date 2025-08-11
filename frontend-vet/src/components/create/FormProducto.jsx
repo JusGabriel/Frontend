@@ -1,3 +1,4 @@
+// src/components/create/FormProducto.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth"; // ajusta la ruta si es necesario
@@ -25,7 +26,7 @@ export const FormProducto = () => {
     setError(null);
     try {
       const res = await axios.get(
-        https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}
+        `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
       setProductos(res.data);
     } catch (err) {
@@ -72,7 +73,7 @@ export const FormProducto = () => {
           stock: Number(form.stock),
         },
         {
-          headers: { Authorization: Bearer ${token} },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       cargarProductos();
@@ -102,7 +103,7 @@ export const FormProducto = () => {
     }
     try {
       await axios.put(
-        https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId},
+        `https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId}`,
         {
           ...form,
           categoria: null,
@@ -110,7 +111,7 @@ export const FormProducto = () => {
           stock: Number(form.stock),
         },
         {
-          headers: { Authorization: Bearer ${token} },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       cargarProductos();
@@ -129,9 +130,9 @@ export const FormProducto = () => {
 
     try {
       await axios.delete(
-        https://backend-production-bd1d.up.railway.app/api/productos/${id},
+        `https://backend-production-bd1d.up.railway.app/api/productos/${id}`,
         {
-          headers: { Authorization: Bearer ${token} },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       cargarProductos();
@@ -257,7 +258,7 @@ export const FormProducto = () => {
                 </button>
                 <button
                   style={styles.buttonBuy}
-                  onClick={() => alert(Comprando: ${prod.nombre})}
+                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
                 >
                   Comprar
                 </button>
