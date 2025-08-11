@@ -256,6 +256,12 @@ export const FormProducto = () => {
                 >
                   Borrar
                 </button>
+                <button
+                  style={styles.buttonBuy}
+                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
+                >
+                  Comprar
+                </button>
               </div>
             </div>
           ))
@@ -358,4 +364,13 @@ const styles = {
     borderRadius: 4,
     cursor: "pointer",
   },
+  buttonBuy: {
+    backgroundColor: "#4a9716ff",
+    color: "white",
+    border: "none",
+    padding: "8px 12px",
+    borderRadius: 4,
+    cursor: "pointer",
+  },
 };
+
