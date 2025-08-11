@@ -1,75 +1,106 @@
-import { Link, Outlet, useLocation } from 'react-router'
-import storeAuth from '../context/storeAuth'
-import storeProfile from '../context/storeProfile'
-
+import { Link, Outlet, useLocation } from 'react-router';
+import storeAuth from '../context/storeAuth';
+import storeProfile from '../context/storeProfile';
 
 const Dashboard = () => {
-    const location = useLocation()
-    const urlActual = location.pathname
-    const { clearToken } = storeAuth()
-    const{user} = storeProfile()
+  const location = useLocation();
+  const urlActual = location.pathname;
+  const { clearToken } = storeAuth();
+  const { user } = storeProfile();
 
+  // Links basados en rutas definidas en App.jsx
+  // Puedes ajustar según rol si quieres
+  const menuLinks = {
+    Administrador: [
+      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/listar', label: 'Listar' },
+      { to: '/dashboard/crear', label: 'Crear' },
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+    Emprendedor: [
+      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/listar', label: 'Listar' },
+      { to: '/dashboard/crear', label: 'Crear' },
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+    Cliente: [
+      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/listar', label: 'Listar' },
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+    Invitado: [
+      // Invitados no deberían entrar a dashboard, pero si quisieras:
+      { to: '/dashboard', label: 'Perfil' },
+    ],
+  };
 
-    return (
-        <div className='md:flex md:min-h-screen'>
-            <div className='md:w-1/5 bg-gray-800 px-5 py-4'>
+  // Obtener menú para el rol actual o vacío
+  const links = menuLinks[user?.rol] || [];
 
-                <h2 className='text-[1.2rem] font-black text-center text-slate-200'>QuitoEmprende</h2>
+  // Función para comparar la url actual con el link activo
+  // A veces la url puede tener params, entonces usamos startsWith para resaltar el menu
+  const isActive = (to) => {
+    if (to === '/dashboard') {
+      return urlActual === '/dashboard' || urlActual === '/dashboard/';
+    }
+    return urlActual.startsWith(to);
+  };
 
-                <img src="https://cdn-icons-png.flaticon.com/512/2138/2138508.png" alt="img-client" className="m-auto mt-8 p-1 border-2 border-slate-500 rounded-full" width={120} height={120} />
-                <p className='text-slate-400 text-center my-4 text-sm'> <span className='bg-green-600 w-3 h-3 inline-block rounded-full'>
-                </span> Bienvenido - {user?.nombre}</p>
-                <p className='text-slate-400 text-center my-4 text-sm'> Rol - {user?.rol}</p>
-                <hr className="mt-5 border-slate-500" />
+  return (
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#F7E5D2] to-[#FCEEE3]">
 
-                <ul className="mt-5">
-                    <li className="text-center">
-                        <Link to='/dashboard' className={`${urlActual === '/dashboard' ? 'text-slate-200 bg-gray-900 px-3 py-2 rounded-md text-center' : 'text-slate-600'} text-xl block mt-2 hover:text-slate-600`}>Perfil</Link>
-                    </li>
-
-                    <li className="text-center">
-                        <Link to='/dashboard/listar' className={`${urlActual === '/dashboard/listar' ? 'text-slate-200 bg-gray-900 px-3 py-2 rounded-md text-center' : 'text-slate-600'} text-xl block mt-2 hover:text-slate-600`}>Listar</Link>
-                    </li>
-
-                    <li className="text-center">
-                        <Link to='/dashboard/crear' className={`${urlActual === '/dashboard/crear' ? 'text-slate-100 bg-gray-900 px-3 py-2 rounded-md text-center' : 'text-slate-600'} text-xl block mt-2 hover:text-slate-600`}>Crear</Link>
-                    </li>
-
-                    <li className="text-center">
-                        <Link to='/dashboard/chat' className={`${urlActual === '/dashboard/chat' ? 'text-slate-100 bg-gray-900 px-3 py-2 rounded-md text-center' : 'text-slate-600'} text-xl block mt-2 hover:text-slate-600`}>Chat</Link>
-                    </li>
-                </ul>
-
-            </div>
-
-            <div className='flex-1 flex flex-col justify-between h-screen bg-gray-100'>
-                <div className='bg-gray-800 py-2 flex md:justify-end items-center gap-5 justify-center'>
-                    <div className='text-md font-semibold text-slate-100'>
-                        Usuario - {user?.nombre}
-                    </div>
-                    <div>
-                        <img src="https://cdn-icons-png.flaticon.com/512/4715/4715329.png" alt="img-client" className="border-2 border-green-600 rounded-full" width={50} height={50} />
-                    </div>
-                    <div>
-                        <button className=" text-white mr-3 text-md block hover:bg-red-900 text-center
-                        bg-red-800 px-4 py-1 rounded-lg"
-                        onClick={() => clearToken()}
-                        >Salir</button>
-                    </div>
-                </div>
-                <div className='overflow-y-scroll p-8'>
-                    <Outlet />
-                </div>
-                <div className='bg-gray-800 h-12'>
-                    <p className='text-center  text-slate-100 leading-[2.9rem] underline'>Todos los derechos reservados</p>
-                </div>
-
-            </div>
-
-
-
+      {/* Header */}
+      <header className="bg-white shadow-md border-b border-[#E0C7B6] px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <img
+            src="https://cdn-icons-png.flaticon.com/512/2138/2138508.png"
+            alt="logo"
+            className="w-14 h-14 rounded-full border-4 border-[#AA4A44]"
+          />
+          <div>
+            <h1 className="text-2xl font-extrabold text-[#AA4A44]">QuitoEmprende</h1>
+            <p className="text-sm text-[#6B4F4F]">
+              Bienvenido, <span className="font-semibold">{user?.nombre || 'Invitado'}</span> | Rol: <span className="capitalize">{user?.rol || 'Invitado'}</span>
+            </p>
+          </div>
         </div>
-    )
-}
+        <button
+          onClick={() => clearToken()}
+          className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
+          title="Cerrar sesión"
+        >
+          Salir
+        </button>
+      </header>
 
-export default Dashboard
+      {/* Navegación horizontal (menú) */}
+      <nav className="bg-[#1E1E2F] text-white shadow-md flex justify-center gap-6 py-3">
+        {links.map(({ to, label }) => (
+          <Link
+            key={to}
+            to={to}
+            className={`px-4 py-2 rounded-md font-semibold transition-colors duration-200 ${
+              isActive(to)
+                ? 'bg-[#AA4A44] text-white shadow-md'
+                : 'hover:bg-[#AA4A44] hover:text-white'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      {/* Contenido dinámico */}
+      <main className="flex-1 overflow-auto p-8 max-w-7xl mx-auto w-full">
+        <Outlet />
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-[#F3E1CE] border-t border-[#E0C7B6] py-6 text-center text-sm text-gray-700">
+        © 2025 QuitoEmprende. Todos los derechos reservados.
+      </footer>
+    </div>
+  );
+};
+
+export default Dashboard;
