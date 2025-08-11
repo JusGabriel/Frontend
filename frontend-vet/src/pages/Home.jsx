@@ -97,12 +97,12 @@ export const Home = () => {
           </main>
 
           {/* Línea decorativa entre Hero y Productos */}
-          <div className="max-w-7xl mx-auto my-12 h-[2px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+          <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* PRODUCTOS DESTACADOS */}
-          <section className="py-16 px-6 bg-white text-gray-800">
+          <section className="py-4 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-2 relative inline-block">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8 relative inline-block">
                 Productos Destacados
                 <span className="block mx-auto mt-2 h-1 w-24 bg-[#AA4A44] rounded"></span>
               </h2>
@@ -141,7 +141,7 @@ export const Home = () => {
           </section>
 
           {/* Línea decorativa entre Productos y Emprendimientos */}
-          <div className="max-w-7xl mx-auto my-12 h-[2px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+          <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* EMPRENDIMIENTOS */}
           <section
@@ -163,7 +163,7 @@ export const Home = () => {
             />
 
             <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-2 relative inline-block">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8 relative inline-block">
                 Explora Emprendimientos
                 <span className="block mx-auto mt-2 h-1 w-24 bg-[#AA4A44] rounded"></span>
               </h2>
