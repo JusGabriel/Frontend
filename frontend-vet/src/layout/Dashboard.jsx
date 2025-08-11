@@ -10,25 +10,25 @@ const Dashboard = () => {
 
   // Links basados en rutas definidas en App.jsx
   // Se oculta "Listar" para el rol Emprendedor
-const menuLinks = {
-  Administrador: [
-    { to: '/dashboard', label: 'Perfil' },
-    { to: '/dashboard/listar', label: 'Listar' },
-    { to: '/dashboard/crear', label: 'Crear' },
-    { to: '/dashboard/chat', label: 'Chat' },
-  ],
-  Emprendedor: [
-    { to: '/dashboard', label: 'Perfil' },
-    // No mostrar listar para emprendedor
-    { to: '/dashboard/crear', label: 'Crear' },
-    { to: '/dashboard/chat', label: 'Chat' },
-  ],
-  Cliente: [
-    { to: '/dashboard', label: 'Perfil' },
-    { to: '/dashboard/inicio', label: 'Inicio' },  // Cambio aquí (antes listar)
-    { to: '/dashboard/chat', label: 'Chat' },
-  ],
-};
+  const menuLinks = {
+    Administrador: [
+      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/listar', label: 'Listar' },
+      { to: '/dashboard/crear', label: 'Crear' },
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+    Emprendedor: [
+      { to: '/dashboard', label: 'Perfil' },
+      // No mostrar listar para emprendedor
+      { to: '/dashboard/crear', label: 'Crear' },
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+    Cliente: [
+      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/inicio', label: 'Inicio' },  // Cambio aquí (antes listar)
+      { to: '/dashboard/chat', label: 'Chat' },
+    ],
+  };
 
   // Obtener menú para el rol actual o vacío
   const links = menuLinks[user?.rol] || [];
@@ -86,7 +86,7 @@ const menuLinks = {
       </nav>
 
       {/* Contenido dinámico */}
-      <main className="flex-1 overflow-auto p-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 w-full overflow-auto p-4">
         <Outlet />
       </main>
 
@@ -99,4 +99,3 @@ const menuLinks = {
 };
 
 export default Dashboard;
-
