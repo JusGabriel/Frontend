@@ -9,7 +9,7 @@ const Dashboard = () => {
   const { user } = storeProfile();
 
   // Links basados en rutas definidas en App.jsx
-  // Puedes ajustar según rol si quieres
+  // Se oculta "Listar" para el rol Emprendedor
   const menuLinks = {
     Administrador: [
       { to: '/dashboard', label: 'Perfil' },
@@ -19,7 +19,7 @@ const Dashboard = () => {
     ],
     Emprendedor: [
       { to: '/dashboard', label: 'Perfil' },
-      { to: '/dashboard/listar', label: 'Listar' },
+      // No mostrar listar para emprendedor
       { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
     ],
@@ -34,7 +34,6 @@ const Dashboard = () => {
   const links = menuLinks[user?.rol] || [];
 
   // Función para comparar la url actual con el link activo
-  // A veces la url puede tener params, entonces usamos startsWith para resaltar el menu
   const isActive = (to) => {
     if (to === '/dashboard') {
       return urlActual === '/dashboard' || urlActual === '/dashboard/';
@@ -100,4 +99,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
