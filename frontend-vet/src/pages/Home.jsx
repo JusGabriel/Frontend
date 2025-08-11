@@ -82,7 +82,7 @@ export const Home = () => {
                 <p className="text-xl md:text-2xl mb-6 text-gray-800">
                   QuitoEmprende: Tu espacio digital
                 </p>
-                <p className="max-w-2xl text-gray-700 text-base">
+                <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
                   Un lugar donde los emprendedores promocionan sus productos y reciben su propia página web con URL personalizada.
                 </p>
               </div>
@@ -96,49 +96,78 @@ export const Home = () => {
             </div>
           </main>
 
+          {/* Línea decorativa entre Hero y Productos */}
+          <div className="max-w-7xl mx-auto my-12 h-[2px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+
           {/* PRODUCTOS DESTACADOS */}
           <section className="py-16 px-6 bg-white text-gray-800">
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {productos.length === 0 ? (
-                  <p className="col-span-full text-center">Cargando productos...</p>
-                ) : (
-                  productos.map((producto) => (
+            <div className="max-w-7xl mx-auto flex flex-col items-center">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-2 relative inline-block">
+                Productos Destacados
+                <span className="block mx-auto mt-2 h-1 w-24 bg-[#AA4A44] rounded"></span>
+              </h2>
+
+              {productos.length === 0 ? (
+                <p className="text-center mt-6">Cargando productos...</p>
+              ) : (
+                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
+                  {productos.map((producto) => (
                     <div
                       key={producto._id}
-                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all"
+                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex"
                     >
-                      <img
-                        src={producto.imagen}
-                        alt={producto.nombre}
-                        className="w-full h-48 object-cover rounded-lg mb-4"
-                      />
-                      <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
-                      <p className="text-sm text-gray-600">{producto.descripcion}</p>
-                      <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
-                      <button className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">
-                        Ver más
-                      </button>
+                      {/* Línea vertical */}
+                      <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
+
+                      {/* Contenido producto */}
+                      <div className="flex-1">
+                        <img
+                          src={producto.imagen}
+                          alt={producto.nombre}
+                          className="w-full h-48 object-cover rounded-lg mb-4"
+                        />
+                        <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                        <p className="text-sm text-gray-600">{producto.descripcion}</p>
+                        <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
+                        <button className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">
+                          Ver más
+                        </button>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 
+          {/* Línea decorativa entre Productos y Emprendimientos */}
+          <div className="max-w-7xl mx-auto my-12 h-[2px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+
           {/* EMPRENDIMIENTOS */}
           <section
-            className="py-16 px-4 text-gray-800"
+            className="py-16 px-4 text-gray-800 relative overflow-hidden"
             style={{
               backgroundImage: `url(${fondoblanco})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
           >
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-10">Explora Emprendimientos</h2>
-              <div className="flex overflow-x-auto gap-6 pb-4">
+            {/* Líneas diagonales sutiles */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage:
+                  'repeating-linear-gradient(45deg, rgba(170,74,68,0.05) 0, rgba(170,74,68,0.05) 1px, transparent 1px, transparent 20px)',
+                zIndex: 0,
+              }}
+            />
+
+            <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-2 relative inline-block">
+                Explora Emprendimientos
+                <span className="block mx-auto mt-2 h-1 w-24 bg-[#AA4A44] rounded"></span>
+              </h2>
+              <div className="flex overflow-x-auto gap-6 pb-4 w-full max-w-[calc(100vw-48px)] md:max-w-full">
                 {emprendimientos.length === 0 ? (
                   <p className="text-center w-full">Cargando emprendimientos...</p>
                 ) : (
