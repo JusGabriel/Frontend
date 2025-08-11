@@ -36,18 +36,19 @@ const Login = () => {
       let endpoint = '';
       switch (data.role) {
         case 'admin':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/administradores/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
           break;
         case 'user':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/clientes/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
           break;
         case 'editor':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
           break;
         default:
           toast.error('Selecciona un rol válido');
           return;
       }
+
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -182,3 +183,4 @@ const Login = () => {
 };
 
 export default Login;
+
