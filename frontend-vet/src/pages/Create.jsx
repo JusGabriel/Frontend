@@ -1,4 +1,4 @@
-import { FormProducto } from '../components/create/FormProducto'
+import { FormProducto } from '../components/create/FormProducto';
 
 const Create = () => {
   return (
@@ -17,3 +17,4 @@ const Create = () => {
 }
 
 export default Create
+
