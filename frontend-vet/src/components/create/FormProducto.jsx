@@ -1,7 +1,6 @@
-// src/components/create/FormProducto.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import storeAuth from "../../context/storeAuth"; // ajusta la ruta si es necesario
+import storeAuth from "../../context/storeAuth";
 
 export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
@@ -12,14 +11,12 @@ export const FormProducto = () => {
     descripcion: "",
     precio: "",
     imagen: "",
-    // categoria: "",  <-- eliminado por ahora
     stock: "",
   });
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
   const [error, setError] = useState(null);
 
-  // Cargar productos del emprendedor
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -151,226 +148,147 @@ export const FormProducto = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Mis Productos</h2>
+    <div className="max-w-7xl mx-auto p-6 flex flex-col md:flex-row gap-10">
+      {/* Formulario */}
+      <section className="flex-1 bg-[#F7E5D2] p-6 rounded-xl shadow-inner">
+        <h2 className="text-2xl font-bold text-[#AA4A44] mb-6 border-b-2 border-[#AA4A44] pb-2 text-center">
+          Mis Productos
+        </h2>
 
-      <form onSubmit={handleSubmit} style={styles.form}>
-        {error && <p style={styles.error}>{error}</p>}
-
-        <input
-          style={styles.input}
-          name="nombre"
-          placeholder="Nombre"
-          value={form.nombre}
-          onChange={handleChange}
-          required
-        />
-        <input
-          style={styles.input}
-          name="descripcion"
-          placeholder="Descripción"
-          value={form.descripcion}
-          onChange={handleChange}
-        />
-        <input
-          style={styles.input}
-          name="precio"
-          placeholder="Precio"
-          type="number"
-          step="0.01"
-          value={form.precio}
-          onChange={handleChange}
-          required
-          min="0"
-        />
-        <input
-          style={styles.input}
-          name="imagen"
-          placeholder="URL Imagen"
-          value={form.imagen}
-          onChange={handleChange}
-        />
-        <input
-          style={styles.input}
-          name="stock"
-          placeholder="Stock"
-          type="number"
-          value={form.stock}
-          onChange={handleChange}
-          min="0"
-        />
-
-        <div style={styles.buttons}>
-          <button type="submit" style={styles.buttonPrimary}>
-            {modoEdicion ? "Actualizar" : "Crear"}
-          </button>
-          {modoEdicion && (
-            <button
-              type="button"
-              style={styles.buttonSecondary}
-              onClick={resetForm}
-            >
-              Cancelar
-            </button>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-gray-800">
+          {error && (
+            <p className="bg-red-100 text-red-700 p-2 rounded mb-4">{error}</p>
           )}
-        </div>
-      </form>
 
-      <div style={styles.listaContainer}>
-        {loading ? (
-          <p>Cargando productos...</p>
-        ) : productos.length === 0 ? (
-          <p>No tienes productos aún.</p>
-        ) : (
-          productos.map((prod) => (
-            <div key={prod._id} style={styles.productoCard}>
-              <div style={styles.productoInfo}>
-                <strong>{prod.nombre}</strong>
-                <p>{prod.descripcion}</p>
-                <p>
-                  Precio: <b>${prod.precio.toFixed(2)}</b>
-                </p>
-                <p>Stock: {prod.stock}</p>
-                {prod.imagen && (
+          <input
+            className="p-2 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none"
+            name="nombre"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="p-2 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none"
+            name="descripcion"
+            placeholder="Descripción"
+            value={form.descripcion}
+            onChange={handleChange}
+          />
+          <input
+            className="p-2 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none"
+            name="precio"
+            placeholder="Precio"
+            type="number"
+            step="0.01"
+            value={form.precio}
+            onChange={handleChange}
+            required
+            min="0"
+          />
+          <input
+            className="p-2 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none"
+            name="imagen"
+            placeholder="URL Imagen"
+            value={form.imagen}
+            onChange={handleChange}
+          />
+          <input
+            className="p-2 rounded border border-gray-300 focus:border-[#AA4A44] focus:outline-none"
+            name="stock"
+            placeholder="Stock"
+            type="number"
+            value={form.stock}
+            onChange={handleChange}
+            min="0"
+          />
+
+          <div className="flex justify-end gap-4 mt-4">
+            <button
+              type="submit"
+              className="bg-[#AA4A44] hover:bg-[#933834] text-white font-semibold py-2 px-6 rounded transition"
+            >
+              {modoEdicion ? "Actualizar" : "Crear"}
+            </button>
+            {modoEdicion && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-400 hover:bg-gray-500 text-white font-semibold py-2 px-6 rounded transition"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+      {/* Lista de productos */}
+      <section className="flex-1">
+        <h2 className="text-2xl font-bold text-[#AA4A44] mb-6 border-b-2 border-[#AA4A44] pb-2 text-center">
+          Mis Productos
+        </h2>
+
+        <div className="flex flex-col gap-6">
+          {loading ? (
+            <p className="text-center text-gray-600">Cargando productos...</p>
+          ) : productos.length === 0 ? (
+            <p className="text-center text-gray-600">No tienes productos aún.</p>
+          ) : (
+            productos.map((prod) => (
+              <div
+                key={prod._id}
+                className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition flex gap-4 items-center"
+              >
+                <div className="w-1 bg-[#AA4A44] rounded-l-xl" />
+
+                {prod.imagen ? (
                   <img
                     src={prod.imagen}
                     alt={prod.nombre}
-                    style={styles.imagen}
+                    className="w-28 h-28 object-cover rounded-lg"
                   />
+                ) : (
+                  <div className="w-28 h-28 bg-gray-200 rounded-lg flex items-center justify-center text-gray-400">
+                    Sin imagen
+                  </div>
                 )}
-                <p>
-                  Categoría:{" "}
-                  {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
-                </p>
+
+                <div className="flex-1">
+                  <h3 className="font-semibold text-lg text-[#AA4A44]">{prod.nombre}</h3>
+                  <p className="text-sm text-gray-600">{prod.descripcion}</p>
+                  <p className="mt-1 text-[#28a745] font-bold">${prod.precio.toFixed(2)}</p>
+                  <p className="text-sm text-gray-500">Stock: {prod.stock}</p>
+                  <p className="text-sm text-gray-500">
+                    Categoría: {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => editarProducto(prod)}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-3 rounded transition"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => eliminarProducto(prod._id)}
+                    className="bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded transition"
+                  >
+                    Borrar
+                  </button>
+                  <button
+                    onClick={() => alert(`Comprando: ${prod.nombre}`)}
+                    className="bg-green-600 hover:bg-green-700 text-white py-1 px-3 rounded transition"
+                  >
+                    Comprar
+                  </button>
+                </div>
               </div>
-              <div style={styles.buttonsCard}>
-                <button
-                  style={styles.buttonEdit}
-                  onClick={() => editarProducto(prod)}
-                >
-                  Editar
-                </button>
-                <button
-                  style={styles.buttonDelete}
-                  onClick={() => eliminarProducto(prod._id)}
-                >
-                  Borrar
-                </button>
-                <button
-                  style={styles.buttonBuy}
-                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
-                >
-                  Comprar
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 };
-
-const styles = {
-  container: {
-    maxWidth: 700,
-    margin: "auto",
-    padding: 15,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  },
-  title: {
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  form: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 30,
-    backgroundColor: "#f7f7f7",
-    padding: 15,
-    borderRadius: 6,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-  },
-  input: {
-    flex: "1 1 45%",
-    padding: 10,
-    fontSize: 14,
-    borderRadius: 4,
-    border: "1px solid #ccc",
-  },
-  buttons: {
-    width: "100%",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  buttonPrimary: {
-    backgroundColor: "#0a74da",
-    color: "white",
-    padding: "10px 16px",
-    border: "none",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonSecondary: {
-    backgroundColor: "#aaa",
-    color: "white",
-    padding: "10px 16px",
-    border: "none",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  listaContainer: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 15,
-  },
-  productoCard: {
-    display: "flex",
-    flexDirection: "column",
-    border: "1px solid #ddd",
-    borderRadius: 6,
-    padding: 15,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-    backgroundColor: "#fff",
-  },
-  productoInfo: {
-    marginBottom: 10,
-  },
-  imagen: {
-    maxWidth: "100%",
-    height: "auto",
-    borderRadius: 6,
-    marginTop: 10,
-  },
-  buttonsCard: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  buttonEdit: {
-    backgroundColor: "#ffc107",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonDelete: {
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonBuy: {
-    backgroundColor: "#4a9716ff",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-};
-
