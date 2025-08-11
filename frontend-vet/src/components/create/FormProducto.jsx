@@ -1,3 +1,4 @@
+// src/components/create/FormProducto.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth"; // ajusta la ruta si es necesario
@@ -35,18 +36,15 @@ export const FormProducto = () => {
     }
   };
 
-  // Cargar productos al iniciar o cuando cambia emprendedorId
   useEffect(() => {
     cargarProductos();
   }, [emprendedorId]);
 
-  // Manejar cambio en inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Resetear formulario y estados
   const resetForm = () => {
     setForm({
       nombre: "",
@@ -60,7 +58,6 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // Crear nuevo producto
   const crearProducto = async () => {
     if (!token) {
       setError("No autenticado");
@@ -71,7 +68,7 @@ export const FormProducto = () => {
         "https://backend-production-bd1d.up.railway.app/api/productos",
         {
           ...form,
-          categoria: null, // mantenemos null si no se usa categoria
+          categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
         },
@@ -86,7 +83,6 @@ export const FormProducto = () => {
     }
   };
 
-  // Preparar formulario para editar producto existente
   const editarProducto = (producto) => {
     setModoEdicion(true);
     setProductoEditId(producto._id);
@@ -100,7 +96,6 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // Actualizar producto
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
@@ -126,7 +121,6 @@ export const FormProducto = () => {
     }
   };
 
-  // Eliminar producto
   const eliminarProducto = async (id) => {
     if (!token) {
       setError("No autenticado");
@@ -147,7 +141,6 @@ export const FormProducto = () => {
     }
   };
 
-  // Enviar formulario
   const handleSubmit = (e) => {
     e.preventDefault();
     if (modoEdicion) {
@@ -161,7 +154,6 @@ export const FormProducto = () => {
     <div style={styles.container}>
       <h2 style={styles.title}>Mis Productos</h2>
 
-      {/* Formulario Crear/Editar */}
       <form onSubmit={handleSubmit} style={styles.form}>
         {error && <p style={styles.error}>{error}</p>}
 
@@ -224,7 +216,6 @@ export const FormProducto = () => {
         </div>
       </form>
 
-      {/* Lista de productos */}
       <div style={styles.listaContainer}>
         {loading ? (
           <p>Cargando productos...</p>
