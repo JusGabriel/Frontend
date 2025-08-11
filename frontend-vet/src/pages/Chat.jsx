@@ -212,7 +212,7 @@ const Chat = () => {
   return (
     <div
       className="flex bg-white"
-      style={{ width: "calc(100vw - 10px)", height: "calc(100vh - 10px)", padding: 5 }}
+      style={{ width: "calc(100vw - 2cm)", height: "calc(100vh - 8cm)", padding: 5 }}
     >
       {/* Sidebar con selector de vista y lista */}
       <aside className="w-80 border-r border-gray-300 flex flex-col">
