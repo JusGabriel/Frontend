@@ -11,8 +11,8 @@ const Create = () => {
         backgroundPosition: 'center',
       }}
     >
-      {/* ENCABEZADO */}
-      <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900 relative z-10 w-full max-w-3xl mx-auto">
+      {/* ENCABEZADO que ocupa 100% ancho */}
+      <main className="py-5 px-6 bg-[#F7E5D2] text-gray-900 relative z-10 w-full">
         <h1 className="text-3xl md:text-4xl font-black text-gray-800 dark:text-gray-200 mb-2">
           Agregar Producto
         </h1>
@@ -22,10 +22,10 @@ const Create = () => {
         </p>
       </main>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO PRINCIPAL centrado con max ancho */}
       <main
         className="flex-grow px-6 md:px-16 py-10 relative z-10 w-full max-w-3xl mx-auto"
-        style={{ minHeight: 'calc(100vh - 140px)' }} // ajusta según alto del encabezado
+        style={{ minHeight: 'calc(100vh - 140px)' }}
       >
         <FormProducto />
       </main>
