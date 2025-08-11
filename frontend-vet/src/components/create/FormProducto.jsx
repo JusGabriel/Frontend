@@ -372,12 +372,6 @@ export const FormProducto = () => {
                 <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
                   Borrar
                 </button>
-                <button
-                  style={styles.buttonBuy}
-                  onClick={() => alert(`Comprando: ${prod.nombre}`)}
-                >
-                  Comprar
-                </button>
               </div>
             </div>
           ))
