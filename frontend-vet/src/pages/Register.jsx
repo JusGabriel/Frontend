@@ -210,7 +210,7 @@ if (styleSheet) {
 const cardStyle = {
   display: 'flex',
   width: '850px',
-  height: '600px',
+  height: '750px',
   borderRadius: '25px',
   overflow: 'hidden',
   boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
@@ -303,3 +303,4 @@ const errorText = {
 };
 
 export default Register;
+
