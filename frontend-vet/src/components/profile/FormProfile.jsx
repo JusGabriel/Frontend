@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import storeProfile from "../../context/storeProfile";
 import { useForm } from "react-hook-form";
 import { ToastContainer, toast } from "react-toastify";
@@ -6,6 +6,8 @@ import "react-toastify/dist/ReactToastify.css";
 
 const FormularioPerfil = () => {
   const { user, updateProfile } = storeProfile();
+  const [isLoading, setIsLoading] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -25,16 +27,25 @@ const FormularioPerfil = () => {
   }, [user, reset]);
 
   const updateUser = async (data) => {
+    setIsLoading(true);
+    const toastId = "updateProfileToast";
     try {
       const response = await updateProfile(data, user._id);
-      // Asumiendo que updateProfile retorna la data actualizada o algún indicador
-      if (response) {
-        toast.success("Perfil actualizado correctamente");
+      if (response.success) {
+        if (!toast.isActive(toastId)) {
+          toast.success("Perfil actualizado correctamente", { toastId });
+        }
       } else {
-        toast.error("Error al actualizar el perfil");
+        if (!toast.isActive(toastId)) {
+          toast.error(response.error || "Error al actualizar el perfil", { toastId });
+        }
       }
     } catch (error) {
-      toast.error("Ocurrió un error inesperado");
+      if (!toast.isActive(toastId)) {
+        toast.error("Ocurrió un error inesperado", { toastId });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,11 +103,16 @@ const FormularioPerfil = () => {
 
           <button
             type="submit"
-            style={submitButton}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
+            disabled={isLoading}
+            style={{
+              ...submitButton,
+              backgroundColor: isLoading ? "#ccc" : "#AA4A44",
+              cursor: isLoading ? "not-allowed" : "pointer",
+            }}
+            onMouseOver={(e) => !isLoading && (e.currentTarget.style.backgroundColor = "#8C3E39")}
+            onMouseOut={(e) => !isLoading && (e.currentTarget.style.backgroundColor = "#AA4A44")}
           >
-            Actualizar
+            {isLoading ? "Actualizando..." : "Actualizar"}
           </button>
         </form>
       </div>
