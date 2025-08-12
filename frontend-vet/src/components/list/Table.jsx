@@ -59,7 +59,7 @@ const Table = () => {
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al crear");
       else {
-        setMensaje(`${tipo === "cliente" ? "Cliente" : "Emprendedor"} creado`);
+        setMensaje(`${capitalize(tipo)} creado`);
         setFormCrear(emptyForm);
         fetchLista();
       }
@@ -95,7 +95,7 @@ const Table = () => {
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al actualizar");
       else {
-        setMensaje(`${tipo === "cliente" ? "Cliente" : "Emprendedor"} actualizado`);
+        setMensaje(`${capitalize(tipo)} actualizado`);
         setFormEditar({ id: null, ...emptyForm });
         fetchLista();
       }
@@ -115,7 +115,7 @@ const Table = () => {
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al eliminar");
       else {
-        setMensaje(`${tipo === "cliente" ? "Cliente" : "Emprendedor"} eliminado`);
+        setMensaje(`${capitalize(tipo)} eliminado`);
         fetchLista();
       }
     } catch {
@@ -174,7 +174,7 @@ const Table = () => {
   return (
     <div style={styles.container}>
       <h1 style={{ textAlign: "center" }}>
-        Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}
+        Gestión {capitalize(tipo)}s
       </h1>
 
       <div style={styles.toggleContainer}>
@@ -276,11 +276,25 @@ const Table = () => {
                     Eliminar
                   </button>{" "}
                   <button
-                    style={{ ...styles.btnSmall, backgroundColor: "#28a745" }}
+                    style={{
+                      ...styles.btnSmall,
+                      backgroundColor: "#28a745",
+                      padding: "7px 14px",
+                      fontWeight: "600",
+                      borderRadius: 5,
+                      boxShadow: "0 2px 6px rgba(40,167,69,0.4)",
+                      transition: "background-color 0.3s ease",
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatUser({ id: item._id, rol: capitalize(tipo) });
                     }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#218838")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#28a745")
+                    }
                   >
                     Chatear
                   </button>
@@ -418,4 +432,3 @@ const styles = {
 };
 
 export default Table;
-
