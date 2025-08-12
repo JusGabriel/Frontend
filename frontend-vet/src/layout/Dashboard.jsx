@@ -22,7 +22,6 @@ const Dashboard = () => {
     Cliente: [
       { to: '/dashboard', label: 'Perfil' },
       { to: '/dashboard/inicio', label: 'Inicio' },
-      { to: '/dashboard/chat', label: 'Chat' },
     ],
   };
 
@@ -94,5 +93,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 
 
