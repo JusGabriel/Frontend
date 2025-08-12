@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
 import fondoblanco from '../assets/fondoblanco.jpg';
-import panecillo from '../assets/panecillo.jpg';
+import panecillo from '../pages/Imagenes/panecillo.jpg';
 
 export const Forgot = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -272,3 +272,4 @@ const errorStyle = {
   fontSize: '0.8rem',
   marginTop: '0.25rem',
 };
+
