@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Import para navegación
 
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
@@ -21,6 +22,8 @@ const Table = () => {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null); // fila expandida por _id
+
+  const navigate = useNavigate(); // Hook para navegar
 
   // Carga lista según tipo
   const fetchLista = async () => {
@@ -130,6 +133,14 @@ const Table = () => {
     setExpandido(expandido === id ? null : id);
   };
 
+  // Función para chatear: guarda id y rol, redirige a chat
+  const handleChatear = (item) => {
+    // Aquí envías el _id y rol al dashboard/chat
+    navigate("/dashboard/chat", {
+      state: { receptorId: item._id, receptorRol: item.rol },
+    });
+  };
+
   // Inputs comunes para ambos formularios
   const inputsForm = (form, setForm) => (
     <>
@@ -175,7 +186,9 @@ const Table = () => {
 
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: "center" }}>Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}</h1>
+      <h1 style={{ textAlign: "center" }}>
+        Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}
+      </h1>
 
       <div style={styles.toggleContainer}>
         <button
@@ -257,11 +270,33 @@ const Table = () => {
                 <td style={styles.td}>{item.email}</td>
                 <td style={styles.td}>{item.telefono || "N/A"}</td>
                 <td style={styles.td}>
-                  <button style={styles.btnSmall} onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}>
+                  <button
+                    style={styles.btnSmall}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prepararEditar(item);
+                    }}
+                  >
                     Editar
                   </button>{" "}
-                  <button style={styles.btnSmallDelete} onClick={(e) => { e.stopPropagation(); handleEliminar(item._id); }}>
+                  <button
+                    style={styles.btnSmallDelete}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEliminar(item._id);
+                    }}
+                  >
                     Eliminar
+                  </button>{" "}
+                  {/* Botón Chatear */}
+                  <button
+                    style={{ ...styles.btnSmall, backgroundColor: "#28a745" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleChatear(item);
+                    }}
+                  >
+                    Chatear
                   </button>
                 </td>
               </tr>
@@ -269,7 +304,9 @@ const Table = () => {
                 <tr style={{ backgroundColor: "#eef6ff" }}>
                   <td colSpan="6" style={{ padding: 10 }}>
                     <strong>Detalles:</strong>
-                    <div>Nombre completo: {item.nombre} {item.apellido}</div>
+                    <div>
+                      Nombre completo: {item.nombre} {item.apellido}
+                    </div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
                     <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
