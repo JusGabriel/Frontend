@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
+import logoDog from '../assets/doglost.jpg';
 
 const Header = ({ onChangeSection, active }) => {
   const menuItems = [
@@ -42,10 +43,10 @@ const Footer = () => (
 
 export const NotFound = () => {
   return (
-    <>
+    <div className="flex flex-col min-h-screen">
       <Header />
       <section
-        className="relative py-20 px-6 flex flex-col justify-center items-center text-center text-gray-900"
+        className="relative py-20 px-6 flex flex-col justify-center items-center text-center text-gray-900 flex-grow"
         style={{
           backgroundImage: `url(${fondoblanco})`,
           backgroundSize: 'cover',
@@ -62,9 +63,15 @@ export const NotFound = () => {
             zIndex: 0,
           }}
         />
-        <div className="relative z-10 max-w-3xl mx-auto">
+
+        <div className="relative z-10 max-w-3xl mx-auto flex flex-col items-center">
+          <img
+            className="object-cover h-80 w-80 rounded-full border-4 border-solid border-slate-600 mb-8"
+            src={logoDog}
+            alt="Acceso restringido"
+          />
           <h1 className="text-4xl font-extrabold text-[#AA4A44] mb-6">Acceso restringido</h1>
-          <p className="text-lg mb-4">
+          <p className="text-lg mb-4 max-w-md">
             Debes{' '}
             <Link to="/login" className="text-[#AA4A44] underline">
               iniciar sesión
@@ -78,9 +85,6 @@ export const NotFound = () => {
         </div>
       </section>
       <Footer />
-    </>
+    </div>
   );
 };
-
-
-
