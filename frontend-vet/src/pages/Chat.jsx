@@ -23,17 +23,13 @@ const Chat = () => {
   // Mensajes de info / error
   const [info, setInfo] = useState("");
 
-  // Mensaje específico para Clientes y Emprendedores
-  const [mensajeQuejaInfo, setMensajeQuejaInfo] = useState("");
-
   // Ref para scroll automático
   const mensajesRef = useRef(null);
 
   // Para leer parámetro "user" de la URL
-const location = useLocation();
-const params = new URLSearchParams(location.search);
-const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
-
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const chatUserId = params.get("user"); // id del emprendedor con quien chatear
 
   // --- Funciones Chat General ---
 
@@ -99,17 +95,17 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
     }
   };
 
-  // --- Función para abrir o crear conversación con chatUser Id ---
+  // --- Función para abrir o crear conversación con chatUserId ---
 
   const abrirConversacionConUsuario = async () => {
-    if (!chatUser Id || !usuarioId) return;
+    if (!chatUserId || !usuarioId) return;
 
     // Primero aseguramos cargar las conversaciones
     await cargarConversaciones();
 
-    // Buscar conversación existente con chatUser Id
+    // Buscar conversación existente con chatUserId
     const convExistente = conversaciones.find((conv) =>
-      conv.participantes.some((p) => p.id && p.id._id === chatUser Id)
+      conv.participantes.some((p) => p.id && p.id._id === chatUserId)
     );
 
     if (convExistente) {
@@ -126,7 +122,7 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
             body: JSON.stringify({
               participantes: [
                 { id: usuarioId, rol: emisorRol },
-                { id: chatUser Id, rol: "Emprendedor" }, // ajusta el rol si necesitas
+                { id: chatUserId, rol: "Emprendedor" }, // ajusta el rol si necesitas
               ],
             }),
           }
@@ -171,9 +167,6 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
     e.preventDefault();
     if (!mensajeQueja.trim() || !quejaSeleccionada) return;
 
-    const receptorId = "6894f9c409b9687e33e57f56"; // ID del Administrador
-    const receptorRol = "Administrador"; // Rol del Administrador
-
     try {
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
@@ -185,8 +178,6 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
             emisorRol,
             contenido: mensajeQueja.trim(),
             quejaId: quejaSeleccionada._id,
-            receptorId, // ID del Administrador
-            receptorRol, // Rol del Administrador
           }),
         }
       );
@@ -239,14 +230,8 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
       setConversacionId(null);
       setMensajes([]);
       setMensaje("");
-      // Mostrar mensaje específico para Clientes y Emprendedores
-      if (emisorRol === "Cliente" || emisorRol === "Emprendedor") {
-        setMensajeQuejaInfo("Envía una queja al administrador del sitio");
-      } else {
-        setMensajeQuejaInfo("");
-      }
     }
-  }, [vista, emisorRol]);
+  }, [vista]);
 
   // Scroll automático en mensajes
   useEffect(() => {
@@ -255,12 +240,12 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
     }
   }, [mensajes, mensajesQueja]);
 
-  // Al cargar el componente, si viene chatUser Id, abrir o crear conversación
+  // Al cargar el componente, si viene chatUserId, abrir o crear conversación
   useEffect(() => {
-    if (chatUser Id) {
+    if (chatUserId) {
       abrirConversacionConUsuario();
     }
-  }, [chatUser Id, usuarioId]);
+  }, [chatUserId, usuarioId]);
 
   // --- Render ---
 
@@ -476,7 +461,9 @@ const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
         </form>
 
         {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
-        {mensajeQuejaInfo && <div className="p-2 text-center text-gray-600">{mensajeQuejaInfo}</div>}
       </section>
-   
+    </div>
+  );
+};
 
+export default Chat;
