@@ -3,6 +3,9 @@ import { useForm } from 'react-hook-form';
 import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
+import fondoblanco from '../assets/fondoblanco.jpg';
+import panecillo from '../pages/Imagenes/panecillo.jpg';
+
 export const Forgot = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
 
@@ -34,69 +37,238 @@ export const Forgot = () => {
   };
 
   return (
-    <>
+    <div style={containerStyle}>
       <Toaster position="top-right" reverseOrder={false} />
-      <div className="flex flex-col sm:flex-row h-screen">
-        <div className="w-full sm:w-1/2 h-screen bg-white flex justify-center items-center">
-          <div className="md:w-4/5 sm:w-full">
-            <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-500">¡Olvidaste tu contraseña!</h1>
-            <small className="text-gray-400 block my-4 text-sm">No te preocupes</small>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Email */}
-              <div className="mb-3">
-                <label className="mb-2 block text-sm font-semibold">Correo electrónico</label>
-                <input
-                  type="email"
-                  placeholder="Ingresa un correo electrónico válido"
-                  className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-1.5 text-gray-500"
-                  {...register("email", { required: "El correo es obligatorio" })}
-                />
-                {errors.email && <p className="text-red-800 text-sm">{errors.email.message}</p>}
-              </div>
+      {/* Animación CSS de burbujas */}
+      <style>{`
+        @keyframes rise {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateY(-110vh) scale(1.3);
+            opacity: 0;
+          }
+        }
+      `}</style>
 
-              {/* Rol */}
-              <div className="mb-3">
-                <label htmlFor="role" className="mb-2 block text-sm font-semibold">Selecciona tu rol</label>
-                <select
-                  id="role"
-                  className="block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-1 px-2 text-gray-500"
-                  {...register("role", { required: "El rol es obligatorio" })}
-                >
-                  <option value="">Selecciona un rol</option>
-                  <option value="admin">Administrador</option>
-                  <option value="editor">Emprendedor</option>
-                  <option value="user">Cliente</option>
-                </select>
-                {errors.role && <p className="text-red-800 text-sm">{errors.role.message}</p>}
-              </div>
+      {/* Fondo general */}
+      <div style={backgroundStyle} />
 
-              <div className="mb-3">
-                <button
-                  type="submit"
-                  className="bg-gray-600 text-slate-300 border py-2 w-full rounded-xl mt-5 hover:scale-105 duration-300 hover:bg-gray-900 hover:text-white"
-                >
-                  Enviar correo
-                </button>
-              </div>
-            </form>
+      {/* Burbujas */}
+      <div style={bubblesContainer}>
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            style={{
+              ...bubbleStyle,
+              animationDelay: `${i * 0.4}s`,
+              left: `${Math.random() * 100}%`,
+              width: `${10 + Math.random() * 15}px`,
+              height: `${10 + Math.random() * 15}px`
+            }}
+          />
+        ))}
+      </div>
 
-            <div className="mt-5 text-xs border-b-2 py-4"></div>
+      {/* Tarjeta central */}
+      <div style={cardStyle}>
+        {/* Panel izquierdo con imagen */}
+        <div style={leftPanelStyle} />
 
-            <div className="mt-3 text-sm flex justify-between items-center">
-              <p>¿Ya posees una cuenta?</p>
-              <Link to="/login" className="py-2 px-5 bg-gray-600 text-slate-300 border rounded-xl hover:scale-110 duration-300 hover:bg-gray-900 hover:text-white">
+        {/* Formulario */}
+        <div style={formContainerStyle}>
+          <form onSubmit={handleSubmit(onSubmit)} style={formStyle}>
+            <h1 style={titleStyle}>¡Olvidaste tu contraseña!</h1>
+            <small style={subtitleStyle}>
+              No te preocupes. Ingresa tu correo y selecciona tu rol para recibir un correo de recuperación.
+            </small>
+
+            {/* Email */}
+            <input
+              type="email"
+              placeholder="Ingresa un correo electrónico válido"
+              {...register("email", { required: "El correo es obligatorio" })}
+              style={{
+                ...inputStyle,
+                borderColor: errors.email ? '#e53e3e' : '#ccc'
+              }}
+            />
+            {errors.email && (
+              <p style={errorStyle}>{errors.email.message}</p>
+            )}
+
+            {/* Rol */}
+            <select
+              {...register("role", { required: "El rol es obligatorio" })}
+              defaultValue=""
+              style={{
+                ...selectStyle,
+                borderColor: errors.role ? '#e53e3e' : '#ccc'
+              }}
+            >
+              <option value="" disabled>Selecciona un rol</option>
+              <option value="admin">Administrador</option>
+              <option value="editor">Emprendedor</option>
+              <option value="user">Cliente</option>
+            </select>
+            {errors.role && (
+              <p style={errorStyle}>{errors.role.message}</p>
+            )}
+
+            <button type="submit" style={buttonStyle}>
+              Enviar correo
+            </button>
+
+            <div style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>
+              ¿Ya posees una cuenta?{' '}
+              <Link to="/login" style={{ color: '#AA4A44', textDecoration: 'underline' }}>
                 Iniciar sesión
               </Link>
             </div>
-          </div>
+          </form>
         </div>
-
-        <div
-          className="w-full sm:w-1/2 h-1/3 sm:h-screen bg-no-repeat bg-cover bg-center sm:block hidden"
-          style={{ backgroundImage: "url('/images/catforgot.jpg')" }}
-        />
       </div>
-    </>
+    </div>
   );
+};
+
+/* --- ESTILOS --- */
+const containerStyle = {
+  position: 'relative',
+  height: '100vh',
+  width: '100%',
+  overflow: 'hidden',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontFamily: "'Georgia', serif",
+};
+
+const backgroundStyle = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  height: '100%',
+  width: '100%',
+  backgroundImage: `url(${fondoblanco})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  zIndex: 0,
+  filter: 'brightness(0.85)',
+};
+
+const bubblesContainer = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  zIndex: 1,
+  pointerEvents: 'none',
+  overflow: 'hidden'
+};
+
+const bubbleStyle = {
+  position: 'absolute',
+  bottom: '-50px',
+  backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  borderRadius: '50%',
+  animationName: 'rise',
+  animationDuration: '8s',
+  animationTimingFunction: 'linear',
+  animationIterationCount: 'infinite',
+  opacity: 0.7
+};
+
+const cardStyle = {
+  display: 'flex',
+  width: '100%',
+  maxWidth: '850px',
+  height: '650px',
+  borderRadius: '25px',
+  overflow: 'hidden',
+  boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+  background: '#fff',
+  position: 'relative',
+  zIndex: 2,
+};
+
+const leftPanelStyle = {
+  flex: 1,
+  backgroundImage: `url(${panecillo})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+};
+
+const formContainerStyle = {
+  flex: 1,
+  background: '#ffffff',
+  padding: '2rem',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+};
+
+const formStyle = {
+  maxWidth: '380px',
+  width: '100%',
+  margin: '0 auto',
+};
+
+const titleStyle = {
+  fontSize: '1.8rem',
+  fontWeight: '600',
+  textAlign: 'center',
+  marginBottom: '1rem',
+  fontFamily: "'Playfair Display', serif",
+  color: '#3B2F2F',
+};
+
+const subtitleStyle = {
+  textAlign: 'center',
+  display: 'block',
+  marginBottom: '1.5rem',
+  fontSize: '0.9rem',
+  color: '#555',
+};
+
+const inputStyle = {
+  width: '100%',
+  padding: '1rem',
+  marginTop: '1rem',
+  border: '1px solid #ccc',
+  borderRadius: '8px',
+  fontSize: '1rem',
+};
+
+const selectStyle = {
+  width: '100%',
+  padding: '1rem',
+  marginTop: '1rem',
+  border: '1px solid #ccc',
+  borderRadius: '8px',
+  fontSize: '1rem',
+  backgroundColor: '#fff',
+};
+
+const buttonStyle = {
+  width: '100%',
+  padding: '1rem',
+  marginTop: '1.5rem',
+  backgroundColor: '#AA4A44',
+  color: 'white',
+  border: 'none',
+  borderRadius: '25px',
+  fontSize: '1rem',
+  cursor: 'pointer',
+  fontFamily: "'Segoe UI', sans-serif",
+};
+
+const errorStyle = {
+  color: '#e53e3e',
+  fontSize: '0.8rem',
+  marginTop: '0.25rem',
 };
