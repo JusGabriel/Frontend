@@ -73,8 +73,8 @@ const HomeContent = () => {
               ) : (
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
                   {productos.map((producto) => {
-                    // Obtener ID del emprendedor o emprendimiento para chat
-                    const chatUserId = producto.emprendedor || producto.emprendimiento || '';
+                    // Tomar el ID válido para chat: preferimos emprendedor, si no, emprendimiento
+                    const chatUserId = producto.emprendedor?.toString() || producto.emprendimiento?.toString() || '';
 
                     return (
                       <div
@@ -96,7 +96,13 @@ const HomeContent = () => {
                           <div className="mt-4 flex gap-3">
                             <button
                               className="bg-[#007bff] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#0056b3] transition-colors flex-1"
-                              onClick={() => navigate(`/dashboard/chat?user=${chatUserId}`)}
+                              onClick={() => {
+                                if (chatUserId) {
+                                  navigate(`/dashboard/chat?user=${chatUserId}`);
+                                } else {
+                                  alert('No se encontró usuario para iniciar chat');
+                                }
+                              }}
                             >
                               Chat
                             </button>
