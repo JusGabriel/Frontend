@@ -75,8 +75,14 @@ export const Forgot = () => {
 
       {/* Tarjeta central */}
       <div style={cardStyle}>
-        {/* Panel izquierdo con imagen */}
-        <div style={leftPanelStyle} />
+        {/* Panel izquierdo con imagen como <img> para controlar estilos */}
+        <div style={leftPanelStyle}>
+          <img 
+            src={panecillo} 
+            alt="Panecillo"
+            style={panecilloImgStyle} 
+          />
+        </div>
 
         {/* Formulario */}
         <div style={formContainerStyle}>
@@ -198,9 +204,22 @@ const cardStyle = {
 
 const leftPanelStyle = {
   flex: 1,
-  backgroundImage: `url(${panecillo})`,
-  backgroundSize: 'cover',
-  backgroundPosition: 'center',
+  position: 'relative',
+  overflow: 'hidden',
+  borderRadius: '5%',  // Bordes redondeados 5%
+  border: '8px solid white',  // Borde blanco sólido de 8px
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#00000000', // fondo transparente para evitar solapamientos
+};
+
+const panecilloImgStyle = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover', // para que mantenga proporción sin deformarse
+  borderRadius: '5%', // redondeado al 5% en la imagen
+  display: 'block',
 };
 
 const formContainerStyle = {
@@ -210,6 +229,7 @@ const formContainerStyle = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
+  fontFamily: `"Segoe UI", Tahoma, Geneva, Verdana, sans-serif`, // fuente limpia y moderna para todo el formulario
 };
 
 const formStyle = {
@@ -224,6 +244,7 @@ const titleStyle = {
   textAlign: 'center',
   marginBottom: '1rem',
   color: '#3B2F2F',
+  fontFamily: `"Segoe UI", Tahoma, Geneva, Verdana, sans-serif`, // fuente moderna para títulos
 };
 
 const subtitleStyle = {
@@ -232,6 +253,7 @@ const subtitleStyle = {
   marginBottom: '1.5rem',
   fontSize: '0.9rem',
   color: '#555',
+  fontFamily: `"Segoe UI", Tahoma, Geneva, Verdana, sans-serif`, // fuente para subtítulos
 };
 
 const inputStyle = {
@@ -270,5 +292,3 @@ const errorStyle = {
   fontSize: '0.8rem',
   marginTop: '0.25rem',
 };
-
-
