@@ -10,7 +10,7 @@ export const FormProducto = () => {
   const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
   const [error, setError] = useState(null);
 
-  // Formulario de productos
+  // Productos - formulario
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -18,10 +18,10 @@ export const FormProducto = () => {
     imagen: "",
     stock: "",
   });
-  const [modoEdicion, setModoEdicion] = useState(false);
+  const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
-  // Formulario de emprendimiento
+  // Emprendimientos - formulario
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
@@ -31,8 +31,10 @@ export const FormProducto = () => {
     categorias: [],
     estado: "Activo",
   });
+  const [modoEdicionEmp, setModoEdicionEmp] = useState(false);
+  const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
 
-  // Cargar productos
+  // --- Cargar Productos ---
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -42,14 +44,14 @@ export const FormProducto = () => {
         `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
       setProductos(res.data);
-    } catch (err) {
+    } catch {
       setError("Error al cargar productos");
     } finally {
       setLoading(false);
     }
   };
 
-  // Cargar emprendimientos (todos)
+  // --- Cargar Emprendimientos ---
   const cargarEmprendimientos = async () => {
     setLoadingEmprendimientos(true);
     setError(null);
@@ -61,7 +63,7 @@ export const FormProducto = () => {
         }
       );
       setEmprendimientos(res.data);
-    } catch (err) {
+    } catch {
       setError("Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
@@ -73,11 +75,13 @@ export const FormProducto = () => {
     cargarEmprendimientos();
   }, [emprendedorId]);
 
+  // --- Manejo inputs productos ---
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // --- Manejo inputs emprendimientos ---
   const handleChangeEmprendimiento = (e) => {
     const { name, value } = e.target;
     if (["direccion", "ciudad", "lat", "lng"].includes(name)) {
@@ -95,7 +99,8 @@ export const FormProducto = () => {
     }
   };
 
-  const resetForm = () => {
+  // --- Reset formularios ---
+  const resetFormProducto = () => {
     setForm({
       nombre: "",
       descripcion: "",
@@ -103,12 +108,27 @@ export const FormProducto = () => {
       imagen: "",
       stock: "",
     });
-    setModoEdicion(false);
+    setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
   };
 
-  // Crear producto
+  const resetFormEmprendimiento = () => {
+    setFormEmprendimiento({
+      nombreComercial: "",
+      descripcion: "",
+      logo: "",
+      ubicacion: { direccion: "", ciudad: "", lat: "", lng: "" },
+      contacto: { telefono: "", email: "", sitioWeb: "", facebook: "", instagram: "" },
+      categorias: [],
+      estado: "Activo",
+    });
+    setModoEdicionEmp(false);
+    setEmprendimientoEditId(null);
+    setError(null);
+  };
+
+  // --- Crear producto ---
   const crearProducto = async () => {
     if (!token) {
       setError("No autenticado");
@@ -128,14 +148,15 @@ export const FormProducto = () => {
         }
       );
       cargarProductos();
-      resetForm();
+      resetFormProducto();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al crear producto");
     }
   };
 
+  // --- Editar producto ---
   const editarProducto = (producto) => {
-    setModoEdicion(true);
+    setModoEdicionProducto(true);
     setProductoEditId(producto._id);
     setForm({
       nombre: producto.nombre || "",
@@ -147,7 +168,7 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // Actualizar producto
+  // --- Actualizar producto ---
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
@@ -167,13 +188,13 @@ export const FormProducto = () => {
         }
       );
       cargarProductos();
-      resetForm();
+      resetFormProducto();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al actualizar producto");
     }
   };
 
-  // Eliminar producto
+  // --- Eliminar producto ---
   const eliminarProducto = async (id) => {
     if (!token) {
       setError("No autenticado");
@@ -194,7 +215,7 @@ export const FormProducto = () => {
     }
   };
 
-  // Crear emprendimiento
+  // --- Crear emprendimiento ---
   const crearEmprendimiento = async () => {
     if (!token) {
       setError("No autenticado");
@@ -217,14 +238,93 @@ export const FormProducto = () => {
       );
       cargarEmprendimientos();
       alert("Emprendimiento creado con éxito");
+      resetFormEmprendimiento();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al crear emprendimiento");
     }
   };
 
-  const handleSubmit = (e) => {
+  // --- Editar emprendimiento ---
+  const editarEmprendimiento = (emp) => {
+    setModoEdicionEmp(true);
+    setEmprendimientoEditId(emp._id);
+    setFormEmprendimiento({
+      nombreComercial: emp.nombreComercial || "",
+      descripcion: emp.descripcion || "",
+      logo: emp.logo || "",
+      ubicacion: {
+        direccion: emp.ubicacion?.direccion || "",
+        ciudad: emp.ubicacion?.ciudad || "",
+        lat: emp.ubicacion?.lat || "",
+        lng: emp.ubicacion?.lng || "",
+      },
+      contacto: {
+        telefono: emp.contacto?.telefono || "",
+        email: emp.contacto?.email || "",
+        sitioWeb: emp.contacto?.sitioWeb || "",
+        facebook: emp.contacto?.facebook || "",
+        instagram: emp.contacto?.instagram || "",
+      },
+      categorias: emp.categorias || [],
+      estado: emp.estado || "Activo",
+    });
+    setError(null);
+  };
+
+  // --- Actualizar emprendimiento ---
+  const actualizarEmprendimiento = async () => {
+    if (!token || !emprendimientoEditId) {
+      setError("No autenticado o emprendimiento inválido");
+      return;
+    }
+    try {
+      await axios.put(
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${emprendimientoEditId}`,
+        {
+          ...formEmprendimiento,
+          ubicacion: {
+            ...formEmprendimiento.ubicacion,
+            lat: parseFloat(formEmprendimiento.ubicacion.lat),
+            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+          },
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarEmprendimientos();
+      alert("Emprendimiento actualizado con éxito");
+      resetFormEmprendimiento();
+    } catch (err) {
+      setError(err.response?.data?.mensaje || "Error al actualizar emprendimiento");
+    }
+  };
+
+  // --- Eliminar emprendimiento ---
+  const eliminarEmprendimiento = async (id) => {
+    if (!token) {
+      setError("No autenticado");
+      return;
+    }
+    if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
+
+    try {
+      await axios.delete(
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarEmprendimientos();
+    } catch (err) {
+      setError(err.response?.data?.mensaje || "Error al eliminar emprendimiento");
+    }
+  };
+
+  // --- Submit formularios ---
+  const handleSubmitProducto = (e) => {
     e.preventDefault();
-    if (modoEdicion) {
+    if (modoEdicionProducto) {
       actualizarProducto();
     } else {
       crearProducto();
@@ -233,31 +333,111 @@ export const FormProducto = () => {
 
   const handleSubmitEmprendimiento = (e) => {
     e.preventDefault();
-    crearEmprendimiento();
+    if (modoEdicionEmp) {
+      actualizarEmprendimiento();
+    } else {
+      crearEmprendimiento();
+    }
   };
 
   return (
     <>
-      {/* FORM EMPRENDIMIENTO */}
+      {/* FORMULARIO EMPRENDIMIENTO */}
       <div style={{ ...styles.formContainer, marginBottom: "2rem" }}>
-        <h2 style={styles.title}>Crear Emprendimiento</h2>
+        <h2 style={styles.title}>{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
+        {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
-          <input type="text" name="nombreComercial" placeholder="Nombre Comercial" value={formEmprendimiento.nombreComercial} onChange={handleChangeEmprendimiento} required style={styles.input} />
-          <input type="text" name="descripcion" placeholder="Descripción" value={formEmprendimiento.descripcion} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="logo" placeholder="URL Logo" value={formEmprendimiento.logo} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="direccion" placeholder="Dirección" value={formEmprendimiento.ubicacion.direccion} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="ciudad" placeholder="Ciudad" value={formEmprendimiento.ubicacion.ciudad} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="number" step="any" name="lat" placeholder="Latitud" value={formEmprendimiento.ubicacion.lat} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="number" step="any" name="lng" placeholder="Longitud" value={formEmprendimiento.ubicacion.lng} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="telefono" placeholder="Teléfono" value={formEmprendimiento.contacto.telefono} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="email" name="email" placeholder="Email" value={formEmprendimiento.contacto.email} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <button type="submit" style={styles.buttonCreate}>Crear Emprendimiento</button>
+          <input
+            type="text"
+            name="nombreComercial"
+            placeholder="Nombre Comercial"
+            value={formEmprendimiento.nombreComercial}
+            onChange={handleChangeEmprendimiento}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={formEmprendimiento.descripcion}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="logo"
+            placeholder="URL Logo"
+            value={formEmprendimiento.logo}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="direccion"
+            placeholder="Dirección"
+            value={formEmprendimiento.ubicacion.direccion}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="ciudad"
+            placeholder="Ciudad"
+            value={formEmprendimiento.ubicacion.ciudad}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            step="any"
+            name="lat"
+            placeholder="Latitud"
+            value={formEmprendimiento.ubicacion.lat}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            step="any"
+            name="lng"
+            placeholder="Longitud"
+            value={formEmprendimiento.ubicacion.lng}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="telefono"
+            placeholder="Teléfono"
+            value={formEmprendimiento.contacto.telefono}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={formEmprendimiento.contacto.email}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <div style={styles.buttonRow}>
+            <button type="submit" style={styles.buttonCreate}>
+              {modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}
+            </button>
+            {modoEdicionEmp && (
+              <button type="button" onClick={resetFormEmprendimiento} style={styles.buttonCancel}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
       </div>
 
       {/* LISTA EMPRENDIMIENTOS */}
       <div style={styles.listaContainer}>
-        <h3>Todos los Emprendimientos</h3>
+        <h3 style={{ width: "100%", marginBottom: 12 }}>Todos los Emprendimientos</h3>
         {loadingEmprendimientos ? (
           <p>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
@@ -265,27 +445,87 @@ export const FormProducto = () => {
         ) : (
           emprendimientos.map((emp) => (
             <div key={emp._id} style={styles.productoCard}>
-              <strong>{emp.nombreComercial}</strong>
-              <p>{emp.descripcion}</p>
-              {emp.logo && <img src={emp.logo} alt={emp.nombreComercial} style={styles.imagen} />}
+              <div>
+                <strong style={{ fontSize: "1.1rem" }}>{emp.nombreComercial}</strong>
+                <p style={{ minHeight: 36, color: "#555" }}>{emp.descripcion}</p>
+                {emp.logo && (
+                  <img src={emp.logo} alt={emp.nombreComercial} style={{ ...styles.imagen, maxHeight: 120, objectFit: "contain" }} />
+                )}
+                <p style={{ marginTop: 6 }}>
+                  <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
+                </p>
+                <p>
+                  <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
+                </p>
+              </div>
+              <div style={styles.buttonsCard}>
+                <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
+                <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
+              </div>
             </div>
           ))
         )}
       </div>
 
-      {/* FORM PRODUCTOS */}
+      {/* FORMULARIO PRODUCTO */}
       <div style={styles.formContainer}>
-        <h2 style={styles.title}>{modoEdicion ? "Editar Producto" : "Crear Producto"}</h2>
+        <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
         {error && <p style={styles.error}>{error}</p>}
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <input type="text" name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required style={styles.input} />
-          <input type="text" name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} style={styles.input} />
-          <input type="number" name="precio" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
-          <input type="text" name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} style={styles.input} />
-          <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
+        <form onSubmit={handleSubmitProducto} style={styles.form}>
+          <input
+            type="text"
+            name="nombre"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={form.descripcion}
+            onChange={handleChange}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            name="precio"
+            placeholder="Precio"
+            step="0.01"
+            value={form.precio}
+            onChange={handleChange}
+            required
+            min="0"
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="imagen"
+            placeholder="URL Imagen"
+            value={form.imagen}
+            onChange={handleChange}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            name="stock"
+            placeholder="Stock"
+            value={form.stock}
+            onChange={handleChange}
+            min="0"
+            style={styles.input}
+          />
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>{modoEdicion ? "Actualizar" : "Crear"}</button>
-            {modoEdicion && <button type="button" onClick={resetForm} style={styles.buttonCancel}>Cancelar</button>}
+            <button type="submit" style={styles.buttonCreate}>
+              {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
+            </button>
+            {modoEdicionProducto && (
+              <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -302,13 +542,19 @@ export const FormProducto = () => {
               <div>
                 <strong>{prod.nombre}</strong>
                 <p>{prod.descripcion}</p>
-                <p>Precio: <b>${prod.precio.toFixed(2)}</b></p>
+                <p>
+                  Precio: <b>${prod.precio.toFixed(2)}</b>
+                </p>
                 <p>Stock: {prod.stock}</p>
                 {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
               </div>
               <div style={styles.buttonsCard}>
-                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>Editar</button>
-                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>Borrar</button>
+                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
+                  Editar
+                </button>
+                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
+                  Eliminar
+                </button>
               </div>
             </div>
           ))
@@ -357,6 +603,7 @@ const styles = {
     borderRadius: "25px",
     fontSize: "1rem",
     cursor: "pointer",
+    transition: "background-color 0.3s",
   },
   buttonCancel: {
     padding: "0.5rem 1.5rem",
@@ -366,6 +613,10 @@ const styles = {
     borderRadius: "25px",
     fontSize: "1rem",
     cursor: "pointer",
+    transition: "background-color 0.3s",
+  },
+  buttonCreateHover: {
+    backgroundColor: "#8b3b3b",
   },
   buttonRow: {
     display: "flex",
@@ -406,6 +657,7 @@ const styles = {
     display: "flex",
     justifyContent: "flex-end",
     gap: 10,
+    marginTop: "auto",
   },
   buttonEdit: {
     backgroundColor: "#ffc107",
@@ -413,6 +665,7 @@ const styles = {
     padding: "8px 12px",
     borderRadius: 4,
     cursor: "pointer",
+    transition: "background-color 0.3s",
   },
   buttonDelete: {
     backgroundColor: "#dc3545",
@@ -421,5 +674,12 @@ const styles = {
     padding: "8px 12px",
     borderRadius: 4,
     cursor: "pointer",
+    transition: "background-color 0.3s",
+  },
+  error: {
+    color: "red",
+    marginBottom: 8,
+    fontWeight: "600",
+    textAlign: "center",
   },
 };
