@@ -1,467 +1,125 @@
-import { useState, useEffect, useRef } from "react";
-import storeAuth from "../context/storeAuth";
-import { useLocation } from "react-router-dom";
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import storeAuth from '../context/storeAuth';
 
 const Chat = () => {
-  const { id: usuarioId, rol: emisorRol } = storeAuth();
+  const { conversacionId } = useParams();
+  const { id: usuarioId, rol: usuarioRol } = storeAuth();
 
-  // Vista activa: "chat" o "quejas"
-  const [vista, setVista] = useState("chat");
-
-  // Estados para Chat General
-  const [conversacionId, setConversacionId] = useState(null);
-  const [mensaje, setMensaje] = useState("");
   const [mensajes, setMensajes] = useState([]);
-  const [conversaciones, setConversaciones] = useState([]);
+  const [nuevoMensaje, setNuevoMensaje] = useState('');
+  const mensajesEndRef = useRef(null);
 
-  // Estados para Quejas
-  const [quejas, setQuejas] = useState([]);
-  const [quejaSeleccionada, setQuejaSeleccionada] = useState(null);
-  const [mensajeQueja, setMensajeQueja] = useState("");
-  const [mensajesQueja, setMensajesQueja] = useState([]);
-
-  // Mensajes de info / error
-  const [info, setInfo] = useState("");
-
-  // Ref para scroll automático
-  const mensajesRef = useRef(null);
-
-  // Para leer parámetro "user" de la URL
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const chatUserId = params.get("user"); // id del emprendedor con quien chatear
-
-  // --- Funciones Chat General ---
-
-  const cargarConversaciones = async () => {
-    if (!usuarioId) return;
+  // Función para cargar mensajes
+  const cargarMensajes = async () => {
     try {
-      const res = await fetch(
-        `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
-      );
-      const data = await res.json();
-      setConversaciones(data);
-    } catch (error) {
-      console.error("Error cargando conversaciones", error);
-      setInfo("❌ Error cargando conversaciones");
-    }
-  };
-
-  const obtenerMensajes = async () => {
-    if (!conversacionId) return;
-    try {
-      const res = await fetch(
-        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
-      );
+      const res = await fetch(`https://backend-production-bd1d.up.railway.app/api/mensajes/conversacion/${conversacionId}`);
       const data = await res.json();
       setMensajes(data);
+      scrollToBottom();
     } catch (error) {
-      console.error("Error cargando mensajes", error);
-      setInfo("❌ Error cargando mensajes");
+      console.error('Error cargando mensajes:', error);
     }
   };
 
-  const handleEnviar = async (e, receptorId, receptorRol) => {
-    e.preventDefault();
-    if (!mensaje.trim() || !receptorId || !receptorRol) return;
+  // useEffect con polling cada 3 segundos
+  useEffect(() => {
+    if (!conversacionId) return;
+
+    cargarMensajes();
+
+    const interval = setInterval(() => {
+      cargarMensajes();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [conversacionId]);
+
+  // Scroll automático al último mensaje
+  const scrollToBottom = () => {
+    if (mensajesEndRef.current) {
+      mensajesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Enviar mensaje
+  const handleEnviarMensaje = async () => {
+    if (!nuevoMensaje.trim()) return;
+
+    const mensajeObj = {
+      conversacion: conversacionId,
+      emisor: usuarioId,
+      emisorRol: usuarioRol,
+      contenido: nuevoMensaje.trim(),
+      leido: false,
+      timestamp: new Date().toISOString(),
+    };
 
     try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            emisorId: usuarioId,
-            emisorRol,
-            receptorId,
-            receptorRol,
-            contenido: mensaje.trim(),
-          }),
-        }
-      );
+      const res = await fetch('https://backend-production-bd1d.up.railway.app/api/mensajes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mensajeObj),
+      });
 
-      const data = await res.json();
-      if (res.ok) {
-        setMensaje("");
-        setInfo("");
-        obtenerMensajes();
-        cargarConversaciones();
-      } else {
-        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
-      }
+      if (!res.ok) throw new Error('Error al enviar mensaje');
+
+      const mensajeGuardado = await res.json();
+
+      setMensajes(prev => [...prev, mensajeGuardado]);
+      setNuevoMensaje('');
+      scrollToBottom();
     } catch (error) {
-      setInfo("❌ Error de red: " + error.message);
+      console.error(error);
+      alert('Error enviando mensaje');
     }
   };
 
-  // --- Función para abrir o crear conversación con chatUserId ---
-
-  const abrirConversacionConUsuario = async () => {
-    if (!chatUserId || !usuarioId) return;
-
-    // Primero aseguramos cargar las conversaciones
-    await cargarConversaciones();
-
-    // Buscar conversación existente con chatUserId
-    const convExistente = conversaciones.find((conv) =>
-      conv.participantes.some((p) => p.id && p.id._id === chatUserId)
-    );
-
-    if (convExistente) {
-      setConversacionId(convExistente._id);
-      setVista("chat");
-    } else {
-      // Crear nueva conversación
-      try {
-        const res = await fetch(
-          "https://backend-production-bd1d.up.railway.app/api/chat/conversacion",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              participantes: [
-                { id: usuarioId, rol: emisorRol },
-                { id: chatUserId, rol: "Emprendedor" }, // ajusta el rol si necesitas
-              ],
-            }),
-          }
-        );
-
-        if (!res.ok) throw new Error("Error creando conversación");
-
-        const data = await res.json();
-        setConversacionId(data._id);
-        setVista("chat");
-        // Recargar conversaciones para actualizar la lista
-        cargarConversaciones();
-      } catch (error) {
-        setInfo("❌ Error al crear conversación: " + error.message);
-      }
-    }
-  };
-
-  // --- Funciones Quejas ---
-
-  const cargarQuejas = async () => {
-    try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
-      );
-      const data = await res.json();
-      setQuejas(data);
-    } catch (error) {
-      console.error("Error cargando quejas", error);
-      setInfo("❌ Error cargando quejas");
-    }
-  };
-
-  const seleccionarQueja = (queja) => {
-    setQuejaSeleccionada(queja);
-    setMensajesQueja(queja.mensajes || []);
-    setMensajeQueja("");
-    setInfo("");
-  };
-
-  const enviarMensajeQueja = async (e) => {
-    e.preventDefault();
-    if (!mensajeQueja.trim() || !quejaSeleccionada) return;
-
-    try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            emisorId: usuarioId,
-            emisorRol,
-            contenido: mensajeQueja.trim(),
-            quejaId: quejaSeleccionada._id,
-          }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        const nuevoMsg = {
-          _id: data.data._id,
-          contenido: mensajeQueja.trim(),
-          emisor: usuarioId,
-          emisorRol,
-          timestamp: new Date().toISOString(),
-        };
-        setMensajesQueja((prev) => [...prev, nuevoMsg]);
-        setMensajeQueja("");
-        setInfo("");
-      } else {
-        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
-      }
-    } catch (error) {
-      console.error("Error enviando mensaje de queja", error);
-      setInfo("❌ Error de red al enviar mensaje");
-    }
-  };
-
-  // --- Effects ---
-
-  // Cuando cambia usuario o vista a chat, carga conversaciones y limpia quejas
-  useEffect(() => {
-    if (vista === "chat") {
-      cargarConversaciones();
-      setQuejaSeleccionada(null);
-      setMensajesQueja([]);
-      setMensajeQueja("");
-    }
-  }, [usuarioId, vista]);
-
-  // Actualizar mensajes cada 3s si hay conversación activa
-  useEffect(() => {
-    if (vista === "chat" && conversacionId) {
-      obtenerMensajes();
-      const interval = setInterval(obtenerMensajes, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [conversacionId, vista]);
-
-  // Cuando cambia a vista quejas
-  useEffect(() => {
-    if (vista === "quejas") {
-      cargarQuejas();
-      setConversacionId(null);
-      setMensajes([]);
-      setMensaje("");
-    }
-  }, [vista]);
-
-  // Scroll automático en mensajes
-  useEffect(() => {
-    if (mensajesRef.current) {
-      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-    }
-  }, [mensajes, mensajesQueja]);
-
-  // Al cargar el componente, si viene chatUserId, abrir o crear conversación
-  useEffect(() => {
-    if (chatUserId) {
-      abrirConversacionConUsuario();
-    }
-  }, [chatUserId, usuarioId]);
-
-  // --- Render ---
-
-  // Conversación o Queja activa (para mostrar mensajes)
-  const chatActivo =
-    vista === "chat"
-      ? conversaciones.find((c) => c._id === conversacionId)
-      : quejaSeleccionada;
-
-  // Mensajes activos
-  const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
-
-  // Manejar envío según vista
-  const handleEnviarMensaje = (e) => {
-    if (vista === "chat") {
-      const conv = conversaciones.find((c) => c._id === conversacionId);
-      const receptor = conv?.participantes?.find(
-        (p) => p.id && p.id._id !== usuarioId
-      );
-      if (receptor) {
-        handleEnviar(e, receptor.id._id, receptor.rol);
-      }
-    } else {
-      enviarMensajeQueja(e);
+  // Enviar mensaje al presionar Enter
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEnviarMensaje();
     }
   };
 
   return (
-    <div
-      className="flex bg-white"
-      style={{ width: "calc(100vw - 1.5cm)", height: "calc(100vh - 7cm)", padding: 5 }}
-    >
-      {/* Sidebar con selector de vista y lista */}
-      <aside className="w-80 border-r border-gray-300 flex flex-col">
-        <div
-          className="py-4 px-6 font-bold text-lg text-center cursor-pointer"
-          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
-        >
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={() => setVista("chat")}
-              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "chat"
-                  ? "bg-[#AA4A44] text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-              }`}
-            >
-              💬 Chat General
-            </button>
-            <button
-              onClick={() => setVista("quejas")}
-              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "quejas"
-                  ? "bg-[#AA4A44] text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-              }`}
-            >
-              📢 Quejas
-            </button>
-          </div>
-        </div>
+    <div className="flex flex-col h-full max-w-3xl mx-auto p-4 border rounded shadow bg-white">
+      <div className="flex-grow overflow-auto mb-4" style={{ maxHeight: '70vh' }}>
+        {mensajes.length === 0 && <p className="text-center text-gray-500 mt-4">No hay mensajes aún.</p>}
 
-        {/* Lista de conversaciones o quejas */}
-        <div className="flex-grow overflow-y-auto">
-          {vista === "chat" ? (
-            conversaciones.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">No hay conversaciones</p>
-            ) : (
-              conversaciones.map((conv) => {
-                const otro = conv.participantes.find(
-                  (p) => p.id && p.id._id !== usuarioId
-                );
-                const isActive = conv._id === conversacionId;
-                return (
-                  <button
-                    key={conv._id}
-                    onClick={() => setConversacionId(conv._id)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex justify-between items-center ${
-                      isActive ? "bg-[#fceaea]" : ""
-                    }`}
-                  >
-                    <span>
-                      {otro ? `${otro.id?.nombre} ${otro.id?.apellido}` : "Participante desconocido"}
-                    </span>
-                  </button>
-                );
-              })
-            )
-          ) : vista === "quejas" ? (
-            quejas.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">No hay quejas registradas.</p>
-            ) : (
-              quejas.map((q) => {
-                const emprendedor = q.participantes.find(
-                  (p) => p.rol === "Emprendedor"
-                )?.id;
-                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
-                const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
-                const isSelected = quejaSeleccionada?._id === q._id;
-
-                return (
-                  <button
-                    key={q._id}
-                    onClick={() => seleccionarQueja(q)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex flex-col ${
-                      isSelected ? "bg-[#fceaea]" : ""
-                    }`}
-                  >
-                    <p className="font-semibold text-[#AA4A44]">
-                      Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Receptor: {admin?.nombre} {admin?.apellido}
-                    </p>
-                    <p className="mt-1 text-gray-800 text-sm line-clamp-2">
-                      <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(q.updatedAt).toLocaleString()}
-                    </p>
-                  </button>
-                );
-              })
-            )
-          ) : null}
-        </div>
-      </aside>
-
-      {/* Chat principal */}
-      <section className="flex-1 flex flex-col">
-        <header
-          className="py-4 px-6 font-bold text-lg"
-          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
-        >
-          {vista === "chat"
-            ? chatActivo
-              ? `Chat con ${
-                  chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
-                }`
-              : "Selecciona una conversación"
-            : vista === "quejas"
-            ? quejaSeleccionada
-              ? `Chat Queja con ${
-                  quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
-                }`
-              : "Selecciona una queja"
-            : ""}
-        </header>
-
-        <div
-          ref={mensajesRef}
-          className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
-        >
-          {chatActivo ? (
-            mensajesActivos.length === 0 ? (
-              <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
-            ) : (
-              mensajesActivos.map((msg) => {
-                const esMio = msg.emisor === usuarioId;
-                return (
-                  <div
-                    key={msg._id || msg.id}
-                    className={`flex ${esMio ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${
-                        esMio ? "text-white" : "bg-white border border-gray-300"
-                      }`}
-                      style={esMio ? { backgroundColor: "#AA4A44" } : {}}
-                    >
-                      {msg.contenido}
-                      <div className="text-xs text-gray-300 mt-1 text-right">{msg.emisorRol || ""}</div>
-                    </div>
-                  </div>
-                );
-              })
-            )
-          ) : (
-            <p className="text-center text-gray-500 mt-10">
-              {vista === "chat" ? "Selecciona una conversación" : "Selecciona una queja para comenzar"}
-            </p>
-          )}
-        </div>
-
-        <form
-          onSubmit={handleEnviarMensaje}
-          className="flex p-4 border-t border-gray-300 bg-white"
-        >
-          <input
-            type="text"
-            placeholder={vista === "chat" ? "Escribe un mensaje..." : "Escribe tu respuesta..."}
-            value={vista === "chat" ? mensaje : mensajeQueja}
-            onChange={(e) =>
-              vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
-            }
-            className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
-            style={{ boxShadow: "0 0 0 2px transparent" }}
-            onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
-            onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
-            className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: "#AA4A44" }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
+        {mensajes.map((msg) => (
+          <div
+            key={msg._id}
+            className={`mb-2 p-2 rounded max-w-[70%] ${msg.emisor === usuarioId ? 'bg-[#AA4A44] text-white self-end' : 'bg-gray-200 text-gray-800 self-start'}`}
+            style={{ alignSelf: msg.emisor === usuarioId ? 'flex-end' : 'flex-start' }}
           >
-            Enviar
-          </button>
-        </form>
+            <p className="whitespace-pre-wrap">{msg.contenido}</p>
+            <small className="block mt-1 text-xs text-gray-400 text-right">
+              {new Date(msg.timestamp).toLocaleString()}
+            </small>
+          </div>
+        ))}
 
-        {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
-      </section>
+        <div ref={mensajesEndRef} />
+      </div>
+
+      <div className="flex gap-2">
+        <textarea
+          className="flex-grow border border-gray-300 rounded p-2 resize-none"
+          rows={2}
+          value={nuevoMensaje}
+          onChange={(e) => setNuevoMensaje(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Escribe tu mensaje..."
+        />
+        <button
+          onClick={handleEnviarMensaje}
+          className="bg-[#AA4A44] text-white px-4 py-2 rounded hover:bg-[#883d3a] transition-colors"
+        >
+          Enviar
+        </button>
+      </div>
     </div>
   );
 };
