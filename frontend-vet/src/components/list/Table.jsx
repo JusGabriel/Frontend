@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
 const BASE_URLS = {
@@ -23,9 +23,17 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  // NUEVO: Estado para mostrar modal chat y usuario actual para chatear
+  // Modal chat y chatUser (receptor)
   const [modalChatVisible, setModalChatVisible] = useState(false);
   const [chatUser, setChatUser] = useState(null);
+
+  // Mensajes y estado de input en el chat
+  const [mensajes, setMensajes] = useState([]);
+  const [mensajeChat, setMensajeChat] = useState("");
+  const mensajesRef = useRef(null);
+
+  // Obtener emisor del storeAuth (usuario logueado)
+  const { id: emisorId, rol: emisorRol } = storeAuth();
 
   // Capitaliza
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
@@ -173,17 +181,107 @@ const Table = () => {
     </>
   );
 
-  // NUEVO: Abrir modal chat
+  // Abre modal chat con usuario seleccionado y carga mensajes
   const abrirChat = (item) => {
     setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
     setModalChatVisible(true);
+    cargarMensajes(item._id);
   };
 
-  // NUEVO: Cerrar modal chat
+  // Cierra modal chat y limpia estados
   const cerrarChat = () => {
     setModalChatVisible(false);
     setChatUser(null);
+    setMensajes([]);
+    setMensajeChat("");
   };
+
+  // Carga mensajes de la conversación con receptorId
+  const cargarMensajes = async (receptorId) => {
+    if (!receptorId) return;
+    try {
+      // Buscamos la conversación entre emisor y receptor
+      const resConv = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${emisorId}`
+      );
+      const dataConv = await resConv.json();
+
+      // Buscar la conversación donde participen ambos
+      const conversacion = dataConv.find((conv) =>
+        conv.participantes.some(
+          (p) => p.id && p.id._id === receptorId
+        )
+      );
+
+      if (!conversacion) {
+        setMensajes([]);
+        return;
+      }
+
+      // Cargar mensajes de esa conversación
+      const resMsgs = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacion._id}`
+      );
+      const dataMsgs = await resMsgs.json();
+
+      setMensajes(dataMsgs);
+    } catch (error) {
+      setError("Error cargando mensajes");
+    }
+  };
+
+  // Envía mensaje al backend
+  const enviarMensaje = async (e) => {
+    e.preventDefault();
+    if (!mensajeChat.trim() || !chatUser || !emisorId || !emisorRol) return;
+
+    try {
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emisorId,
+            emisorRol,
+            receptorId: chatUser.id,
+            receptorRol: chatUser.rol,
+            contenido: mensajeChat.trim(),
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMensajeChat("");
+        // Recargar mensajes después de enviar
+        cargarMensajes(chatUser.id);
+      } else {
+        setError(data.mensaje || "Error enviando mensaje");
+      }
+    } catch (error) {
+      setError("Error de red: " + error.message);
+    }
+  };
+
+  // Autoscroll a últimos mensajes cuando cambia mensajes
+  useEffect(() => {
+    if (mensajesRef.current) {
+      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+    }
+  }, [mensajes]);
+
+  // Cada 3 segundos recarga mensajes si el modal está abierto
+  useEffect(() => {
+    if (!modalChatVisible || !chatUser) return;
+
+    const intervalo = setInterval(() => {
+      cargarMensajes(chatUser.id);
+    }, 3000);
+
+    return () => clearInterval(intervalo);
+  }, [modalChatVisible, chatUser]);
 
   return (
     <div style={styles.container}>
@@ -321,12 +419,8 @@ const Table = () => {
                     </div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
-                    <div>
-                      Creado: {new Date(item.createdAt).toLocaleString()}
-                    </div>
-                    <div>
-                      Actualizado: {new Date(item.updatedAt).toLocaleString()}
-                    </div>
+                    <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
+                    <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
                   </td>
                 </tr>
               )}
@@ -347,16 +441,74 @@ const Table = () => {
                 X
               </button>
             </div>
-            <div style={styles.modalBody}>
-              {/* Aquí puedes poner el contenido real del chat */}
-              <p>Esta es la ventana de chat estilo Messenger.</p>
-              <p>Implementa aquí la lógica y mensajes del chat.</p>
+            <div style={styles.modalBody} ref={mensajesRef}>
+              {mensajes.length === 0 && (
+                <p style={{ textAlign: "center", color: "#666" }}>
+                  No hay mensajes aún
+                </p>
+              )}
+              {mensajes.map((m) => {
+                const esEmisor = m.emisorId === emisorId;
+                return (
+                  <div
+                    key={m._id}
+                    style={{
+                      marginBottom: 10,
+                      textAlign: esEmisor ? "right" : "left",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        backgroundColor: esEmisor ? "#007bff" : "#e4e6eb",
+                        color: esEmisor ? "white" : "black",
+                        padding: "8px 12px",
+                        borderRadius: 15,
+                        maxWidth: "70%",
+                        wordWrap: "break-word",
+                      }}
+                    >
+                      {m.contenido}
+                    </span>
+                    <br />
+                    <small style={{ fontSize: 10, color: "#999" }}>
+                      {new Date(m.createdAt).toLocaleTimeString()}
+                    </small>
+                  </div>
+                );
+              })}
             </div>
-            <div style={styles.modalFooter}>
-              <button style={styles.btnCerrar} onClick={cerrarChat}>
-                Cerrar
+            <form style={styles.modalFooter} onSubmit={enviarMensaje}>
+              <input
+                type="text"
+                placeholder="Escribe un mensaje..."
+                value={mensajeChat}
+                onChange={(e) => setMensajeChat(e.target.value)}
+                style={{
+                  flexGrow: 1,
+                  padding: 8,
+                  borderRadius: 5,
+                  border: "1px solid #ccc",
+                  marginRight: 8,
+                  fontSize: 14,
+                }}
+                autoFocus
+              />
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: "#007bff",
+                  color: "white",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: 5,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
+                Enviar
               </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
@@ -471,8 +623,6 @@ const styles = {
     borderRadius: 3,
     cursor: "pointer",
   },
-
-  // Estilos modal y overlay
   modalOverlay: {
     position: "fixed",
     top: 0,
@@ -519,6 +669,7 @@ const styles = {
     minHeight: 150,
     fontSize: 14,
     color: "#333",
+    overflowY: "auto",
   },
   modalFooter: {
     padding: 10,
