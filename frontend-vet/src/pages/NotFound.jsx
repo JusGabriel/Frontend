@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import logoDog from '../assets/doglost.jpg';
 
-const Header = ({ onChangeSection, active }) => {
+export const Header = () => {
   const menuItems = [
     { id: 'inicio', label: 'Inicio' },
     { id: 'servicios', label: 'Nosotros' },
@@ -35,7 +35,7 @@ const Header = ({ onChangeSection, active }) => {
   );
 };
 
-const Footer = () => (
+export const Footer = () => (
   <footer className="bg-[#F3E1CE] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#E0C7B6]">
     © 2025 QuitoEmprende. Todos los derechos reservados.
   </footer>
@@ -68,20 +68,19 @@ export const NotFound = () => {
           <img
             className="object-cover h-80 w-80 rounded-full border-4 border-solid border-slate-600 mb-8"
             src={logoDog}
-            alt="Acceso restringido"
+            alt="Imagen perro perdido"
           />
-          <h1 className="text-4xl font-extrabold text-[#AA4A44] mb-6">Acceso restringido</h1>
-          <p className="text-lg mb-4 max-w-md">
-            Debes{' '}
-            <Link to="/login" className="text-[#AA4A44] underline">
-              iniciar sesión
-            </Link>{' '}
-            o{' '}
-            <Link to="/register" className="text-[#AA4A44] underline">
-              registrarte
-            </Link>{' '}
-            para poder acceder a esta sección.
-          </p>
+
+          <div className="flex flex-col items-center justify-center text-center mt-12">
+            <p className="text-3xl md:text-4xl lg:text-5xl text-gray-800">Página no encontrada</p>
+            <p className="md:text-lg lg:text-xl text-gray-600 mt-8">Lo sentimos mucho</p>
+            <Link
+              to="/"
+              className="p-3 m-5 w-full max-w-xs text-center bg-gray-600 text-slate-300 border rounded-xl hover:scale-110 duration-300 hover:bg-gray-900 hover:text-white"
+            >
+              Regresar
+            </Link>
+          </div>
         </div>
       </section>
       <Footer />
