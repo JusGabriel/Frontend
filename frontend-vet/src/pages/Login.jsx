@@ -91,6 +91,21 @@ const Login = () => {
   return (
     <div style={containerStyle}>
       <ToastContainer />
+      
+      {/* Aquí inyectamos el CSS para la animación de burbujas */}
+      <style>{`
+        @keyframes rise {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 0.7;
+          }
+          100% {
+            transform: translateY(-110vh) scale(1.3);
+            opacity: 0;
+          }
+        }
+      `}</style>
+
       <div style={backgroundStyle} />
       <Bubbles />
       <div style={cardStyle}>
@@ -223,13 +238,16 @@ const Login = () => {
 const Bubbles = () => (
   <div style={bubblesContainer}>
     {[...Array(15)].map((_, i) => (
-      <div key={i} style={{
-        ...bubble,
-        animationDelay: `${i * 0.4}s`,
-        left: `${Math.random() * 100}%`,
-        width: `${10 + Math.random() * 15}px`,
-        height: `${10 + Math.random() * 15}px`
-      }} />
+      <div
+        key={i}
+        style={{
+          ...bubble,
+          animationDelay: `${i * 0.4}s`,
+          left: `${Math.random() * 100}%`,
+          width: `${10 + Math.random() * 15}px`,
+          height: `${10 + Math.random() * 15}px`
+        }}
+      />
     ))}
   </div>
 );
@@ -238,9 +256,17 @@ const Bubbles = () => (
 const containerStyle = { position: 'relative', height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const backgroundStyle = { position: 'absolute', top: 0, left: 0, height: '100%', width: '100%', backgroundImage: `url(${fondoblanco})`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, filter: 'brightness(0.85)' };
 const bubblesContainer = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' };
-const bubble = { position: 'absolute', bottom: '-50px', backgroundColor: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', animationName: 'rise', animationDuration: '8s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', opacity: 0.7 };
-const styleSheet = document.styleSheets[0];
-styleSheet.insertRule(`@keyframes rise { 0% { transform: translateY(0) scale(1); opacity: 0.7; } 100% { transform: translateY(-110vh) scale(1.3); opacity: 0; } }`, styleSheet.cssRules.length);
+const bubble = {
+  position: 'absolute',
+  bottom: '-50px',
+  backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  borderRadius: '50%',
+  animationName: 'rise',
+  animationDuration: '8s',
+  animationTimingFunction: 'linear',
+  animationIterationCount: 'infinite',
+  opacity: 0.7
+};
 
 const cardStyle = { display: 'flex', width: '100%', maxWidth: '850px', height: '650px', borderRadius: '25px', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.2)', background: '#fff', position: 'relative', zIndex: 2 };
 const leftPanelStyle = { flex: 1, borderRadius: '5%', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' };
@@ -254,4 +280,3 @@ const googleButtonStyleGray = { backgroundColor: 'white', border: '1px solid #cc
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
-
