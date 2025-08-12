@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import storeAuth from "../../context/storeAuth";
 
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
@@ -14,15 +15,18 @@ const emptyForm = {
 };
 
 const Table = () => {
-  const [tipo, setTipo] = useState("cliente"); // 'cliente' o 'emprendedor'
+  const [tipo, setTipo] = useState("cliente");
   const [lista, setLista] = useState([]);
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
-  const [expandido, setExpandido] = useState(null); // fila expandida por _id
+  const [expandido, setExpandido] = useState(null);
 
-  // Carga lista según tipo
+  // Estado global para chat
+  const setChatUser = storeAuth((state) => state.setChatUser);
+
+  // Carga lista
   const fetchLista = async () => {
     setError("");
     setMensaje("");
@@ -130,7 +134,7 @@ const Table = () => {
     setExpandido(expandido === id ? null : id);
   };
 
-  // Inputs comunes para ambos formularios
+  // Inputs comunes para formularios
   const inputsForm = (form, setForm) => (
     <>
       <input
@@ -161,7 +165,6 @@ const Table = () => {
         placeholder="Password"
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
-        // Requerido solo para crear
         required={form.id === null}
       />
       <input
@@ -175,7 +178,9 @@ const Table = () => {
 
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: "center" }}>Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}</h1>
+      <h1 style={{ textAlign: "center" }}>
+        Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}
+      </h1>
 
       <div style={styles.toggleContainer}>
         <button
@@ -257,11 +262,33 @@ const Table = () => {
                 <td style={styles.td}>{item.email}</td>
                 <td style={styles.td}>{item.telefono || "N/A"}</td>
                 <td style={styles.td}>
-                  <button style={styles.btnSmall} onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}>
+                  <button
+                    style={styles.btnSmall}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prepararEditar(item);
+                    }}
+                  >
                     Editar
                   </button>{" "}
-                  <button style={styles.btnSmallDelete} onClick={(e) => { e.stopPropagation(); handleEliminar(item._id); }}>
+                  <button
+                    style={styles.btnSmallDelete}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEliminar(item._id);
+                    }}
+                  >
                     Eliminar
+                  </button>{" "}
+                  <button
+                    style={{ ...styles.btnSmall, backgroundColor: "#28a745" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChatUser({ id: item._id, rol: tipo });
+                      alert(`Chatear con ${item.nombre} (${tipo})`);
+                    }}
+                  >
+                    Chatear
                   </button>
                 </td>
               </tr>
@@ -269,12 +296,13 @@ const Table = () => {
                 <tr style={{ backgroundColor: "#eef6ff" }}>
                   <td colSpan="6" style={{ padding: 10 }}>
                     <strong>Detalles:</strong>
-                    <div>Nombre completo: {item.nombre} {item.apellido}</div>
+                    <div>
+                      Nombre completo: {item.nombre} {item.apellido}
+                    </div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
                     <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
                     <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
-                    {/* Puedes agregar más campos si quieres */}
                   </td>
                 </tr>
               )}
