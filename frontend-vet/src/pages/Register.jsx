@@ -5,244 +5,228 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import fondo from "../assets/fondoblanco.jpg";
-import panecillo from "../pages/Imagenes/panecillo.jpg";
+export const Register = () => {
+    const [showPassword, setShowPassword] = useState(false);
+    const { register, handleSubmit, formState: { errors } } = useForm();
 
-const Register = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm();
+    // URLs backend Google OAuth
+    const GOOGLE_CLIENT_URL = "https://backend-production-bd1d.up.railway.app/auth/google/cliente";
+    const GOOGLE_EMPRENDEDOR_URL = "https://backend-production-bd1d.up.railway.app/auth/google/emprendedor";
 
-  const GOOGLE_CLIENT_URL = "https://backend-production-bd1d.up.railway.app/auth/google/cliente";
-  const GOOGLE_EMPRENDEDOR_URL = "https://backend-production-bd1d.up.railway.app/auth/google/emprendedor";
+    const registro = async (data) => {
+        try {
+            let url = "";
 
-  const registro = async (data) => {
-    try {
-      let url = "";
-      if (data.role === "editor") {
-        url = "https://backend-production-bd1d.up.railway.app/api/emprendedores/registro";
-      } else if (data.role === "user") {
-        url = "https://backend-production-bd1d.up.railway.app/api/clientes/registro";
-      } else {
-        toast.error("Selecciona un rol válido");
-        return;
-      }
+            if (data.role === "editor") {
+                url = "https://backend-production-bd1d.up.railway.app/api/emprendedores/registro";
+            } else if (data.role === "user") {
+                url = "https://backend-production-bd1d.up.railway.app/api/clientes/registro";
+            } else {
+                toast.error("Selecciona un rol válido");
+                return;
+            }
 
-      const payload = {
-        nombre: data.nombre,
-        apellido: data.apellido,
-        email: data.email,
-        password: data.password,
-        telefono: data.celular,
-      };
+            const payload = {
+                nombre: data.nombre,
+                apellido: data.apellido,
+                email: data.email,
+                password: data.password,
+                telefono: data.celular
+            };
 
-      const respuesta = await axios.post(url, payload);
-      toast.success(respuesta.data.msg);
-    } catch (error) {
-      toast.error(error?.response?.data?.msg || "Error al registrar");
-    }
-  };
+            const respuesta = await axios.post(url, payload);
+            toast.success(respuesta.data.msg);
+        } catch (error) {
+            toast.error(error?.response?.data?.msg || "Error al registrar");
+        }
+    };
 
-  const loginGoogleCliente = () => {
-    window.location.href = GOOGLE_CLIENT_URL;
-  };
+    // Funciones para login con Google
+    const loginGoogleCliente = () => {
+        window.location.href = GOOGLE_CLIENT_URL;
+    };
 
-  const loginGoogleEmprendedor = () => {
-    window.location.href = GOOGLE_EMPRENDEDOR_URL;
-  };
+    const loginGoogleEmprendedor = () => {
+        window.location.href = GOOGLE_EMPRENDEDOR_URL;
+    };
 
-  return (
-    <div style={containerStyle}>
-      <ToastContainer />
-      <div style={backgroundStyle} />
-      <Bubbles />
-      <div style={cardStyle}>
-        {/* Imagen lateral */}
-        <div style={leftPanelStyle}>
-          <img
-            src={panecillo}
-            alt="Panecillo"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              borderRadius: "5%",
-              border: "8px solid white",
-            }}
-          />
+    return (
+        <div className="flex flex-col sm:flex-row h-screen bg-gray-50">
+
+            <ToastContainer />
+
+            <div className="w-full sm:w-1/2 h-screen bg-white flex justify-center items-center px-6">
+                <div className="md:w-4/5 sm:w-full max-w-md">
+                    <h1 className="text-3xl font-semibold mb-2 text-center uppercase text-gray-700">Bienvenido(a)</h1>
+                    <small className="text-gray-500 block my-4 text-center text-sm">Por favor ingresa tus datos</small>
+
+                    
+
+                    <form onSubmit={handleSubmit(registro)}>
+
+                        {/* Nombre */}
+                        <div className="mb-4">
+                            <label className="mb-2 block text-sm font-semibold text-gray-700">Nombre</label>
+                            <input 
+                                type="text" 
+                                placeholder="Ingresa tu nombre" 
+                                className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 ${errors.nombre ? 'border-red-600' : ''}`}
+                                {...register("nombre", { required: "El nombre es obligatorio" })}
+                            />
+                            {errors.nombre && <p className="text-red-600 text-sm mt-1">{errors.nombre.message}</p>}
+                        </div>
+
+                        {/* Apellido */}
+                        <div className="mb-4">
+                            <label className="mb-2 block text-sm font-semibold text-gray-700">Apellido</label>
+                            <input 
+                                type="text" 
+                                placeholder="Ingresa tu apellido" 
+                                className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 ${errors.apellido ? 'border-red-600' : ''}`}
+                                {...register("apellido", { required: "El apellido es obligatorio" })}
+                            />
+                            {errors.apellido && <p className="text-red-600 text-sm mt-1">{errors.apellido.message}</p>}
+                        </div>
+
+                        {/* Celular */}
+                        <div className="mb-4">
+                            <label className="mb-2 block text-sm font-semibold text-gray-700">Celular</label>
+                            <input 
+                                type="number" 
+                                placeholder="Ingresa tu celular" 
+                                className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 ${errors.celular ? 'border-red-600' : ''}`}
+                                {...register("celular", { required: "El celular es obligatorio" })}
+                            />
+                            {errors.celular && <p className="text-red-600 text-sm mt-1">{errors.celular.message}</p>}
+                        </div>
+
+                        {/* Email */}
+                        <div className="mb-4">
+                            <label className="mb-2 block text-sm font-semibold text-gray-700">Correo electrónico</label>
+                            <input 
+                                type="email" 
+                                placeholder="Ingresa tu correo electrónico" 
+                                className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 ${errors.email ? 'border-red-600' : ''}`}
+                                {...register("email", { required: "El correo electrónico es obligatorio" })}
+                            />
+                            {errors.email && <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>}
+                        </div>
+
+                        {/* Contraseña */}
+                        <div className="mb-4 relative">
+                            <label className="mb-2 block text-sm font-semibold text-gray-700">Contraseña</label>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="********************"
+                                    className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 pr-10 ${errors.password ? 'border-red-600' : ''}`}
+                                    {...register("password", { required: "La contraseña es obligatoria" })}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute top-2 right-3 text-gray-500 hover:text-gray-700 focus:outline-none"
+                                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                >
+                                    {showPassword ? (
+                                        <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A9.956 9.956 0 0112 19c-4.418 0-8.165-2.928-9.53-7a10.005 10.005 0 0119.06 0 9.956 9.956 0 01-1.845 3.35M9.9 14.32a3 3 0 114.2-4.2m.5 3.5l3.8 3.8m-3.8-3.8L5.5 5.5" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm-9.95 0a9.96 9.96 0 0119.9 0m-19.9 0a9.96 9.96 0 0119.9 0M3 3l18 18" />
+                                        </svg>
+                                    )}
+                                </button>
+                                {errors.password && <p className="text-red-600 text-sm mt-1">{errors.password.message}</p>}
+                            </div>
+                        </div>
+
+                        {/* Rol */}
+                        <div className="mb-6">
+                            <label htmlFor="role" className="mb-2 block text-sm font-semibold text-gray-700">Selecciona tu rol</label>
+                            <select
+                                id="role"
+                                className={`block w-full rounded-md border border-gray-300 focus:border-purple-700 focus:outline-none focus:ring-1 focus:ring-purple-700 py-2 px-3 text-gray-700 ${errors.role ? 'border-red-600' : ''}`}
+                                {...register("role", { required: "El rol es obligatorio" })}
+                            >
+                                <option value="">Selecciona un rol</option>
+                                <option value="editor">Emprendedor</option>
+                                <option value="user">Cliente</option>
+                            </select>
+                            {errors.role && <p className="text-red-600 text-sm mt-1">{errors.role.message}</p>}
+                        </div>
+                        {/* Botones para registro con Google */}
+                    <option value="">Registrate con Google</option>
+
+                    <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+                        <button 
+                            onClick={loginGoogleCliente}
+                            className="flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-red-700 transition duration-300 font-semibold text-sm sm:flex-1"
+                            aria-label="Registrarse con Google como Cliente"
+                            type="button"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48" >
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.24 1.52 7.68 2.8l5.7-5.69C32.44 3.75 28.6 2 24 2 14.75 2 7.1 7.73 3.67 15.56l6.6 5.12C12.6 14.3 17.6 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-2.77-.47-4.06H24v7.69h12.7c-.56 3.08-2.9 5.9-6.25 7.1l6.3 4.9c3.65-3.36 5.75-8.32 5.75-15.63z"/>
+                                <path fill="#FBBC05" d="M10.27 28.68a14.66 14.66 0 01-.77-4.68c0-1.63.27-3.2.77-4.69v-7.23H3.66A23.99 23.99 0 002 24c0 3.7.91 7.2 2.66 10.25l7.6-5.57z"/>
+                                <path fill="#34A853" d="M24 46c6.12 0 11.25-2.02 15-5.5l-7.3-5.7c-2.1 1.43-4.82 2.3-7.7 2.3-6.4 0-11.4-4.8-12.45-11.2l-7.6 5.56C7.1 40.27 14.75 46 24 46z"/>
+                                <path fill="none" d="M2 2h44v44H2z"/>
+                            </svg>
+                            Cliente
+                        </button>
+
+                        <button 
+                            onClick={loginGoogleEmprendedor}
+                            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 font-semibold text-sm sm:flex-1"
+                            aria-label="Registrarse con Google como Emprendedor"
+                            type="button"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 48 48" >
+                                <path fill="#EA4335" d="M24 9.5c3.54 0 6.24 1.52 7.68 2.8l5.7-5.69C32.44 3.75 28.6 2 24 2 14.75 2 7.1 7.73 3.67 15.56l6.6 5.12C12.6 14.3 17.6 9.5 24 9.5z"/>
+                                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.15-2.77-.47-4.06H24v7.69h12.7c-.56 3.08-2.9 5.9-6.25 7.1l6.3 4.9c3.65-3.36 5.75-8.32 5.75-15.63z"/>
+                                <path fill="#FBBC05" d="M10.27 28.68a14.66 14.66 0 01-.77-4.68c0-1.63.27-3.2.77-4.69v-7.23H3.66A23.99 23.99 0 002 24c0 3.7.91 7.2 2.66 10.25l7.6-5.57z"/>
+                                <path fill="#34A853" d="M24 46c6.12 0 11.25-2.02 15-5.5l-7.3-5.7c-2.1 1.43-4.82 2.3-7.7 2.3-6.4 0-11.4-4.8-12.45-11.2l-7.6 5.56C7.1 40.27 14.75 46 24 46z"/>
+                                <path fill="none" d="M2 2h44v44H2z"/>
+                            </svg>
+                            Emprendedor
+                        </button>
+                    </div>                
+                        {/* Botón */}
+                        <div className="mb-3">
+                            <button 
+                                type="submit"
+                                className="bg-gray-700 text-white border border-gray-700 py-3 w-full rounded-xl mt-3 hover:scale-105 duration-300 hover:bg-gray-900"
+                            >
+                                Registrarse
+                            </button>
+                        </div>
+                    </form>
+
+                    <div className="mt-6 text-xs border-b-2 py-4"></div>
+
+                    <div className="mt-3 text-sm flex justify-between items-center">
+                        <p className="text-gray-600">¿Ya posees una cuenta?</p>
+                        <div className="flex gap-2">
+                            <Link 
+                                to="/login" 
+                                className="underline text-sm text-gray-500 hover:text-gray-900"
+                            >
+                                Regresar
+                            </Link>
+                            <Link 
+                                to="/login" 
+                                className="py-2 px-5 bg-gray-700 text-white border rounded-xl hover:scale-110 duration-300 hover:bg-gray-900"
+                            >
+                                Iniciar sesión
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Imagen derecha */}
+            <div className="w-full sm:w-1/2 h-1/3 sm:h-screen bg-[url('/public/images/dogregister.jpg')] bg-no-repeat bg-cover bg-center sm:block hidden"></div>
         </div>
-
-        {/* Formulario */}
-        <div style={formContainerStyle}>
-          <form onSubmit={handleSubmit(registro)} style={formStyle}>
-            <h1 style={{ fontSize: "1.8rem", fontWeight: "600", textAlign: "center", marginBottom: "0.3rem", color: "#3B2F2F" }}>
-              Bienvenido(a)
-            </h1>
-            <small style={{ color: "#3B2F2F", display: "block", textAlign: "center", marginBottom: "1.5rem" }}>
-              Por favor ingresa tus datos
-            </small>
-
-            <input
-              placeholder="Nombre"
-              {...register("nombre", { required: "El nombre es obligatorio" })}
-              style={inputStyle}
-            />
-            {errors.nombre && <p style={errorText}>{errors.nombre.message}</p>}
-
-            <input
-              placeholder="Apellido"
-              {...register("apellido", { required: "El apellido es obligatorio" })}
-              style={inputStyle}
-            />
-            {errors.apellido && <p style={errorText}>{errors.apellido.message}</p>}
-
-            <input
-              type="number"
-              placeholder="Celular"
-              {...register("celular", { required: "El celular es obligatorio" })}
-              style={inputStyle}
-            />
-            {errors.celular && <p style={errorText}>{errors.celular.message}</p>}
-
-            <input
-              type="email"
-              placeholder="Correo electrónico"
-              {...register("email", { required: "El correo electrónico es obligatorio" })}
-              style={inputStyle}
-            />
-            {errors.email && <p style={errorText}>{errors.email.message}</p>}
-
-            <div style={{ position: "relative", marginTop: "1rem" }}>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Contraseña"
-                {...register("password", { required: "La contraseña es obligatoria" })}
-                style={{ ...inputStyle, paddingRight: "3rem" }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute",
-                  top: "50%",
-                  right: "10px",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "#888",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  userSelect: "none",
-                }}
-              >
-                {showPassword ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-            {errors.password && <p style={errorText}>{errors.password.message}</p>}
-
-            <select {...register("role", { required: "El rol es obligatorio" })} style={selectStyle}>
-              <option value="">Selecciona un rol</option>
-              <option value="editor">Emprendedor</option>
-              <option value="user">Cliente</option>
-            </select>
-            {errors.role && <p style={errorText}>{errors.role.message}</p>}
-
-            <button type="submit" style={buttonStyle}>
-              Registrarse
-            </button>
-
-            <div style={{ marginTop: "1.5rem", marginBottom: "0.8rem", display: "flex", alignItems: "center", gap: "10px" }}>
-              <hr style={{ flex: 1, borderColor: "#ccc" }} />
-              <span style={{ color: "#888", fontSize: "0.9rem" }}>O</span>
-              <hr style={{ flex: 1, borderColor: "#ccc" }} />
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <button
-                type="button"
-                onClick={loginGoogleCliente}
-                style={{ ...googleButtonStyleGray }}
-              >
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/281/281764.png"
-                  alt="Google"
-                  style={{ width: "20px", marginRight: "8px" }}
-                />
-                Ingresar con Google como Cliente
-              </button>
-              <button
-                type="button"
-                onClick={loginGoogleEmprendedor}
-                style={{ ...googleButtonStyleBlue }}
-              >
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/281/281764.png"
-                  alt="Google"
-                  style={{ width: "20px", marginRight: "8px" }}
-                />
-                Ingresar con Google como Emprendedor
-              </button>
-            </div>
-
-            <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Link to="/login" style={{ color: "#AA4A44", fontSize: "0.9rem", textDecoration: "underline" }}>
-                ¿Ya tienes una cuenta? Iniciar sesión
-              </Link>
-              <Link
-                to="/"
-                style={{
-                  backgroundColor: "#AA4A44",
-                  padding: "0.5rem 1.2rem",
-                  borderRadius: "20px",
-                  color: "white",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                  fontSize: "0.9rem",
-                }}
-              >
-                Volver
-              </Link>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };
-
-const Bubbles = () => (
-  <div style={bubblesContainer}>
-    {[...Array(15)].map((_, i) => (
-      <div
-        key={i}
-        style={{
-          ...bubble,
-          animationDelay: `${i * 0.4}s`,
-          left: `${Math.random() * 100}%`,
-          width: `${10 + Math.random() * 15}px`,
-          height: `${10 + Math.random() * 15}px`,
-        }}
-      />
-    ))}
-  </div>
-);
-
-// Estilos (igual que en Login.jsx)
-const containerStyle = { position: "relative", height: "100vh", width: "100%", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" };
-const backgroundStyle = { position: "absolute", top: 0, left: 0, height: "100%", width: "100%", backgroundImage: `url(${fondo})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, filter: "brightness(0.85)" };
-const bubblesContainer = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", zIndex: 1, pointerEvents: "none", overflow: "hidden" };
-const bubble = { position: "absolute", bottom: "-50px", backgroundColor: "rgba(255, 255, 255, 0.4)", borderRadius: "50%", animationName: "rise", animationDuration: "8s", animationTimingFunction: "linear", animationIterationCount: "infinite", opacity: 0.7 };
-const styleSheet = document.styleSheets[0];
-styleSheet.insertRule(`@keyframes rise { 0% { transform: translateY(0) scale(1); opacity: 0.7; } 100% { transform: translateY(-110vh) scale(1.3); opacity: 0; } }`, styleSheet.cssRules.length);
-
-const cardStyle = { display: "flex", width: "100%", maxWidth: "850px", height: "650px", borderRadius: "25px", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.2)", background: "#fff", position: "relative", zIndex: 2 };
-const leftPanelStyle = { flex: 1, borderRadius: "5%", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "center" };
-const formContainerStyle = { flex: 1, background: "#ffffff", padding: "2rem", display: "flex", flexDirection: "column", justifyContent: "center" };
-const formStyle = { maxWidth: "380px", width: "100%", margin: "0 auto" };
-const inputStyle = { width: "100%", padding: "0.5rem", marginTop: "0.5rem", border: "1px solid #ccc", borderRadius: "8px", fontSize: "1rem", color: "#3B2F2F", fontWeight: "500" };
-const selectStyle = { width: "100%", padding: "0.5rem", marginTop: "1rem", border: "1px solid #ccc", borderRadius: "8px", fontSize: "1rem", backgroundColor: "#fff", color: "#3B2F2F", fontWeight: "500" };
-const buttonStyle = { width: "100%", padding: "0.5rem", marginTop: "1.5rem", backgroundColor: "#AA4A44", color: "white", border: "none", borderRadius: "25px", fontSize: "1rem", cursor: "pointer", fontWeight: "600" };
-const errorText = { color: "red", fontSize: "0.8rem", marginTop: "0.25rem" };
-const googleButtonStyleGray = { backgroundColor: "white", border: "1px solid #ccc", padding: "0.5rem 1rem", borderRadius: "20px", display: "flex", alignItems: "center", justifyContent: "center", color: "#444", fontWeight: "600", textDecoration: "none", fontSize: "0.9rem", cursor: "pointer", transition: "all 0.3s ease", userSelect: "none" };
-const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: "#1976d2", color: "white", backgroundColor: "#1976d2" };
-
-export default Register;
