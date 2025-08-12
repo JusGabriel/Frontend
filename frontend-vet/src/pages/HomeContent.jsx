@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';  // <-- navegación
 import fondoblanco from '../assets/fondoblanco.jpg';
 import Servicios from './pgPrueba/Servicios';
+import storeAuth from '../context/storeAuth';  // <-- importamos el auth para obtener id y rol
 
 const HomeContent = () => {
   const navigate = useNavigate();
+  const { id: usuarioId, rol: usuarioRol } = storeAuth();
 
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
@@ -29,6 +31,49 @@ const HomeContent = () => {
     navigate(`/dashboard/detalle-emprendimiento/${id}`);
   };
 
+  // Función para iniciar chat o buscar conversación existente
+  const handleChatClick = async (chatUserId) => {
+    if (!chatUserId) {
+      alert('No se encontró usuario para iniciar chat');
+      return;
+    }
+
+    try {
+      // Buscar conversación existente entre usuario actual y chatUserId
+      const res = await fetch(`https://backend-production-bd1d.up.railway.app/api/conversaciones/buscar?usuario1=${usuarioId}&usuario2=${chatUserId}`);
+      const data = await res.json();
+
+      let conversacionId;
+
+      if (data && data._id) {
+        // Conversación ya existe
+        conversacionId = data._id;
+      } else {
+        // Crear nueva conversación
+        const crearRes = await fetch(`https://backend-production-bd1d.up.railway.app/api/conversaciones`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            participantes: [
+              { id: usuarioId, rol: usuarioRol },
+              { id: chatUserId, rol: 'Emprendedor' }  // ajusta el rol si lo tienes dinámico
+            ]
+          })
+        });
+
+        const crearData = await crearRes.json();
+        conversacionId = crearData._id;
+      }
+
+      // Navegar a chat con el id de la conversación
+      navigate(`/dashboard/chat/${conversacionId}`);
+
+    } catch (error) {
+      console.error('Error iniciando chat:', error);
+      alert('Hubo un error al iniciar el chat');
+    }
+  };
+
   return (
     <>
       {section === 'inicio' && (
@@ -46,7 +91,7 @@ const HomeContent = () => {
               ) : (
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
                   {productos.map((producto) => {
-                    // Tomar el ID válido para chat: preferimos emprendedor, si no, emprendimiento
+                    // ID para chat, preferimos emprendedor
                     const chatUserId = producto.emprendedor?.toString() || producto.emprendimiento?.toString() || '';
 
                     return (
@@ -69,13 +114,7 @@ const HomeContent = () => {
                           <div className="mt-4 flex gap-3">
                             <button
                               className="bg-[#007bff] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#0056b3] transition-colors flex-1"
-                              onClick={() => {
-                                if (chatUserId) {
-                                  navigate(`/dashboard/chat?user=${chatUserId}`);
-                                } else {
-                                  alert('No se encontró usuario para iniciar chat');
-                                }
-                              }}
+                              onClick={() => handleChatClick(chatUserId)}
                             >
                               Chat
                             </button>
