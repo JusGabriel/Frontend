@@ -27,11 +27,14 @@ const Table = () => {
   const [modalChatVisible, setModalChatVisible] = useState(false);
   const [chatUser, setChatUser] = useState(null);
 
+  // Capitaliza
+  const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
   const fetchLista = async () => {
     setError("");
     setMensaje("");
     try {
-      const res = await fetch(${BASE_URLS[tipo]}/todos);
+      const res = await fetch(`${BASE_URLS[tipo]}/todos`);
       const data = await res.json();
       setLista(data);
     } catch {
@@ -53,7 +56,7 @@ const Table = () => {
     setError("");
     setMensaje("");
     try {
-      const res = await fetch(${BASE_URLS[tipo]}/registro, {
+      const res = await fetch(`${BASE_URLS[tipo]}/registro`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formCrear),
@@ -61,7 +64,7 @@ const Table = () => {
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al crear");
       else {
-        setMensaje(${capitalize(tipo)} creado);
+        setMensaje(`${capitalize(tipo)} creado`);
         setFormCrear(emptyForm);
         fetchLista();
       }
@@ -89,7 +92,7 @@ const Table = () => {
     setMensaje("");
     const { id, nombre, apellido, email, password, telefono } = formEditar;
     try {
-      const res = await fetch(${BASE_URLS[tipo]}/actualizar/${id}, {
+      const res = await fetch(`${BASE_URLS[tipo]}/actualizar/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nombre, apellido, email, password, telefono }),
@@ -97,7 +100,7 @@ const Table = () => {
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al actualizar");
       else {
-        setMensaje(${capitalize(tipo)} actualizado);
+        setMensaje(`${capitalize(tipo)} actualizado`);
         setFormEditar({ id: null, ...emptyForm });
         fetchLista();
       }
@@ -107,17 +110,17 @@ const Table = () => {
   };
 
   const handleEliminar = async (id) => {
-    if (!window.confirm(¿Eliminar este ${tipo}?)) return;
+    if (!window.confirm(`¿Eliminar este ${tipo}?`)) return;
     setError("");
     setMensaje("");
     try {
-      const res = await fetch(${BASE_URLS[tipo]}/eliminar/${id}, {
+      const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (!res.ok) setError(data.msg || "Error al eliminar");
       else {
-        setMensaje(${capitalize(tipo)} eliminado);
+        setMensaje(`${capitalize(tipo)} eliminado`);
         fetchLista();
       }
     } catch {
@@ -169,9 +172,6 @@ const Table = () => {
       />
     </>
   );
-
-  // Capitaliza
-  const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
   // NUEVO: Abrir modal chat
   const abrirChat = (item) => {
@@ -321,8 +321,12 @@ const Table = () => {
                     </div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
-                    <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
-                    <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
+                    <div>
+                      Creado: {new Date(item.createdAt).toLocaleString()}
+                    </div>
+                    <div>
+                      Actualizado: {new Date(item.updatedAt).toLocaleString()}
+                    </div>
                   </td>
                 </tr>
               )}
@@ -336,7 +340,9 @@ const Table = () => {
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <h3>Chat con {chatUser.nombre} ({chatUser.rol})</h3>
+              <h3>
+                Chat con {chatUser.nombre} ({chatUser.rol})
+              </h3>
               <button style={styles.btnCerrar} onClick={cerrarChat}>
                 X
               </button>
