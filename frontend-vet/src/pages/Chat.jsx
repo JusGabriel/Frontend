@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import storeAuth from "../context/storeAuth";
+import { useLocation } from "react-router-dom";
 
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
@@ -24,6 +25,11 @@ const Chat = () => {
 
   // Ref para scroll automático
   const mensajesRef = useRef(null);
+
+  // Para leer parámetro "user" de la URL
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const chatUserId = params.get("user"); // id del emprendedor con quien chatear
 
   // --- Funciones Chat General ---
 
@@ -86,6 +92,52 @@ const Chat = () => {
       }
     } catch (error) {
       setInfo("❌ Error de red: " + error.message);
+    }
+  };
+
+  // --- Función para abrir o crear conversación con chatUserId ---
+
+  const abrirConversacionConUsuario = async () => {
+    if (!chatUserId || !usuarioId) return;
+
+    // Primero aseguramos cargar las conversaciones
+    await cargarConversaciones();
+
+    // Buscar conversación existente con chatUserId
+    const convExistente = conversaciones.find((conv) =>
+      conv.participantes.some((p) => p.id && p.id._id === chatUserId)
+    );
+
+    if (convExistente) {
+      setConversacionId(convExistente._id);
+      setVista("chat");
+    } else {
+      // Crear nueva conversación
+      try {
+        const res = await fetch(
+          "https://backend-production-bd1d.up.railway.app/api/chat/conversacion",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              participantes: [
+                { id: usuarioId, rol: emisorRol },
+                { id: chatUserId, rol: "Emprendedor" }, // ajusta el rol si necesitas
+              ],
+            }),
+          }
+        );
+
+        if (!res.ok) throw new Error("Error creando conversación");
+
+        const data = await res.json();
+        setConversacionId(data._id);
+        setVista("chat");
+        // Recargar conversaciones para actualizar la lista
+        cargarConversaciones();
+      } catch (error) {
+        setInfo("❌ Error al crear conversación: " + error.message);
+      }
     }
   };
 
@@ -152,6 +204,7 @@ const Chat = () => {
 
   // --- Effects ---
 
+  // Cuando cambia usuario o vista a chat, carga conversaciones y limpia quejas
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -161,6 +214,7 @@ const Chat = () => {
     }
   }, [usuarioId, vista]);
 
+  // Actualizar mensajes cada 3s si hay conversación activa
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
@@ -169,6 +223,7 @@ const Chat = () => {
     }
   }, [conversacionId, vista]);
 
+  // Cuando cambia a vista quejas
   useEffect(() => {
     if (vista === "quejas") {
       cargarQuejas();
@@ -178,18 +233,27 @@ const Chat = () => {
     }
   }, [vista]);
 
+  // Scroll automático en mensajes
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes, mensajesQueja]);
 
+  // Al cargar el componente, si viene chatUserId, abrir o crear conversación
+  useEffect(() => {
+    if (chatUserId) {
+      abrirConversacionConUsuario();
+    }
+  }, [chatUserId, usuarioId]);
+
   // --- Render ---
 
   // Conversación o Queja activa (para mostrar mensajes)
-  const chatActivo = vista === "chat"
-    ? conversaciones.find((c) => c._id === conversacionId)
-    : quejaSeleccionada;
+  const chatActivo =
+    vista === "chat"
+      ? conversaciones.find((c) => c._id === conversacionId)
+      : quejaSeleccionada;
 
   // Mensajes activos
   const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
@@ -248,9 +312,7 @@ const Chat = () => {
         <div className="flex-grow overflow-y-auto">
           {vista === "chat" ? (
             conversaciones.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">
-                No hay conversaciones
-              </p>
+              <p className="p-4 text-center text-gray-500 flex-grow">No hay conversaciones</p>
             ) : (
               conversaciones.map((conv) => {
                 const otro = conv.participantes.find(
@@ -266,9 +328,7 @@ const Chat = () => {
                     }`}
                   >
                     <span>
-                      {otro
-                        ? `${otro.id?.nombre} ${otro.id?.apellido}`
-                        : "Participante desconocido"}
+                      {otro ? `${otro.id?.nombre} ${otro.id?.apellido}` : "Participante desconocido"}
                     </span>
                   </button>
                 );
@@ -276,17 +336,13 @@ const Chat = () => {
             )
           ) : vista === "quejas" ? (
             quejas.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">
-                No hay quejas registradas.
-              </p>
+              <p className="p-4 text-center text-gray-500 flex-grow">No hay quejas registradas.</p>
             ) : (
               quejas.map((q) => {
                 const emprendedor = q.participantes.find(
                   (p) => p.rol === "Emprendedor"
                 )?.id;
-                const admin = q.participantes.find(
-                  (p) => p.rol === "Administrador"
-                )?.id;
+                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
                 const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
                 const isSelected = quejaSeleccionada?._id === q._id;
 
@@ -305,8 +361,7 @@ const Chat = () => {
                       Receptor: {admin?.nombre} {admin?.apellido}
                     </p>
                     <p className="mt-1 text-gray-800 text-sm line-clamp-2">
-                      <strong>Último mensaje:</strong>{" "}
-                      {ultimoMensaje?.contenido || "Sin mensajes"}
+                      <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       {new Date(q.updatedAt).toLocaleString()}
@@ -328,16 +383,13 @@ const Chat = () => {
           {vista === "chat"
             ? chatActivo
               ? `Chat con ${
-                  chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)
-                    ?.id?.nombre || "Desconocido"
+                  chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
                 }`
               : "Selecciona una conversación"
             : vista === "quejas"
             ? quejaSeleccionada
               ? `Chat Queja con ${
-                  quejaSeleccionada.participantes.find(
-                    (p) => p.rol !== emisorRol
-                  )?.id?.nombre || "Desconocido"
+                  quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
                 }`
               : "Selecciona una queja"
             : ""}
@@ -349,34 +401,23 @@ const Chat = () => {
         >
           {chatActivo ? (
             mensajesActivos.length === 0 ? (
-              <p className="text-center text-gray-500 mt-10">
-                No hay mensajes aún.
-              </p>
+              <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
             ) : (
               mensajesActivos.map((msg) => {
-                const esMio =
-                  vista === "chat"
-                    ? msg.emisor === usuarioId
-                    : msg.emisor === usuarioId;
+                const esMio = msg.emisor === usuarioId;
                 return (
                   <div
                     key={msg._id || msg.id}
-                    className={`flex ${
-                      esMio ? "justify-end" : "justify-start"
-                    }`}
+                    className={`flex ${esMio ? "justify-end" : "justify-start"}`}
                   >
                     <div
                       className={`max-w-xs px-4 py-2 rounded-lg shadow ${
-                        esMio
-                          ? "text-white"
-                          : "bg-white border border-gray-300"
+                        esMio ? "text-white" : "bg-white border border-gray-300"
                       }`}
                       style={esMio ? { backgroundColor: "#AA4A44" } : {}}
                     >
-                      {vista === "chat" ? msg.contenido : msg.contenido}
-                      <div className="text-xs text-gray-300 mt-1 text-right">
-                        {msg.emisorRol || ""}
-                      </div>
+                      {msg.contenido}
+                      <div className="text-xs text-gray-300 mt-1 text-right">{msg.emisorRol || ""}</div>
                     </div>
                   </div>
                 );
@@ -384,9 +425,7 @@ const Chat = () => {
             )
           ) : (
             <p className="text-center text-gray-500 mt-10">
-              {vista === "chat"
-                ? "Selecciona una conversación"
-                : "Selecciona una queja para comenzar"}
+              {vista === "chat" ? "Selecciona una conversación" : "Selecciona una queja para comenzar"}
             </p>
           )}
         </div>
@@ -397,16 +436,10 @@ const Chat = () => {
         >
           <input
             type="text"
-            placeholder={
-              vista === "chat"
-                ? "Escribe un mensaje..."
-                : "Escribe tu respuesta..."
-            }
+            placeholder={vista === "chat" ? "Escribe un mensaje..." : "Escribe tu respuesta..."}
             value={vista === "chat" ? mensaje : mensajeQueja}
             onChange={(e) =>
-              vista === "chat"
-                ? setMensaje(e.target.value)
-                : setMensajeQueja(e.target.value)
+              vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
             }
             className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
             style={{ boxShadow: "0 0 0 2px transparent" }}
@@ -427,16 +460,10 @@ const Chat = () => {
           </button>
         </form>
 
-        {info && (
-          <div className="p-2 text-center text-red-600 font-medium">{info}</div>
-        )}
+        {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
       </section>
     </div>
   );
 };
 
 export default Chat;
-
-
-
-
