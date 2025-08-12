@@ -5,7 +5,7 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import panecillo from "../pages/imagenes/panecillo.jpg";
+import panecillo from "../pages/Imagenes/panecillo.jpg";
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -217,3 +217,4 @@ const errorText = {
 };
 
 export default Register;
+
