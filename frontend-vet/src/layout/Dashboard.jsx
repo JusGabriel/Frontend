@@ -41,7 +41,7 @@ const Dashboard = () => {
       <header className="bg-white shadow-md border-b border-[#E0C7B6] px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <img
-            src="https://cdn-icons-png.flaticon.com/512/2138/2138508.png"
+            src="https://cdn-icons-png.flaticon.com/512/2103/2103752.png"
             alt="logo"
             className="w-14 h-14 rounded-full border-4 border-[#AA4A44]"
           />
@@ -94,3 +94,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
