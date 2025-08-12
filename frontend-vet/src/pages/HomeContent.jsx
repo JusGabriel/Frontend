@@ -29,11 +29,6 @@ const HomeContent = () => {
     navigate(`/dashboard/detalle-emprendimiento/${id}`);
   };
 
-  // Navegar a detalle producto, ahora apunta también a detalle-emprendimiento
-  const handleVerMasProducto = (id) => {
-    navigate(`/dashboard/detalle-emprendimiento/${id}`);
-  };
-
   return (
     <>
       {section === 'inicio' && (
@@ -77,31 +72,46 @@ const HomeContent = () => {
                 <p className="text-center mt-6">Cargando productos...</p>
               ) : (
                 <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
-                  {productos.map((producto) => (
-                    <div
-                      key={producto._id}
-                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex"
-                    >
-                      <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
+                  {productos.map((producto) => {
+                    // Obtener ID del emprendedor o emprendimiento para chat
+                    const chatUserId = producto.emprendedor || producto.emprendimiento || '';
 
-                      <div className="flex-1">
-                        <img
-                          src={producto.imagen}
-                          alt={producto.nombre}
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
-                        <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
-                        <p className="text-sm text-gray-600">{producto.descripcion}</p>
-                        <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
-                        <button
-                          className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
-                          onClick={() => handleVerMasProducto(producto._id)}
-                        >
-                          Ver más
-                        </button>
+                    return (
+                      <div
+                        key={producto._id}
+                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex flex-col"
+                      >
+                        <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
+
+                        <div className="flex-1">
+                          <img
+                            src={producto.imagen}
+                            alt={producto.nombre}
+                            className="w-full h-48 object-cover rounded-lg mb-4"
+                          />
+                          <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                          <p className="text-sm text-gray-600">{producto.descripcion}</p>
+                          <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
+
+                          <div className="mt-4 flex gap-3">
+                            <button
+                              className="bg-[#007bff] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#0056b3] transition-colors flex-1"
+                              onClick={() => navigate(`/dashboard/chat?user=${chatUserId}`)}
+                            >
+                              Chat
+                            </button>
+
+                            <button
+                              className="bg-[#28a745] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#1e7e34] transition-colors flex-1"
+                              onClick={() => navigate(`/dashboard/pagar/${producto._id}`)}
+                            >
+                              Pagar
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
