@@ -5,7 +5,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import storeAuth from '../context/storeAuth';
 
 import fondoblanco from '../assets/fondoblanco.jpg';
-import panecillo from '../pages/imagenes/panecillo.jpg';
+import panecillo from '../pages/Imagenes/panecillo.jpg';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -280,3 +280,4 @@ const googleButtonStyleGray = { backgroundColor: 'white', border: '1px solid #cc
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
+
