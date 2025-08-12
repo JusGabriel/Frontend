@@ -23,10 +23,8 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  // Estado global para chat
   const setChatUser = storeAuth((state) => state.setChatUser);
 
-  // Carga lista
   const fetchLista = async () => {
     setError("");
     setMensaje("");
@@ -48,7 +46,6 @@ const Table = () => {
     setMensaje("");
   }, [tipo]);
 
-  // Crear registro
   const handleCrear = async (e) => {
     e.preventDefault();
     setError("");
@@ -71,7 +68,6 @@ const Table = () => {
     }
   };
 
-  // Preparar edición
   const prepararEditar = (item) => {
     setFormEditar({
       id: item._id,
@@ -85,7 +81,6 @@ const Table = () => {
     setError("");
   };
 
-  // Actualizar registro
   const handleActualizar = async (e) => {
     e.preventDefault();
     setError("");
@@ -109,7 +104,6 @@ const Table = () => {
     }
   };
 
-  // Eliminar registro
   const handleEliminar = async (id) => {
     if (!window.confirm(`¿Eliminar este ${tipo}?`)) return;
     setError("");
@@ -129,12 +123,10 @@ const Table = () => {
     }
   };
 
-  // Toggle expandido
   const toggleExpandido = (id) => {
     setExpandido(expandido === id ? null : id);
   };
 
-  // Inputs comunes para formularios
   const inputsForm = (form, setForm) => (
     <>
       <input
@@ -176,6 +168,9 @@ const Table = () => {
     </>
   );
 
+  // Función para capitalizar la primera letra
+  const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
   return (
     <div style={styles.container}>
       <h1 style={{ textAlign: "center" }}>
@@ -202,7 +197,7 @@ const Table = () => {
 
       {/* Form Crear */}
       <form onSubmit={handleCrear} style={styles.form}>
-        <h2>Crear {tipo === "cliente" ? "Cliente" : "Emprendedor"}</h2>
+        <h2>Crear {capitalize(tipo)}</h2>
         {inputsForm(formCrear, setFormCrear)}
         <button style={styles.btnCrear} type="submit">
           Crear
@@ -212,7 +207,7 @@ const Table = () => {
       {/* Form Editar */}
       {formEditar.id && (
         <form onSubmit={handleActualizar} style={styles.form}>
-          <h2>Editar {tipo === "cliente" ? "Cliente" : "Emprendedor"}</h2>
+          <h2>Editar {capitalize(tipo)}</h2>
           {inputsForm(formEditar, setFormEditar)}
           <button style={styles.btnActualizar} type="submit">
             Actualizar
@@ -243,7 +238,7 @@ const Table = () => {
           {lista.length === 0 && (
             <tr>
               <td colSpan="6" style={{ textAlign: "center", padding: 20 }}>
-                No hay {tipo === "cliente" ? "clientes" : "emprendedores"}
+                No hay {capitalize(tipo)}s
               </td>
             </tr>
           )}
@@ -284,8 +279,8 @@ const Table = () => {
                     style={{ ...styles.btnSmall, backgroundColor: "#28a745" }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setChatUser({ id: item._id, rol: tipo });
-                      alert(`Chatear con ${item.nombre} (${tipo})`);
+                      setChatUser({ id: item._id, rol: capitalize(tipo) });
+                      alert(`Chatear con ${item.nombre} (${capitalize(tipo)})`);
                     }}
                   >
                     Chatear
