@@ -23,7 +23,9 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  const setChatUser = storeAuth((state) => state.setChatUser);
+  // NUEVO: Estado para mostrar modal chat y usuario actual para chatear
+  const [modalChatVisible, setModalChatVisible] = useState(false);
+  const [chatUser, setChatUser] = useState(null);
 
   const fetchLista = async () => {
     setError("");
@@ -168,14 +170,24 @@ const Table = () => {
     </>
   );
 
-  // Función para capitalizar la primera letra
+  // Capitaliza
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+  // NUEVO: Abrir modal chat
+  const abrirChat = (item) => {
+    setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
+    setModalChatVisible(true);
+  };
+
+  // NUEVO: Cerrar modal chat
+  const cerrarChat = () => {
+    setModalChatVisible(false);
+    setChatUser(null);
+  };
 
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: "center" }}>
-        Gestión {capitalize(tipo)}s
-      </h1>
+      <h1 style={{ textAlign: "center" }}>Gestión {capitalize(tipo)}s</h1>
 
       <div style={styles.toggleContainer}>
         <button
@@ -287,7 +299,7 @@ const Table = () => {
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setChatUser({ id: item._id, rol: capitalize(tipo) });
+                      abrirChat(item);
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.backgroundColor = "#218838")
@@ -318,6 +330,30 @@ const Table = () => {
           ))}
         </tbody>
       </table>
+
+      {/* MODAL CHAT */}
+      {modalChatVisible && chatUser && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3>Chat con {chatUser.nombre} ({chatUser.rol})</h3>
+              <button style={styles.btnCerrar} onClick={cerrarChat}>
+                X
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              {/* Aquí puedes poner el contenido real del chat */}
+              <p>Esta es la ventana de chat estilo Messenger.</p>
+              <p>Implementa aquí la lógica y mensajes del chat.</p>
+            </div>
+            <div style={styles.modalFooter}>
+              <button style={styles.btnCerrar} onClick={cerrarChat}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -428,6 +464,61 @@ const styles = {
     border: "none",
     borderRadius: 3,
     cursor: "pointer",
+  },
+
+  // Estilos modal y overlay
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    width: 350,
+    maxWidth: "90%",
+    boxShadow: "0 5px 15px rgba(0,0,0,0.3)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    padding: "10px 15px",
+    backgroundColor: "#007bff",
+    color: "white",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+  btnCerrar: {
+    backgroundColor: "#dc3545",
+    border: "none",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    padding: "5px 10px",
+    borderRadius: 5,
+  },
+  modalBody: {
+    padding: 15,
+    minHeight: 150,
+    fontSize: 14,
+    color: "#333",
+  },
+  modalFooter: {
+    padding: 10,
+    borderTop: "1px solid #ddd",
+    display: "flex",
+    justifyContent: "flex-end",
   },
 };
 
