@@ -39,7 +39,7 @@ export const FormProducto = () => {
     setError(null);
     try {
       const res = await axios.get(
-        `https://backend-production-bd1d.up.railway.app/api/emprendimientos`
+        `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
       setProductos(res.data);
     } catch (err) {
@@ -424,4 +424,5 @@ const styles = {
     cursor: "pointer",
   },
 };
+
 
