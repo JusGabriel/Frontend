@@ -71,7 +71,7 @@ const FormularioPerfil = () => {
       <ToastContainer
         position="top-right"
         autoClose={2000}
-        style={{ zIndex: 99999 }}  {/* <-- Aquí la corrección */}
+        style={{ zIndex: 99999 }}
       />
       <div style={cardContainer}>
         <h2 style={titleStyle}>Editar Perfil</h2>
@@ -213,3 +213,4 @@ const submitButton = {
 };
 
 export default FormularioPerfil;
+
