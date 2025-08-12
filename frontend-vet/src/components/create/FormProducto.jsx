@@ -5,7 +5,12 @@ import storeAuth from "../../context/storeAuth";
 export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
   const [productos, setProductos] = useState([]);
+  const [emprendimientos, setEmprendimientos] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Formulario de productos
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -15,9 +20,19 @@ export const FormProducto = () => {
   });
   const [modoEdicion, setModoEdicion] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
-  const [error, setError] = useState(null);
 
-  // Cargar productos del emprendedor
+  // Formulario de emprendimiento
+  const [formEmprendimiento, setFormEmprendimiento] = useState({
+    nombreComercial: "",
+    descripcion: "",
+    logo: "",
+    ubicacion: { direccion: "", ciudad: "", lat: "", lng: "" },
+    contacto: { telefono: "", email: "", sitioWeb: "", facebook: "", instagram: "" },
+    categorias: [],
+    estado: "Activo",
+  });
+
+  // Cargar productos
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -34,13 +49,51 @@ export const FormProducto = () => {
     }
   };
 
+  // Cargar emprendimientos
+  const cargarEmprendimientos = async () => {
+    if (!emprendedorId) return;
+    setLoadingEmprendimientos(true);
+    setError(null);
+    try {
+      const res = await axios.get(
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${emprendedorId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setEmprendimientos(Array.isArray(res.data) ? res.data : [res.data]);
+    } catch (err) {
+      setError("Error al cargar emprendimientos");
+    } finally {
+      setLoadingEmprendimientos(false);
+    }
+  };
+
   useEffect(() => {
     cargarProductos();
+    cargarEmprendimientos();
   }, [emprendedorId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleChangeEmprendimiento = (e) => {
+    const { name, value } = e.target;
+    if (["direccion", "ciudad", "lat", "lng"].includes(name)) {
+      setFormEmprendimiento((prev) => ({
+        ...prev,
+        ubicacion: { ...prev.ubicacion, [name]: value },
+      }));
+    } else if (["telefono", "email", "sitioWeb", "facebook", "instagram"].includes(name)) {
+      setFormEmprendimiento((prev) => ({
+        ...prev,
+        contacto: { ...prev.contacto, [name]: value },
+      }));
+    } else {
+      setFormEmprendimiento((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const resetForm = () => {
@@ -56,6 +109,7 @@ export const FormProducto = () => {
     setError(null);
   };
 
+  // Crear producto
   const crearProducto = async () => {
     if (!token) {
       setError("No autenticado");
@@ -94,6 +148,7 @@ export const FormProducto = () => {
     setError(null);
   };
 
+  // Actualizar producto
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
@@ -119,6 +174,7 @@ export const FormProducto = () => {
     }
   };
 
+  // Eliminar producto
   const eliminarProducto = async (id) => {
     if (!token) {
       setError("No autenticado");
@@ -139,6 +195,34 @@ export const FormProducto = () => {
     }
   };
 
+  // Crear emprendimiento
+  const crearEmprendimiento = async () => {
+    if (!token) {
+      setError("No autenticado");
+      return;
+    }
+    try {
+      await axios.post(
+        "https://backend-production-bd1d.up.railway.app/api/emprendimientos",
+        {
+          ...formEmprendimiento,
+          ubicacion: {
+            ...formEmprendimiento.ubicacion,
+            lat: parseFloat(formEmprendimiento.ubicacion.lat),
+            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+          },
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarEmprendimientos();
+      alert("Emprendimiento creado con éxito");
+    } catch (err) {
+      setError(err.response?.data?.mensaje || "Error al crear emprendimiento");
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (modoEdicion) {
@@ -148,200 +232,66 @@ export const FormProducto = () => {
     }
   };
 
+  const handleSubmitEmprendimiento = (e) => {
+    e.preventDefault();
+    crearEmprendimiento();
+  };
+
   return (
     <>
-      {/* FORMULARIO */}
-      <div
-        style={{
-          background: "#ffffff",
-          padding: "1.5rem",
-          borderRadius: "15px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-          width: "100%",
-          maxWidth: "750px",
-          marginLeft: 0,
-          fontFamily: "'Playfair Display', serif",
-        }}
-      >
-        <h2
-          style={{
-            fontSize: "1.6rem",
-            fontWeight: "600",
-            color: "#3B2F2F",
-            marginBottom: "1rem",
-            textAlign: "center",
-          }}
-        >
-          {modoEdicion ? "Editar Producto" : "Crear Producto"}
-        </h2>
+      {/* FORM EMPRENDIMIENTO */}
+      <div style={{ ...styles.formContainer, marginBottom: "2rem" }}>
+        <h2 style={styles.title}>Crear Emprendimiento</h2>
+        <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
+          <input type="text" name="nombreComercial" placeholder="Nombre Comercial" value={formEmprendimiento.nombreComercial} onChange={handleChangeEmprendimiento} required style={styles.input} />
+          <input type="text" name="descripcion" placeholder="Descripción" value={formEmprendimiento.descripcion} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="text" name="logo" placeholder="URL Logo" value={formEmprendimiento.logo} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="text" name="direccion" placeholder="Dirección" value={formEmprendimiento.ubicacion.direccion} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="text" name="ciudad" placeholder="Ciudad" value={formEmprendimiento.ubicacion.ciudad} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="number" step="any" name="lat" placeholder="Latitud" value={formEmprendimiento.ubicacion.lat} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="number" step="any" name="lng" placeholder="Longitud" value={formEmprendimiento.ubicacion.lng} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="text" name="telefono" placeholder="Teléfono" value={formEmprendimiento.contacto.telefono} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input type="email" name="email" placeholder="Email" value={formEmprendimiento.contacto.email} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <button type="submit" style={styles.buttonCreate}>Crear Emprendimiento</button>
+        </form>
+      </div>
 
-        <hr
-          style={{
-            border: "none",
-            borderTop: "2px solid #ccc",
-            marginBottom: "1rem",
-          }}
-        />
-
-        {error && (
-          <p
-            style={{
-              backgroundColor: "#fee2e2",
-              color: "#b91c1c",
-              padding: "0.75rem",
-              borderRadius: "8px",
-              marginBottom: "1rem",
-              fontFamily: "'Arial', sans-serif",
-            }}
-          >
-            {error}
-          </p>
+      {/* LISTA EMPRENDIMIENTOS */}
+      <div style={styles.listaContainer}>
+        <h3>Mis Emprendimientos</h3>
+        {loadingEmprendimientos ? (
+          <p>Cargando emprendimientos...</p>
+        ) : emprendimientos.length === 0 ? (
+          <p>No tienes emprendimientos aún.</p>
+        ) : (
+          emprendimientos.map((emp) => (
+            <div key={emp._id} style={styles.productoCard}>
+              <strong>{emp.nombreComercial}</strong>
+              <p>{emp.descripcion}</p>
+              {emp.logo && <img src={emp.logo} alt={emp.nombreComercial} style={styles.imagen} />}
+            </div>
+          ))
         )}
+      </div>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "0.8rem",
-            fontFamily: "'Arial', sans-serif",
-            color: "#333",
-          }}
-        >
-          <input
-            type="text"
-            name="nombre"
-            placeholder="Nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            required
-            style={{
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "10px",
-              fontSize: "1rem",
-            }}
-          />
-
-          <input
-            type="text"
-            name="descripcion"
-            placeholder="Descripción"
-            value={form.descripcion}
-            onChange={handleChange}
-            style={{
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "10px",
-              fontSize: "1rem",
-            }}
-          />
-
-          <input
-            type="number"
-            name="precio"
-            placeholder="Precio"
-            step="0.01"
-            value={form.precio}
-            onChange={handleChange}
-            required
-            min="0"
-            style={{
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "10px",
-              fontSize: "1rem",
-            }}
-          />
-
-          <input
-            type="text"
-            name="imagen"
-            placeholder="URL Imagen"
-            value={form.imagen}
-            onChange={handleChange}
-            style={{
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "10px",
-              fontSize: "1rem",
-            }}
-          />
-
-          <input
-            type="number"
-            name="stock"
-            placeholder="Stock"
-            value={form.stock}
-            onChange={handleChange}
-            min="0"
-            style={{
-              padding: "0.5rem",
-              border: "1px solid #ccc",
-              borderRadius: "10px",
-              fontSize: "1rem",
-            }}
-          />
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: "1rem",
-              marginTop: "1rem",
-            }}
-          >
-            <button
-              type="submit"
-              style={{
-                padding: "0.5rem 1.5rem",
-                backgroundColor: "#AA4A44",
-                color: "white",
-                border: "none",
-                borderRadius: "25px",
-                fontSize: "1rem",
-                cursor: "pointer",
-                transition: "background-color 0.3s",
-              }}
-              onMouseOver={(e) =>
-                (e.currentTarget.style.backgroundColor = "#8C3E39")
-              }
-              onMouseOut={(e) =>
-                (e.currentTarget.style.backgroundColor = "#AA4A44")
-              }
-            >
-              {modoEdicion ? "Actualizar" : "Crear"}
-            </button>
-
-            {modoEdicion && (
-              <button
-                type="button"
-                onClick={resetForm}
-                style={{
-                  padding: "0.5rem 1.5rem",
-                  backgroundColor: "#ccc",
-                  color: "#333",
-                  border: "none",
-                  borderRadius: "25px",
-                  fontSize: "1rem",
-                  cursor: "pointer",
-                  transition: "background-color 0.3s",
-                }}
-                onMouseOver={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#aaa")
-                }
-                onMouseOut={(e) =>
-                  (e.currentTarget.style.backgroundColor = "#ccc")
-                }
-              >
-                Cancelar
-              </button>
-            )}
+      {/* FORM PRODUCTOS */}
+      <div style={styles.formContainer}>
+        <h2 style={styles.title}>{modoEdicion ? "Editar Producto" : "Crear Producto"}</h2>
+        {error && <p style={styles.error}>{error}</p>}
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <input type="text" name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required style={styles.input} />
+          <input type="text" name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} style={styles.input} />
+          <input type="number" name="precio" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
+          <input type="text" name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} style={styles.input} />
+          <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
+          <div style={styles.buttonRow}>
+            <button type="submit" style={styles.buttonCreate}>{modoEdicion ? "Actualizar" : "Crear"}</button>
+            {modoEdicion && <button type="button" onClick={resetForm} style={styles.buttonCancel}>Cancelar</button>}
           </div>
         </form>
       </div>
 
-      {/* LISTA DE PRODUCTOS */}
+      {/* LISTA PRODUCTOS */}
       <div style={styles.listaContainer}>
         {loading ? (
           <p>Cargando productos...</p>
@@ -350,28 +300,16 @@ export const FormProducto = () => {
         ) : (
           productos.map((prod) => (
             <div key={prod._id} style={styles.productoCard}>
-              <div style={styles.productoInfo}>
+              <div>
                 <strong>{prod.nombre}</strong>
                 <p>{prod.descripcion}</p>
-                <p>
-                  Precio: <b>${prod.precio.toFixed(2)}</b>
-                </p>
+                <p>Precio: <b>${prod.precio.toFixed(2)}</b></p>
                 <p>Stock: {prod.stock}</p>
-                {prod.imagen && (
-                  <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />
-                )}
-                <p>
-                  Categoría:{" "}
-                  {prod.categoria ? prod.categoria.nombre || prod.categoria : "N/A"}
-                </p>
+                {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
               </div>
               <div style={styles.buttonsCard}>
-                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
-                  Editar
-                </button>
-                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
-                  Borrar
-                </button>
+                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>Editar</button>
+                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>Borrar</button>
               </div>
             </div>
           ))
@@ -382,18 +320,72 @@ export const FormProducto = () => {
 };
 
 const styles = {
+  formContainer: {
+    background: "#fff",
+    padding: "1.5rem",
+    borderRadius: "15px",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+    width: "100%",
+    maxWidth: "750px",
+    margin: "auto",
+    fontFamily: "'Playfair Display', serif",
+  },
+  title: {
+    fontSize: "1.6rem",
+    fontWeight: "600",
+    color: "#3B2F2F",
+    marginBottom: "1rem",
+    textAlign: "center",
+  },
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.8rem",
+    fontFamily: "'Arial', sans-serif",
+    color: "#333",
+  },
+  input: {
+    padding: "0.5rem",
+    border: "1px solid #ccc",
+    borderRadius: "10px",
+    fontSize: "1rem",
+  },
+  buttonCreate: {
+    padding: "0.5rem 1.5rem",
+    backgroundColor: "#AA4A44",
+    color: "white",
+    border: "none",
+    borderRadius: "25px",
+    fontSize: "1rem",
+    cursor: "pointer",
+  },
+  buttonCancel: {
+    padding: "0.5rem 1.5rem",
+    backgroundColor: "#ccc",
+    color: "#333",
+    border: "none",
+    borderRadius: "25px",
+    fontSize: "1rem",
+    cursor: "pointer",
+  },
+  buttonRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "1rem",
+    marginTop: "1rem",
+  },
   listaContainer: {
     maxWidth: 750,
     margin: "1.5rem auto 0 auto",
     padding: 15,
     display: "flex",
-    flexWrap: "wrap", // para permitir varias filas
+    flexWrap: "wrap",
     gap: 15,
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     justifyContent: "space-between",
   },
   productoCard: {
-    flex: "1 1 calc(25% - 15px)", // ancho aprox 25% menos espacio de gap
+    flex: "1 1 calc(25% - 15px)",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
@@ -402,11 +394,8 @@ const styles = {
     padding: 15,
     boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
     backgroundColor: "#fff",
-    maxWidth: "calc(25% - 15px)", // para no crecer demasiado
+    maxWidth: "calc(25% - 15px)",
     minWidth: "180px",
-  },
-  productoInfo: {
-    marginBottom: 10,
   },
   imagen: {
     maxWidth: "100%",
@@ -428,14 +417,6 @@ const styles = {
   },
   buttonDelete: {
     backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 4,
-    cursor: "pointer",
-  },
-  buttonBuy: {
-    backgroundColor: "#4a9716ff",
     color: "white",
     border: "none",
     padding: "8px 12px",
