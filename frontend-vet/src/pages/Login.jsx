@@ -19,12 +19,12 @@ const Login = () => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
     const rolFromUrl = query.get('rol');
-    const idFromUrl = query.get('id'); // <--- agregué esta línea para capturar el id
+    const idFromUrl = query.get('id');
 
     if (tokenFromUrl && rolFromUrl && idFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
-      setId(idFromUrl); // <--- guardamos el id en el store
+      setId(idFromUrl);
       navigate('/dashboard');
     }
   }, [location.search, setToken, setRol, setId, navigate]);
@@ -39,13 +39,13 @@ const Login = () => {
       let endpoint = '';
       switch (data.role) {
         case 'admin':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/administradores/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
           break;
         case 'user':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/clientes/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
           break;
         case 'editor':
-          endpoint = ${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login;
+          endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
           break;
         default:
           toast.error('Selecciona un rol válido');
@@ -92,8 +92,8 @@ const Login = () => {
     <div style={containerStyle}>
       <ToastContainer />
       
-      {/* Aquí inyectamos el CSS para la animación de burbujas */}
-      <style>{
+      {/* Animación burbujas */}
+      <style>{`
         @keyframes rise {
           0% {
             transform: translateY(0) scale(1);
@@ -104,7 +104,7 @@ const Login = () => {
             opacity: 0;
           }
         }
-      }</style>
+      `}</style>
 
       <div style={backgroundStyle} />
       <Bubbles />
@@ -242,10 +242,10 @@ const Bubbles = () => (
         key={i}
         style={{
           ...bubble,
-          animationDelay: ${i * 0.4}s,
-          left: ${Math.random() * 100}%,
-          width: ${10 + Math.random() * 15}px,
-          height: ${10 + Math.random() * 15}px
+          animationDelay: `${i * 0.4}s`,
+          left: `${Math.random() * 100}%`,
+          width: `${10 + Math.random() * 15}px`,
+          height: `${10 + Math.random() * 15}px`
         }}
       />
     ))}
@@ -254,7 +254,7 @@ const Bubbles = () => (
 
 // Estilos
 const containerStyle = { position: 'relative', height: '100vh', width: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const backgroundStyle = { position: 'absolute', top: 0, left: 0, height: '100%', width: '100%', backgroundImage: url(${fondoblanco}), backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, filter: 'brightness(0.85)' };
+const backgroundStyle = { position: 'absolute', top: 0, left: 0, height: '100%', width: '100%', backgroundImage: `url(${fondoblanco})`, backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0, filter: 'brightness(0.85)' };
 const bubblesContainer = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none', overflow: 'hidden' };
 const bubble = {
   position: 'absolute',
