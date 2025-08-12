@@ -19,15 +19,14 @@ const Login = () => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
     const rolFromUrl = query.get('rol');
-    const idFromUrl = query.get('id');
 
-    if (tokenFromUrl && rolFromUrl && idFromUrl) {
+    if (tokenFromUrl && rolFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
-      setId(idFromUrl);
+      // Si quieres el id, necesitas decodificar el token (no implementado aquí)
       navigate('/dashboard');
     }
-  }, [location.search, setToken, setRol, setId, navigate]);
+  }, [location.search, setToken, setRol, navigate]);
 
   // Redirigir si ya tiene token
   useEffect(() => {
@@ -280,4 +279,3 @@ const googleButtonStyleGray = { backgroundColor: 'white', border: '1px solid #cc
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
-
