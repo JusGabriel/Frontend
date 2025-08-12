@@ -30,9 +30,10 @@ const Chat = () => {
   const mensajesRef = useRef(null);
 
   // Para leer parámetro "user" de la URL
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
+const location = useLocation();
+const params = new URLSearchParams(location.search);
+const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
+
 
   // --- Funciones Chat General ---
 
@@ -478,3 +479,4 @@ const Chat = () => {
         {mensajeQuejaInfo && <div className="p-2 text-center text-gray-600">{mensajeQuejaInfo}</div>}
       </section>
    
+
