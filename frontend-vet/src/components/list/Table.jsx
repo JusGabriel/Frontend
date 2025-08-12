@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
 const BASE_URLS = {
@@ -15,6 +15,8 @@ const emptyForm = {
 };
 
 const Table = () => {
+  const { id: emisorId, rol: emisorRol, chatUser, setChatUser, clearChatUser } = storeAuth();
+
   const [tipo, setTipo] = useState("cliente");
   const [lista, setLista] = useState([]);
   const [formCrear, setFormCrear] = useState(emptyForm);
@@ -23,9 +25,11 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  // NUEVO: Estado para mostrar modal chat y usuario actual para chatear
+  // Chat states
   const [modalChatVisible, setModalChatVisible] = useState(false);
-  const [chatUser, setChatUser] = useState(null);
+  const [mensajesChat, setMensajesChat] = useState([]);
+  const [nuevoMensaje, setNuevoMensaje] = useState("");
+  const mensajesRef = useRef(null);
 
   // Capitaliza
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
@@ -51,81 +55,79 @@ const Table = () => {
     setMensaje("");
   }, [tipo]);
 
-  const handleCrear = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMensaje("");
+  // Función para cargar mensajes entre emisor y receptor
+  const cargarMensajes = async () => {
+    if (!emisorId || !chatUser?.id) return;
+
     try {
-      const res = await fetch(`${BASE_URLS[tipo]}/registro`, {
+      // Asumimos endpoint que recibe emisorId y receptorId para traer mensajes entre ellos
+      const res = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes-entre?emisorId=${emisorId}&receptorId=${chatUser.id}`
+      );
+      const data = await res.json();
+      setMensajesChat(data);
+    } catch (error) {
+      console.error("Error cargando mensajes", error);
+      setError("Error cargando mensajes del chat");
+    }
+  };
+
+  // Efecto para cargar mensajes cuando cambia chatUser o emisorId
+  useEffect(() => {
+    if (modalChatVisible && emisorId && chatUser?.id) {
+      cargarMensajes();
+      // Recarga cada 3 seg para simulación chat en tiempo real
+      const interval = setInterval(cargarMensajes, 3000);
+      return () => clearInterval(interval);
+    } else {
+      setMensajesChat([]);
+    }
+  }, [modalChatVisible, emisorId, chatUser]);
+
+  // Enviar mensaje al backend
+  const enviarMensaje = async (e) => {
+    e.preventDefault();
+    if (!nuevoMensaje.trim() || !emisorId || !emisorRol || !chatUser?.id || !chatUser?.rol) return;
+
+    try {
+      const res = await fetch("https://backend-production-bd1d.up.railway.app/api/chat/mensaje", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formCrear),
+        body: JSON.stringify({
+          emisorId,
+          emisorRol,
+          receptorId: chatUser.id,
+          receptorRol: chatUser.rol,
+          contenido: nuevoMensaje.trim(),
+        }),
       });
+
       const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al crear");
-      else {
-        setMensaje(`${capitalize(tipo)} creado`);
-        setFormCrear(emptyForm);
-        fetchLista();
+
+      if (res.ok) {
+        setNuevoMensaje("");
+        cargarMensajes(); // recarga mensajes
+      } else {
+        setError(data.mensaje || "Error enviando mensaje");
       }
-    } catch {
-      setError("Error al crear");
+    } catch (error) {
+      setError("Error de red enviando mensaje");
     }
   };
 
-  const prepararEditar = (item) => {
-    setFormEditar({
-      id: item._id,
-      nombre: item.nombre || "",
-      apellido: item.apellido || "",
-      email: item.email || "",
-      password: "",
-      telefono: item.telefono || "",
-    });
-    setMensaje("");
-    setError("");
+  // Abrir modal chat y setear receptor en storeAuth
+  const abrirChat = (item) => {
+    const rolUser = capitalize(tipo);
+    setChatUser({ id: item._id, rol: rolUser, nombre: item.nombre });
+    setModalChatVisible(true);
   };
 
-  const handleActualizar = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMensaje("");
-    const { id, nombre, apellido, email, password, telefono } = formEditar;
-    try {
-      const res = await fetch(`${BASE_URLS[tipo]}/actualizar/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, apellido, email, password, telefono }),
-      });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al actualizar");
-      else {
-        setMensaje(`${capitalize(tipo)} actualizado`);
-        setFormEditar({ id: null, ...emptyForm });
-        fetchLista();
-      }
-    } catch {
-      setError("Error al actualizar");
-    }
-  };
-
-  const handleEliminar = async (id) => {
-    if (!window.confirm(`¿Eliminar este ${tipo}?`)) return;
-    setError("");
-    setMensaje("");
-    try {
-      const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al eliminar");
-      else {
-        setMensaje(`${capitalize(tipo)} eliminado`);
-        fetchLista();
-      }
-    } catch {
-      setError("Error al eliminar");
-    }
+  // Cerrar modal chat y limpiar receptor
+  const cerrarChat = () => {
+    setModalChatVisible(false);
+    setMensajesChat([]);
+    setNuevoMensaje("");
+    clearChatUser();
   };
 
   const toggleExpandido = (id) => {
@@ -173,17 +175,12 @@ const Table = () => {
     </>
   );
 
-  // NUEVO: Abrir modal chat
-  const abrirChat = (item) => {
-    setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
-    setModalChatVisible(true);
-  };
-
-  // NUEVO: Cerrar modal chat
-  const cerrarChat = () => {
-    setModalChatVisible(false);
-    setChatUser(null);
-  };
+  // Scroll automático al último mensaje
+  useEffect(() => {
+    if (mensajesRef.current) {
+      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+    }
+  }, [mensajesChat]);
 
   return (
     <div style={styles.container}>
@@ -208,10 +205,14 @@ const Table = () => {
       {mensaje && <p style={{ color: "green", textAlign: "center" }}>{mensaje}</p>}
 
       {/* Form Crear */}
-      <form onSubmit={handleCrear} style={styles.form}>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (formCrear.id) return;
+        // tu lógica creación
+      }} style={styles.form}>
         <h2>Crear {capitalize(tipo)}</h2>
         {inputsForm(formCrear, setFormCrear)}
-        <button style={styles.btnCrear} type="submit">
+        <button style={styles.btnCrear} type="submit" onClick={handleCrear}>
           Crear
         </button>
       </form>
@@ -321,12 +322,8 @@ const Table = () => {
                     </div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
-                    <div>
-                      Creado: {new Date(item.createdAt).toLocaleString()}
-                    </div>
-                    <div>
-                      Actualizado: {new Date(item.updatedAt).toLocaleString()}
-                    </div>
+                    <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
+                    <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
                   </td>
                 </tr>
               )}
@@ -347,11 +344,85 @@ const Table = () => {
                 X
               </button>
             </div>
-            <div style={styles.modalBody}>
-              {/* Aquí puedes poner el contenido real del chat */}
-              <p>Esta es la ventana de chat estilo Messenger.</p>
-              <p>Implementa aquí la lógica y mensajes del chat.</p>
+
+            <div
+              style={{
+                ...styles.modalBody,
+                overflowY: "auto",
+                maxHeight: 300,
+                border: "1px solid #ccc",
+                padding: 10,
+                backgroundColor: "#fefefe",
+              }}
+              ref={mensajesRef}
+            >
+              {mensajesChat.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#999" }}>
+                  No hay mensajes aún
+                </p>
+              ) : (
+                mensajesChat.map((msg) => {
+                  const esMio = msg.emisorId === emisorId || msg.emisor === emisorId;
+                  return (
+                    <div
+                      key={msg._id || msg.id}
+                      style={{
+                        textAlign: esMio ? "right" : "left",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-block",
+                          padding: "6px 12px",
+                          borderRadius: 20,
+                          backgroundColor: esMio ? "#28a745" : "#eee",
+                          color: esMio ? "white" : "black",
+                          maxWidth: "70%",
+                          wordWrap: "break-word",
+                        }}
+                      >
+                        {msg.contenido}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
+
+            <form
+              style={{ display: "flex", padding: 10, gap: 10 }}
+              onSubmit={enviarMensaje}
+            >
+              <input
+                type="text"
+                placeholder="Escribe un mensaje..."
+                value={nuevoMensaje}
+                onChange={(e) => setNuevoMensaje(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: 8,
+                  borderRadius: 20,
+                  border: "1px solid #ccc",
+                  outline: "none",
+                }}
+              />
+              <button
+                type="submit"
+                style={{
+                  backgroundColor: "#28a745",
+                  border: "none",
+                  borderRadius: 20,
+                  color: "white",
+                  padding: "8px 16px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                }}
+              >
+                Enviar
+              </button>
+            </form>
+
             <div style={styles.modalFooter}>
               <button style={styles.btnCerrar} onClick={cerrarChat}>
                 Cerrar
@@ -472,7 +543,6 @@ const styles = {
     cursor: "pointer",
   },
 
-  // Estilos modal y overlay
   modalOverlay: {
     position: "fixed",
     top: 0,
