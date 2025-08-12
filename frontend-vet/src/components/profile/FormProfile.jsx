@@ -68,7 +68,11 @@ const FormularioPerfil = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={2000} />
+      <ToastContainer
+        position="top-right"
+        autoClose={2000}
+        style={{ zIndex: 99999 }}  {/* <-- Aquí la corrección */}
+      />
       <div style={cardContainer}>
         <h2 style={titleStyle}>Editar Perfil</h2>
         <hr style={dividerStyle} />
