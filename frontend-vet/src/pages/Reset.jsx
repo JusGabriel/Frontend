@@ -1,5 +1,5 @@
-// Reset.jsx
 import logoDog from '../assets/dog-hand.webp'
+import fondoblanco from '../assets/fondoblanco.jpg'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { useState, useEffect } from 'react'
@@ -57,7 +57,10 @@ const Reset = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
+    <div
+      className="flex flex-col items-center justify-center min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: `url(${fondoblanco})` }}
+    >
       <ToastContainer />
       <h1 className="text-3xl font-semibold mb-2 text-center text-gray-500">
         Restablece tu contraseña
@@ -120,5 +123,3 @@ const Reset = () => {
 }
 
 export default Reset
-
-
