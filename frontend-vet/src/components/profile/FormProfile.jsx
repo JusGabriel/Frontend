@@ -27,10 +27,12 @@ const FormularioPerfil = () => {
   }, [user, reset]);
 
   const updateUser = async (data) => {
+    if (isLoading) return; // evitar doble submit
     setIsLoading(true);
     const toastId = toast.loading("Actualizando perfil...", { autoClose: false });
     try {
       const response = await updateProfile(data, user._id);
+      console.log("Respuesta updateProfile:", response);
 
       toast.update(toastId, {
         render: response.success
@@ -42,7 +44,13 @@ const FormularioPerfil = () => {
         closeOnClick: true,
         draggable: true,
       });
+
+      // Forzar cierre del toast luego del autoClose
+      setTimeout(() => toast.dismiss(toastId), 2500);
+
     } catch (error) {
+      console.error("Error en updateUser:", error);
+
       toast.update(toastId, {
         render: "Ocurrió un error inesperado",
         type: "error",
@@ -51,6 +59,8 @@ const FormularioPerfil = () => {
         closeOnClick: true,
         draggable: true,
       });
+
+      setTimeout(() => toast.dismiss(toastId), 2500);
     } finally {
       setIsLoading(false);
     }
