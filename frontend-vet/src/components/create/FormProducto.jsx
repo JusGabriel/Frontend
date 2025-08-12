@@ -49,9 +49,8 @@ export const FormProducto = () => {
     }
   };
 
-  // Cargar emprendimientos
+  // Cargar emprendimientos (todos)
   const cargarEmprendimientos = async () => {
-    if (!emprendedorId) return;
     setLoadingEmprendimientos(true);
     setError(null);
     try {
@@ -61,7 +60,7 @@ export const FormProducto = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setEmprendimientos(Array.isArray(res.data) ? res.data : [res.data]);
+      setEmprendimientos(res.data);
     } catch (err) {
       setError("Error al cargar emprendimientos");
     } finally {
@@ -258,11 +257,11 @@ export const FormProducto = () => {
 
       {/* LISTA EMPRENDIMIENTOS */}
       <div style={styles.listaContainer}>
-        <h3>Mis Emprendimientos</h3>
+        <h3>Todos los Emprendimientos</h3>
         {loadingEmprendimientos ? (
           <p>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
-          <p>No tienes emprendimientos aún.</p>
+          <p>No hay emprendimientos aún.</p>
         ) : (
           emprendimientos.map((emp) => (
             <div key={emp._id} style={styles.productoCard}>
@@ -424,6 +423,3 @@ const styles = {
     cursor: "pointer",
   },
 };
-
-
-
