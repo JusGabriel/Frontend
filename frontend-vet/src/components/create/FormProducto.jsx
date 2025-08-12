@@ -56,7 +56,7 @@ export const FormProducto = () => {
     setError(null);
     try {
       const res = await axios.get(
-        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${emprendedorId}`,
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -424,5 +424,6 @@ const styles = {
     cursor: "pointer",
   },
 };
+
 
 
