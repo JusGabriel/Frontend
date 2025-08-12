@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import storeAuth from "../../context/storeAuth";
+
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
   emprendedor: "https://backend-production-bd1d.up.railway.app/api/emprendedores",
@@ -15,16 +14,13 @@ const emptyForm = {
 };
 
 const Table = () => {
-  const { id: emisorId, rol: emisorRol } = storeAuth(); // usuario actual que inicia chat
   const [tipo, setTipo] = useState("cliente"); // 'cliente' o 'emprendedor'
   const [lista, setLista] = useState([]);
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
-  const [expandido, setExpandido] = useState(null);
-
-  const navigate = useNavigate();
+  const [expandido, setExpandido] = useState(null); // fila expandida por _id
 
   // Carga lista según tipo
   const fetchLista = async () => {
@@ -134,34 +130,6 @@ const Table = () => {
     setExpandido(expandido === id ? null : id);
   };
 
-  // Función para iniciar chat con mensaje automático
-  const handleChatear = async (item) => {
-    try {
-      // Enviar mensaje inicial al backend (ajusta URL y body según tu API)
-      const res = await fetch("https://backend-production-bd1d.up.railway.app/api/chat/mensajes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          emisorId,
-          emisorRol,
-          receptorId: item._id,
-          receptorRol: item.rol,
-          mensaje: "Conversación iniciada",
-          tipo: "texto", // o como lo manejes
-        }),
-      });
-
-      if (!res.ok) throw new Error("Error al iniciar conversación");
-
-      // Redirigir a chat pasando receptor
-      navigate("/dashboard/chat", {
-        state: { receptorId: item._id, receptorRol: item.rol },
-      });
-    } catch (err) {
-      setError(err.message || "Error al iniciar chat");
-    }
-  };
-
   // Inputs comunes para ambos formularios
   const inputsForm = (form, setForm) => (
     <>
@@ -193,6 +161,7 @@ const Table = () => {
         placeholder="Password"
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
+        // Requerido solo para crear
         required={form.id === null}
       />
       <input
@@ -206,9 +175,7 @@ const Table = () => {
 
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: "center" }}>
-        Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}
-      </h1>
+      <h1 style={{ textAlign: "center" }}>Gestión {tipo === "cliente" ? "Clientes" : "Emprendedores"}</h1>
 
       <div style={styles.toggleContainer}>
         <button
@@ -290,33 +257,11 @@ const Table = () => {
                 <td style={styles.td}>{item.email}</td>
                 <td style={styles.td}>{item.telefono || "N/A"}</td>
                 <td style={styles.td}>
-                  <button
-                    style={styles.btnSmall}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      prepararEditar(item);
-                    }}
-                  >
+                  <button style={styles.btnSmall} onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}>
                     Editar
                   </button>{" "}
-                  <button
-                    style={styles.btnSmallDelete}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEliminar(item._id);
-                    }}
-                  >
+                  <button style={styles.btnSmallDelete} onClick={(e) => { e.stopPropagation(); handleEliminar(item._id); }}>
                     Eliminar
-                  </button>{" "}
-                  <button
-                    style={styles.btnSmallChat}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleChatear(item);
-                    }}
-                    title={`Chatear con ${item.nombre}`}
-                  >
-                    Chatear
                   </button>
                 </td>
               </tr>
@@ -324,13 +269,12 @@ const Table = () => {
                 <tr style={{ backgroundColor: "#eef6ff" }}>
                   <td colSpan="6" style={{ padding: 10 }}>
                     <strong>Detalles:</strong>
-                    <div>
-                      Nombre completo: {item.nombre} {item.apellido}
-                    </div>
+                    <div>Nombre completo: {item.nombre} {item.apellido}</div>
                     <div>Email: {item.email}</div>
                     <div>Teléfono: {item.telefono || "N/A"}</div>
                     <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
                     <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
+                    {/* Puedes agregar más campos si quieres */}
                   </td>
                 </tr>
               )}
@@ -443,16 +387,7 @@ const styles = {
   },
   btnSmallDelete: {
     padding: "5px 10px",
-    marginRight: 5,
     backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 3,
-    cursor: "pointer",
-  },
-  btnSmallChat: {
-    padding: "5px 10px",
-    backgroundColor: "#28a745",
     color: "white",
     border: "none",
     borderRadius: 3,
@@ -461,4 +396,3 @@ const styles = {
 };
 
 export default Table;
-
