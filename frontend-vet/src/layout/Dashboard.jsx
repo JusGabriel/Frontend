@@ -37,7 +37,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#F7E5D2] to-[#FCEEE3]">
-
       {/* Header */}
       <header className="bg-white shadow-md border-b border-[#E0C7B6] px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -49,7 +48,8 @@ const Dashboard = () => {
           <div>
             <h1 className="text-2xl font-extrabold text-[#AA4A44]">QuitoEmprende</h1>
             <p className="text-sm text-[#6B4F4F]">
-              Bienvenido, <span className="font-semibold">{user?.nombre || 'Invitado'}</span> | Rol: <span className="capitalize">{user?.rol || 'Invitado'}</span>
+              Bienvenido, <span className="font-semibold">{user?.nombre || 'Invitado'}</span> | Rol:{' '}
+              <span className="capitalize">{user?.rol || 'Invitado'}</span>
             </p>
           </div>
         </div>
