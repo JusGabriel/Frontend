@@ -54,14 +54,13 @@ const Dashboard = () => {
           </div>
         </div>
 
-          <button
-            onClick={() => clearToken()}
-            className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
-            title="Cerrar sesión"
-          >
-            Salir
-          </button>
-        </div>
+        <button
+          onClick={() => clearToken()}
+          className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
+          title="Cerrar sesión"
+        >
+          Salir
+        </button>
       </header>
 
       {/* Navegación horizontal (menú) */}
@@ -95,6 +94,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
-
