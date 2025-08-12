@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // Import para navegación
+import { useNavigate } from "react-router-dom";
+import storeAuth from "../context/storeAuth"; // importo para sacar datos del usuario actual
 
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
@@ -15,15 +16,16 @@ const emptyForm = {
 };
 
 const Table = () => {
+  const { id: emisorId, rol: emisorRol } = storeAuth(); // usuario actual que inicia chat
   const [tipo, setTipo] = useState("cliente"); // 'cliente' o 'emprendedor'
   const [lista, setLista] = useState([]);
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
-  const [expandido, setExpandido] = useState(null); // fila expandida por _id
+  const [expandido, setExpandido] = useState(null);
 
-  const navigate = useNavigate(); // Hook para navegar
+  const navigate = useNavigate();
 
   // Carga lista según tipo
   const fetchLista = async () => {
@@ -133,12 +135,32 @@ const Table = () => {
     setExpandido(expandido === id ? null : id);
   };
 
-  // Función para chatear: guarda id y rol, redirige a chat
-  const handleChatear = (item) => {
-    // Aquí envías el _id y rol al dashboard/chat
-    navigate("/dashboard/chat", {
-      state: { receptorId: item._id, receptorRol: item.rol },
-    });
+  // Función para iniciar chat con mensaje automático
+  const handleChatear = async (item) => {
+    try {
+      // Enviar mensaje inicial al backend (ajusta URL y body según tu API)
+      const res = await fetch("https://backend-production-bd1d.up.railway.app/api/chat/mensajes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emisorId,
+          emisorRol,
+          receptorId: item._id,
+          receptorRol: item.rol,
+          mensaje: "Conversación iniciada",
+          tipo: "texto", // o como lo manejes
+        }),
+      });
+
+      if (!res.ok) throw new Error("Error al iniciar conversación");
+
+      // Redirigir a chat pasando receptor
+      navigate("/dashboard/chat", {
+        state: { receptorId: item._id, receptorRol: item.rol },
+      });
+    } catch (err) {
+      setError(err.message || "Error al iniciar chat");
+    }
   };
 
   // Inputs comunes para ambos formularios
@@ -172,7 +194,6 @@ const Table = () => {
         placeholder="Password"
         value={form.password}
         onChange={(e) => setForm({ ...form, password: e.target.value })}
-        // Requerido solo para crear
         required={form.id === null}
       />
       <input
@@ -288,13 +309,13 @@ const Table = () => {
                   >
                     Eliminar
                   </button>{" "}
-                  {/* Botón Chatear */}
                   <button
-                    style={{ ...styles.btnSmall, backgroundColor: "#28a745" }}
+                    style={styles.btnSmallChat}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleChatear(item);
                     }}
+                    title={`Chatear con ${item.nombre}`}
                   >
                     Chatear
                   </button>
@@ -311,7 +332,6 @@ const Table = () => {
                     <div>Teléfono: {item.telefono || "N/A"}</div>
                     <div>Creado: {new Date(item.createdAt).toLocaleString()}</div>
                     <div>Actualizado: {new Date(item.updatedAt).toLocaleString()}</div>
-                    {/* Puedes agregar más campos si quieres */}
                   </td>
                 </tr>
               )}
@@ -424,7 +444,16 @@ const styles = {
   },
   btnSmallDelete: {
     padding: "5px 10px",
+    marginRight: 5,
     backgroundColor: "#dc3545",
+    color: "white",
+    border: "none",
+    borderRadius: 3,
+    cursor: "pointer",
+  },
+  btnSmallChat: {
+    padding: "5px 10px",
+    backgroundColor: "#28a745",
     color: "white",
     border: "none",
     borderRadius: 3,
