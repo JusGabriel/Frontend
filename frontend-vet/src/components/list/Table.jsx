@@ -280,7 +280,6 @@ const Table = () => {
                     onClick={(e) => {
                       e.stopPropagation();
                       setChatUser({ id: item._id, rol: capitalize(tipo) });
-                      alert(`Chatear con ${item.nombre} (${capitalize(tipo)})`);
                     }}
                   >
                     Chatear
@@ -419,3 +418,4 @@ const styles = {
 };
 
 export default Table;
+
