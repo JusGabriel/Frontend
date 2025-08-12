@@ -19,14 +19,15 @@ const Login = () => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
     const rolFromUrl = query.get('rol');
+    const idFromUrl = query.get('id'); // <--- agregué esta línea para capturar el id
 
-    if (tokenFromUrl && rolFromUrl) {
+    if (tokenFromUrl && rolFromUrl && idFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
-      // Si quieres el id, necesitas decodificar el token (no implementado aquí)
+      setId(idFromUrl); // <--- guardamos el id en el store
       navigate('/dashboard');
     }
-  }, [location.search, setToken, setRol, navigate]);
+  }, [location.search, setToken, setRol, setId, navigate]);
 
   // Redirigir si ya tiene token
   useEffect(() => {
