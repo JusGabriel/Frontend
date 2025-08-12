@@ -40,7 +40,7 @@ const Footer = () => (
   </footer>
 );
 
-const NotFound = () => {
+export const NotFound = () => {
   return (
     <>
       <Header />
@@ -82,4 +82,5 @@ const NotFound = () => {
   );
 };
 
-export default NotFound;
+
+
