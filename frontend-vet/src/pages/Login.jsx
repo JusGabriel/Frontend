@@ -177,6 +177,7 @@ const Login = () => {
               style={selectStyle}
             >
               <option value="">Selecciona un rol</option>
+              <option value="editor">Administrador</option>
               <option value="editor">Emprendedor</option>
               <option value="user">Cliente</option>
             </select>
@@ -279,4 +280,5 @@ const googleButtonStyleGray = { backgroundColor: 'white', border: '1px solid #cc
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
+
 
