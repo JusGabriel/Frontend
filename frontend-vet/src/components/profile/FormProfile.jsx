@@ -26,26 +26,36 @@ const FormularioPerfil = () => {
     }
   }, [user, reset]);
 
-  const updateUser = async (data) => {
-    setIsLoading(true);
-    const toastId = toast.loading("Actualizando perfil...");
-    try {
-      const response = await updateProfile(data, user._id);
+const updateUser = async (data) => {
+  setIsLoading(true);
+  const toastId = toast.loading("Actualizando perfil...", { autoClose: false });
+  try {
+    const response = await updateProfile(data, user._id);
 
-      toast.dismiss(toastId); // Cierra el toast de carga antes de mostrar resultado
+    toast.update(toastId, {
+      render: response.success
+        ? "Perfil actualizado correctamente"
+        : response.error || "Error al actualizar el perfil",
+      type: response.success ? "success" : "error",
+      isLoading: false,
+      autoClose: 2000,
+      closeOnClick: true,
+      draggable: true,
+    });
+  } catch (error) {
+    toast.update(toastId, {
+      render: "Ocurrió un error inesperado",
+      type: "error",
+      isLoading: false,
+      autoClose: 2000,
+      closeOnClick: true,
+      draggable: true,
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-      if (response.success) {
-        toast.success("Perfil actualizado correctamente", { autoClose: 2000 });
-      } else {
-        toast.error(response.error || "Error al actualizar el perfil", { autoClose: 2000 });
-      }
-    } catch (error) {
-      toast.dismiss(toastId);
-      toast.error("Ocurrió un error inesperado", { autoClose: 2000 });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <>
@@ -190,3 +200,4 @@ const submitButton = {
 };
 
 export default FormularioPerfil;
+
