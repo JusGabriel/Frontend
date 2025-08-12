@@ -145,9 +145,16 @@ const Chat = () => {
 
   const cargarQuejas = async () => {
     try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
-      );
+      let url = "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes";
+
+      // Si NO es Administrador, filtramos para que solo vea sus quejas
+      if (emisorRol !== "Administrador") {
+        url = `https://backend-production-bd1d.up.railway.app/api/quejas/por-usuario/${usuarioId}`;
+        // Este endpoint debe devolver solo las quejas donde el usuario participa
+        // Debes asegurarte que el backend soporte este endpoint
+      }
+
+      const res = await fetch(url);
       const data = await res.json();
       setQuejas(data);
     } catch (error) {
@@ -168,6 +175,23 @@ const Chat = () => {
     if (!mensajeQueja.trim() || !quejaSeleccionada) return;
 
     try {
+      let receptorId = null;
+      let receptorRol = null;
+
+      // Cliente o Emprendedor siempre envían a Administrador fijo
+      if (emisorRol === "Cliente" || emisorRol === "Emprendedor") {
+        receptorId = "6894f9c409b9687e33e57f56";
+        receptorRol = "Administrador";
+      } 
+      // Administrador responde a la otra parte de la queja
+      else if (emisorRol === "Administrador") {
+        const receptor = quejaSeleccionada.participantes.find(
+          (p) => p.rol !== "Administrador"
+        );
+        receptorId = receptor?.id?._id;
+        receptorRol = receptor?.rol;
+      }
+
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
         {
@@ -176,11 +200,14 @@ const Chat = () => {
           body: JSON.stringify({
             emisorId: usuarioId,
             emisorRol,
+            receptorId,
+            receptorRol,
             contenido: mensajeQueja.trim(),
             quejaId: quejaSeleccionada._id,
           }),
         }
       );
+
       const data = await res.json();
       if (res.ok) {
         const nuevoMsg = {
