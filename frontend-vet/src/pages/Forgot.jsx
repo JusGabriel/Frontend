@@ -201,6 +201,7 @@ const leftPanelStyle = {
   backgroundImage: `url(${panecillo})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
+  border: '4px solid white',
 };
 
 const formContainerStyle = {
@@ -272,3 +273,4 @@ const errorStyle = {
   fontSize: '0.8rem',
   marginTop: '0.25rem',
 };
+
