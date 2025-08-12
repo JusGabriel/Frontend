@@ -6,6 +6,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import panecillo from "../pages/Imagenes/panecillo.jpg";
+import fondo from "../assets/fondoblanco.jpg";
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -52,85 +53,170 @@ export const Register = () => {
   return (
     <div style={containerStyle}>
       <ToastContainer />
-      {/* Panel Izquierdo con imagen */}
-      <div style={leftPanelStyle}>
-        {/* Ya no hay animación ni texto */}
-      </div>
+      <div style={backgroundStyle} />
+      <Bubbles />
+      <div style={cardStyle}>
+        {/* Imagen panecillo */}
+        <div style={leftPanelStyle}></div>
 
-      {/* Formulario */}
-      <div style={formContainerStyle}>
-        <form onSubmit={handleSubmit(registro)} style={formStyle}>
-          <h1 style={formTitle}>Bienvenido(a)</h1>
-          <p style={formSubtitle}>Por favor ingresa tus datos</p>
+        {/* Formulario */}
+        <div style={formContainerStyle}>
+          <form onSubmit={handleSubmit(registro)} style={formStyle}>
+            <h1 style={formTitle}>Bienvenido(a)</h1>
+            <p style={formSubtitle}>Por favor ingresa tus datos</p>
 
-          <input placeholder="Nombre" {...register("nombre", { required: "El nombre es obligatorio" })} style={inputStyle} />
-          {errors.nombre && <p style={errorText}>{errors.nombre.message}</p>}
+            <input placeholder="Nombre" {...register("nombre", { required: "El nombre es obligatorio" })} style={inputStyle} />
+            {errors.nombre && <p style={errorText}>{errors.nombre.message}</p>}
 
-          <input placeholder="Apellido" {...register("apellido", { required: "El apellido es obligatorio" })} style={inputStyle} />
-          {errors.apellido && <p style={errorText}>{errors.apellido.message}</p>}
+            <input placeholder="Apellido" {...register("apellido", { required: "El apellido es obligatorio" })} style={inputStyle} />
+            {errors.apellido && <p style={errorText}>{errors.apellido.message}</p>}
 
-          <input placeholder="Celular" type="number" {...register("celular", { required: "El celular es obligatorio" })} style={inputStyle} />
-          {errors.celular && <p style={errorText}>{errors.celular.message}</p>}
+            <input placeholder="Celular" type="number" {...register("celular", { required: "El celular es obligatorio" })} style={inputStyle} />
+            {errors.celular && <p style={errorText}>{errors.celular.message}</p>}
 
-          <input placeholder="Correo electrónico" type="email" {...register("email", { required: "El correo electrónico es obligatorio" })} style={inputStyle} />
-          {errors.email && <p style={errorText}>{errors.email.message}</p>}
+            <input placeholder="Correo electrónico" type="email" {...register("email", { required: "El correo electrónico es obligatorio" })} style={inputStyle} />
+            {errors.email && <p style={errorText}>{errors.email.message}</p>}
 
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            {...register("password", { required: "La contraseña es obligatoria" })}
-            style={inputStyle}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{ marginTop: '0.3rem', fontSize: '0.85rem', background: 'none', border: 'none', color: '#AA4A44', cursor: 'pointer' }}
-          >
-            {showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-          </button>
-          {errors.password && <p style={errorText}>{errors.password.message}</p>}
-
-          <select {...register("role", { required: "El rol es obligatorio" })} style={selectStyle}>
-            <option value="">Selecciona un rol</option>
-            <option value="editor">Emprendedor</option>
-            <option value="user">Cliente</option>
-          </select>
-          {errors.role && <p style={errorText}>{errors.role.message}</p>}
-
-          <button type="submit" style={buttonStyle}>Registrarse</button>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-            <button type="button" onClick={loginGoogleCliente} style={{ ...googleButtonStyle, backgroundColor: '#EA4335' }}>
-              Google Cliente
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Contraseña"
+              {...register("password", { required: "La contraseña es obligatoria" })}
+              style={inputStyle}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{ marginTop: '0.3rem', fontSize: '0.85rem', background: 'none', border: 'none', color: '#AA4A44', cursor: 'pointer' }}
+            >
+              {showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
             </button>
-            <button type="button" onClick={loginGoogleEmprendedor} style={{ ...googleButtonStyle, backgroundColor: '#4285F4' }}>
-              Google Emprendedor
-            </button>
-          </div>
+            {errors.password && <p style={errorText}>{errors.password.message}</p>}
 
-          <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem' }}>
-            ¿Ya posees una cuenta?{' '}
-            <Link to="/login" style={{ color: '#AA4A44', textDecoration: 'underline' }}>
-              Iniciar sesión
-            </Link>
-          </p>
-        </form>
+            <select {...register("role", { required: "El rol es obligatorio" })} style={selectStyle}>
+              <option value="">Selecciona un rol</option>
+              <option value="editor">Emprendedor</option>
+              <option value="user">Cliente</option>
+            </select>
+            {errors.role && <p style={errorText}>{errors.role.message}</p>}
+
+            <button type="submit" style={buttonStyle}>Registrarse</button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+              <button type="button" onClick={loginGoogleCliente} style={{ ...googleButtonStyle, backgroundColor: '#EA4335' }}>
+                Google Cliente
+              </button>
+              <button type="button" onClick={loginGoogleEmprendedor} style={{ ...googleButtonStyle, backgroundColor: '#4285F4' }}>
+                Google Emprendedor
+              </button>
+            </div>
+
+            <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem' }}>
+              ¿Ya posees una cuenta?{' '}
+              <Link to="/login" style={{ color: '#AA4A44', textDecoration: 'underline' }}>
+                Iniciar sesión
+              </Link>
+            </p>
+          </form>
+        </div>
       </div>
     </div>
   );
 };
 
+const Bubbles = () => {
+  return (
+    <div style={bubblesContainer}>
+      {[...Array(15)].map((_, i) => (
+        <div
+          key={i}
+          style={{
+            ...bubble,
+            animationDelay: `${i * 0.4}s`,
+            left: `${Math.random() * 100}%`,
+            width: `${10 + Math.random() * 15}px`,
+            height: `${10 + Math.random() * 15}px`
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 const containerStyle = {
+  position: 'relative',
+  height: '100vh',
+  width: '100vw',
+  overflow: 'hidden',
   display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const backgroundStyle = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  height: '100%',
   width: '100%',
-  height: '750px',
-  maxWidth: '850px',
+  backgroundImage: `url(${fondo})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  zIndex: 0,
+  filter: 'brightness(0.85)',
+};
+
+const bubblesContainer = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  zIndex: 1,
+  pointerEvents: 'none',
+  overflow: 'hidden',
+};
+
+const bubble = {
+  position: 'absolute',
+  bottom: '-50px',
+  backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  borderRadius: '50%',
+  animationName: 'rise',
+  animationDuration: '8s',
+  animationTimingFunction: 'linear',
+  animationIterationCount: 'infinite',
+  opacity: 0.7,
+};
+
+const styleSheet = document.styleSheets[0];
+const keyframes =
+`@keyframes rise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-110vh) scale(1.3);
+    opacity: 0;
+  }
+}`;
+if (styleSheet) {
+  const rules = Array.from(styleSheet.cssRules).map(r => r.cssText);
+  if (!rules.includes(keyframes)) {
+    styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
+  }
+}
+
+const cardStyle = {
+  display: 'flex',
+  width: '850px',
+  height: '600px',
   borderRadius: '25px',
   overflow: 'hidden',
   boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
   background: '#fff',
-  margin: 'auto',
   position: 'relative',
+  zIndex: 2,
 };
 
 const leftPanelStyle = {
@@ -217,4 +303,3 @@ const errorText = {
 };
 
 export default Register;
-
