@@ -23,13 +23,16 @@ const Chat = () => {
   // Mensajes de info / error
   const [info, setInfo] = useState("");
 
+  // Mensaje específico para Clientes y Emprendedores
+  const [mensajeQuejaInfo, setMensajeQuejaInfo] = useState("");
+
   // Ref para scroll automático
   const mensajesRef = useRef(null);
 
   // Para leer parámetro "user" de la URL
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const chatUserId = params.get("user"); // id del emprendedor con quien chatear
+  const chatUser Id = params.get("user"); // id del emprendedor con quien chatear
 
   // --- Funciones Chat General ---
 
@@ -95,17 +98,17 @@ const Chat = () => {
     }
   };
 
-  // --- Función para abrir o crear conversación con chatUserId ---
+  // --- Función para abrir o crear conversación con chatUser Id ---
 
   const abrirConversacionConUsuario = async () => {
-    if (!chatUserId || !usuarioId) return;
+    if (!chatUser Id || !usuarioId) return;
 
     // Primero aseguramos cargar las conversaciones
     await cargarConversaciones();
 
-    // Buscar conversación existente con chatUserId
+    // Buscar conversación existente con chatUser Id
     const convExistente = conversaciones.find((conv) =>
-      conv.participantes.some((p) => p.id && p.id._id === chatUserId)
+      conv.participantes.some((p) => p.id && p.id._id === chatUser Id)
     );
 
     if (convExistente) {
@@ -122,7 +125,7 @@ const Chat = () => {
             body: JSON.stringify({
               participantes: [
                 { id: usuarioId, rol: emisorRol },
-                { id: chatUserId, rol: "Emprendedor" }, // ajusta el rol si necesitas
+                { id: chatUser Id, rol: "Emprendedor" }, // ajusta el rol si necesitas
               ],
             }),
           }
@@ -167,6 +170,9 @@ const Chat = () => {
     e.preventDefault();
     if (!mensajeQueja.trim() || !quejaSeleccionada) return;
 
+    const receptorId = "6894f9c409b9687e33e57f56"; // ID del Administrador
+    const receptorRol = "Administrador"; // Rol del Administrador
+
     try {
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
@@ -178,6 +184,8 @@ const Chat = () => {
             emisorRol,
             contenido: mensajeQueja.trim(),
             quejaId: quejaSeleccionada._id,
+            receptorId, // ID del Administrador
+            receptorRol, // Rol del Administrador
           }),
         }
       );
@@ -230,8 +238,14 @@ const Chat = () => {
       setConversacionId(null);
       setMensajes([]);
       setMensaje("");
+      // Mostrar mensaje específico para Clientes y Emprendedores
+      if (emisorRol === "Cliente" || emisorRol === "Emprendedor") {
+        setMensajeQuejaInfo("Envía una queja al administrador del sitio");
+      } else {
+        setMensajeQuejaInfo("");
+      }
     }
-  }, [vista]);
+  }, [vista, emisorRol]);
 
   // Scroll automático en mensajes
   useEffect(() => {
@@ -240,12 +254,12 @@ const Chat = () => {
     }
   }, [mensajes, mensajesQueja]);
 
-  // Al cargar el componente, si viene chatUserId, abrir o crear conversación
+  // Al cargar el componente, si viene chatUser Id, abrir o crear conversación
   useEffect(() => {
-    if (chatUserId) {
+    if (chatUser Id) {
       abrirConversacionConUsuario();
     }
-  }, [chatUserId, usuarioId]);
+  }, [chatUser Id, usuarioId]);
 
   // --- Render ---
 
@@ -461,9 +475,6 @@ const Chat = () => {
         </form>
 
         {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
+        {mensajeQuejaInfo && <div className="p-2 text-center text-gray-600">{mensajeQuejaInfo}</div>}
       </section>
-    </div>
-  );
-};
-
-export default Chat;
+   
