@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
 const BASE_URLS = {
@@ -23,7 +23,12 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  const setChatUser = storeAuth((state) => state.setChatUser);
+  // Estado para chat
+  const [chatAbierto, setChatAbierto] = useState(false);
+  const [chatUser, setChatUser] = useState(null);
+  const [chatMensajes, setChatMensajes] = useState([]);
+  const [chatNuevoMensaje, setChatNuevoMensaje] = useState("");
+  const chatEndRef = useRef(null);
 
   const fetchLista = async () => {
     setError("");
@@ -46,80 +51,66 @@ const Table = () => {
     setMensaje("");
   }, [tipo]);
 
-  const handleCrear = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMensaje("");
+  // Chat: cargar mensajes entre yo y chatUser
+  // Para demo, simulo que backend devuelve mensajes en:
+  // GET /api/chat/mensajes?user1=YO_ID&user2=CHAT_USER_ID
+  // Aquí usarás tu backend real
+
+  const usuarioActual = storeAuth((state) => state.id);
+
+  const cargarMensajes = async (userId) => {
+    if (!usuarioActual || !userId) return;
     try {
-      const res = await fetch(`${BASE_URLS[tipo]}/registro`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formCrear),
-      });
+      const res = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes?user1=${usuarioActual}&user2=${userId}`
+      );
       const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al crear");
-      else {
-        setMensaje(`${capitalize(tipo)} creado`);
-        setFormCrear(emptyForm);
-        fetchLista();
-      }
-    } catch {
-      setError("Error al crear");
+      setChatMensajes(data || []);
+      scrollChatAbajo();
+    } catch (error) {
+      console.error("Error cargando mensajes de chat:", error);
     }
   };
 
-  const prepararEditar = (item) => {
-    setFormEditar({
-      id: item._id,
-      nombre: item.nombre || "",
-      apellido: item.apellido || "",
-      email: item.email || "",
-      password: "",
-      telefono: item.telefono || "",
-    });
-    setMensaje("");
-    setError("");
+  // Abrir chat con usuario
+  const abrirChat = (user) => {
+    setChatUser(user);
+    setChatAbierto(true);
+    cargarMensajes(user._id);
   };
 
-  const handleActualizar = async (e) => {
-    e.preventDefault();
-    setError("");
-    setMensaje("");
-    const { id, nombre, apellido, email, password, telefono } = formEditar;
+  // Enviar mensaje (simulado con POST)
+  const enviarMensaje = async () => {
+    if (!chatNuevoMensaje.trim() || !chatUser) return;
     try {
-      const res = await fetch(`${BASE_URLS[tipo]}/actualizar/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, apellido, email, password, telefono }),
-      });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al actualizar");
-      else {
-        setMensaje(`${capitalize(tipo)} actualizado`);
-        setFormEditar({ id: null, ...emptyForm });
-        fetchLista();
-      }
-    } catch {
-      setError("Error al actualizar");
+      const res = await fetch(
+        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            emisorId: usuarioActual,
+            emisorRol: tipo === "cliente" ? "Cliente" : "Emprendedor",
+            receptorId: chatUser._id,
+            receptorRol: chatUser.rol || capitalize(tipo),
+            contenido: chatNuevoMensaje.trim(),
+          }),
+        }
+      );
+      if (!res.ok) throw new Error("Error enviando mensaje");
+      const nuevoMsg = await res.json();
+      setChatMensajes((prev) => [...prev, nuevoMsg]);
+      setChatNuevoMensaje("");
+      scrollChatAbajo();
+    } catch (error) {
+      console.error("Error enviando mensaje:", error);
     }
   };
 
-  const handleEliminar = async (id) => {
-    if (!window.confirm(`¿Eliminar este ${tipo}?`)) return;
-    setError("");
-    setMensaje("");
-    try {
-      const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "Error al eliminar");
-      else {
-        setMensaje(`${capitalize(tipo)} eliminado`);
-        fetchLista();
-      }
-    } catch {
-      setError("Error al eliminar");
+  // Scroll abajo al enviar o cargar mensajes
+  const scrollChatAbajo = () => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -287,7 +278,7 @@ const Table = () => {
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setChatUser({ id: item._id, rol: capitalize(tipo) });
+                      abrirChat({ ...item, rol: capitalize(tipo) });
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.backgroundColor = "#218838")
@@ -318,6 +309,85 @@ const Table = () => {
           ))}
         </tbody>
       </table>
+
+      {/* Ventana Chat */}
+      {chatAbierto && (
+        <div style={styles.chatOverlay} onClick={() => setChatAbierto(false)}>
+          <div
+            style={styles.chatContainer}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header style={styles.chatHeader}>
+              <h3>
+                Chat con {chatUser?.nombre} {chatUser?.apellido}
+              </h3>
+              <button
+                style={styles.chatCloseBtn}
+                onClick={() => setChatAbierto(false)}
+                aria-label="Cerrar chat"
+              >
+                ×
+              </button>
+            </header>
+            <div style={styles.chatMessages}>
+              {chatMensajes.length === 0 ? (
+                <p style={{ color: "#666", textAlign: "center", marginTop: 20 }}>
+                  No hay mensajes aún. ¡Empieza la conversación!
+                </p>
+              ) : (
+                chatMensajes.map((msg, i) => (
+                  <div
+                    key={msg._id || i}
+                    style={{
+                      margin: "5px 0",
+                      textAlign:
+                        msg.emisorId === usuarioActual ? "right" : "left",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "inline-block",
+                        padding: "8px 14px",
+                        borderRadius: 20,
+                        backgroundColor:
+                          msg.emisorId === usuarioActual
+                            ? "#28a745"
+                            : "#e0e0e0",
+                        color:
+                          msg.emisorId === usuarioActual ? "white" : "black",
+                        maxWidth: "70%",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {msg.contenido}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <form
+              style={styles.chatForm}
+              onSubmit={(e) => {
+                e.preventDefault();
+                enviarMensaje();
+              }}
+            >
+              <input
+                style={styles.chatInput}
+                type="text"
+                placeholder="Escribe un mensaje..."
+                value={chatNuevoMensaje}
+                onChange={(e) => setChatNuevoMensaje(e.target.value)}
+                autoFocus
+              />
+              <button type="submit" style={styles.chatSendBtn}>
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -328,6 +398,7 @@ const styles = {
     margin: "auto",
     padding: 20,
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    position: "relative",
   },
   toggleContainer: {
     display: "flex",
@@ -428,6 +499,74 @@ const styles = {
     border: "none",
     borderRadius: 3,
     cursor: "pointer",
+  },
+
+  // Chat overlay
+  chatOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    display: "flex",
+    justifyContent: "flex-end",
+    zIndex: 9999,
+  },
+  chatContainer: {
+    width: 400,
+    height: "100%",
+    backgroundColor: "white",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "-3px 0 15px rgba(0,0,0,0.2)",
+  },
+  chatHeader: {
+    padding: "15px 20px",
+    borderBottom: "1px solid #ddd",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontWeight: "bold",
+    fontSize: 18,
+    backgroundColor: "#007bff",
+    color: "white",
+  },
+  chatCloseBtn: {
+    background: "transparent",
+    border: "none",
+    color: "white",
+    fontSize: 28,
+    lineHeight: 1,
+    cursor: "pointer",
+  },
+  chatMessages: {
+    flex: 1,
+    padding: "15px 20px",
+    overflowY: "auto",
+    backgroundColor: "#f5f5f5",
+  },
+  chatForm: {
+    display: "flex",
+    padding: 15,
+    borderTop: "1px solid #ddd",
+  },
+  chatInput: {
+    flex: 1,
+    padding: 10,
+    borderRadius: 20,
+    border: "1px solid #ccc",
+    outline: "none",
+  },
+  chatSendBtn: {
+    marginLeft: 10,
+    padding: "10px 20px",
+    borderRadius: 20,
+    border: "none",
+    backgroundColor: "#28a745",
+    color: "white",
+    cursor: "pointer",
+    fontWeight: "bold",
   },
 };
 
