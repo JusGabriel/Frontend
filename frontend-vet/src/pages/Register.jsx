@@ -65,22 +65,64 @@ export const Register = () => {
             <h1 style={formTitle}>Bienvenido(a)</h1>
             <p style={formSubtitle}>Por favor ingresa tus datos</p>
 
-            <input placeholder="Nombre" {...register("nombre", { required: "El nombre es obligatorio" })} style={inputStyle} />
+            <input
+              placeholder="Nombre"
+              {...register("nombre", {
+                required: "El nombre es obligatorio",
+                minLength: { value: 2, message: "El nombre debe tener al menos 2 caracteres" },
+                pattern: { value: /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/, message: "Solo se permiten letras y espacios" }
+              })}
+              style={inputStyle}
+            />
             {errors.nombre && <p style={errorText}>{errors.nombre.message}</p>}
 
-            <input placeholder="Apellido" {...register("apellido", { required: "El apellido es obligatorio" })} style={inputStyle} />
+            <input
+              placeholder="Apellido"
+              {...register("apellido", {
+                required: "El apellido es obligatorio",
+                minLength: { value: 2, message: "El apellido debe tener al menos 2 caracteres" },
+                pattern: { value: /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/, message: "Solo se permiten letras y espacios" }
+              })}
+              style={inputStyle}
+            />
             {errors.apellido && <p style={errorText}>{errors.apellido.message}</p>}
 
-            <input placeholder="Celular" type="number" {...register("celular", { required: "El celular es obligatorio" })} style={inputStyle} />
+            <input
+              placeholder="Celular"
+              type="text"
+              {...register("celular", {
+                required: "El celular es obligatorio",
+                pattern: { value: /^[0-9]{10}$/, message: "El celular debe tener exactamente 10 dígitos" }
+              })}
+              style={inputStyle}
+            />
             {errors.celular && <p style={errorText}>{errors.celular.message}</p>}
 
-            <input placeholder="Correo electrónico" type="email" {...register("email", { required: "El correo electrónico es obligatorio" })} style={inputStyle} />
+            <input
+              placeholder="Correo electrónico"
+              type="email"
+              {...register("email", {
+                required: "El correo electrónico es obligatorio",
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "El correo electrónico no es válido"
+                }
+              })}
+              style={inputStyle}
+            />
             {errors.email && <p style={errorText}>{errors.email.message}</p>}
 
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
-              {...register("password", { required: "La contraseña es obligatoria" })}
+              {...register("password", {
+                required: "La contraseña es obligatoria",
+                minLength: { value: 8, message: "La contraseña debe tener al menos 8 caracteres" },
+                pattern: {
+                  value: /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/,
+                  message: "La contraseña debe contener letras y números"
+                }
+              })}
               style={inputStyle}
             />
             <button
@@ -303,4 +345,3 @@ const errorText = {
 };
 
 export default Register;
-
