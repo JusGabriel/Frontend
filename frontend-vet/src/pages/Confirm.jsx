@@ -1,5 +1,6 @@
 import axios from 'axios'
 import logoDog from '../assets/dog-hand.webp'
+import fondoblanco from '../assets/fondoblanco.jpg'
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 
@@ -39,7 +40,10 @@ export const Confirm = () => {
   }, [token])
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen">
+    <div
+      className="flex flex-col items-center justify-center min-h-screen bg-cover bg-center"
+      style={{ backgroundImage: `url(${fondoblanco})` }}
+    >
       {/* <ToastContainer /> */}
       <img
         className="object-cover h-80 w-80 rounded-full border-4 border-solid border-slate-600"
@@ -63,4 +67,3 @@ export const Confirm = () => {
     </div>
   )
 }
-
