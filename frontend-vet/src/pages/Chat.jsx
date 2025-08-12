@@ -145,12 +145,26 @@ const Chat = () => {
         "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
       );
       const data = await res.json();
-      setQuejas(data);
+
+      let quejasFiltradas = data;
+
+      // Si no es administrador, filtrar quejas solo del usuario actual
+      if (emisorRol !== "Administrador") {
+        quejasFiltradas = data.filter((q) => {
+          // Busca si el usuario actual es uno de los participantes que envió la queja
+          return q.participantes.some(
+            (p) => p.id && p.id._id === usuarioId
+          );
+        });
+      }
+
+      setQuejas(quejasFiltradas);
     } catch (error) {
       console.error("Error cargando quejas", error);
       setInfo("❌ Error cargando quejas");
     }
   };
+
 
   const seleccionarQueja = (queja) => {
     setQuejaSeleccionada(queja);
