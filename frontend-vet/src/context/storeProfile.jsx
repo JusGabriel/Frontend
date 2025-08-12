@@ -46,6 +46,7 @@ const storeProfile = create((set) => ({
       const respuesta = await axios.get(url, getAuthHeaders());
       set({ user: respuesta.data });
     } catch (error) {
+      toast.dismiss(); // Limpiar toasts previos
       toast.error("No se pudo obtener el perfil del usuario");
     }
   },
@@ -59,8 +60,11 @@ const storeProfile = create((set) => ({
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       set({ user: respuesta.data });
+      
+      toast.dismiss(); // Evitar notificaciones acumuladas
       toast.success("Perfil actualizado correctamente");
     } catch (error) {
+      toast.dismiss();
       toast.error(error.response?.data?.msg || "Error al actualizar perfil");
     }
   },
@@ -73,8 +77,11 @@ const storeProfile = create((set) => ({
 
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/actualizarpassword/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
+      
+      toast.dismiss();
       toast.success(respuesta?.data?.msg || "Contraseña actualizada");
     } catch (error) {
+      toast.dismiss();
       toast.error(error.response?.data?.msg || "Error al actualizar contraseña");
     }
   }
