@@ -1,6 +1,5 @@
-// Home.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';  // <-- importamos useNavigate
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg'; // o la imagen que quieras para el hero
 import Servicios from './pgPrueba/Servicios';
@@ -51,6 +50,7 @@ export const Home = () => {
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
+  const navigate = useNavigate();  // <-- inicializamos useNavigate
 
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
@@ -65,6 +65,11 @@ export const Home = () => {
       .then((data) => setProductos(data))
       .catch((error) => console.error('Error al cargar productos:', error));
   }, []);
+
+  // Nueva función para redirigir a página Not Found
+  const handleRedirectNotFound = () => {
+    navigate('/not-found');
+  };
 
   return (
     <>
@@ -114,7 +119,8 @@ export const Home = () => {
                   {productos.map((producto) => (
                     <div
                       key={producto._id}
-                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex"
+                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex cursor-pointer"
+                      onClick={handleRedirectNotFound}  // <-- clic en toda la tarjeta
                     >
                       {/* Línea vertical */}
                       <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
@@ -174,7 +180,8 @@ export const Home = () => {
                   emprendimientos.map((emp) => (
                     <div
                       key={emp._id}
-                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all"
+                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                      onClick={handleRedirectNotFound}  // <-- clic en toda la tarjeta
                     >
                       <img
                         src={emp.logo}
