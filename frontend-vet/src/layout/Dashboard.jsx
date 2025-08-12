@@ -54,18 +54,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Aquí agregamos el enlace a Favoritos */}
-        <div className="flex items-center gap-4">
-          {user?.rol === 'Cliente' && (
-            <Link
-              to="/dashboard/favoritos"
-              className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
-              title="Favoritos"
-            >
-              Favoritos
-            </Link>
-          )}
-
           <button
             onClick={() => clearToken()}
             className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
@@ -107,5 +95,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 
 
