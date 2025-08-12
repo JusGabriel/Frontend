@@ -438,7 +438,7 @@ const Table = () => {
                 Chat con {chatUser.nombre} ({chatUser.rol})
               </h3>
               <button style={styles.btnCerrar} onClick={cerrarChat}>
-                X
+                Cerrar
               </button>
             </div>
             <div style={styles.modalBody} ref={mensajesRef}>
@@ -680,3 +680,4 @@ const styles = {
 };
 
 export default Table;
+
