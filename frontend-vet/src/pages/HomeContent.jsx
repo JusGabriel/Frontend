@@ -74,6 +74,37 @@ const HomeContent = () => {
     }
   };
 
+
+  
+  const handlePagar = async (producto) => {
+  try {
+    const res = await fetch(`https://backend-production-bd1d.up.railway.app/api/create-checkout-session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        productoId: producto._id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.url) {
+      window.location.href = data.url; 
+    } else {
+      alert('No se pudo crear la sesión de pago');
+    }
+  } catch (err) {
+    console.error('Error al iniciar pago:', err);
+    alert('Hubo un problema al procesar el pago');
+  }
+};
+
+  
+
   return (
     <>
       {section === 'inicio' && (
@@ -121,7 +152,7 @@ const HomeContent = () => {
 
                             <button
                               className="bg-[#28a745] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#1e7e34] transition-colors flex-1"
-                              onClick={() => navigate(`/dashboard/pagar/${producto._id}`)}
+                              onClick={() => handlePagar(producto)}
                             >
                               Pagar
                             </button>
