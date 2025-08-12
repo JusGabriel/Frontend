@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import storeAuth from "../context/storeAuth"; // importo para sacar datos del usuario actual
-
+import storeAuth from "../../context/storeAuth";
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
   emprendedor: "https://backend-production-bd1d.up.railway.app/api/emprendedores",
@@ -462,3 +461,4 @@ const styles = {
 };
 
 export default Table;
+
