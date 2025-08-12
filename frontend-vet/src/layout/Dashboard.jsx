@@ -12,7 +12,6 @@ const Dashboard = () => {
     Administrador: [
       { to: '/dashboard', label: 'Perfil' },
       { to: '/dashboard/listar', label: 'Listar' },
-      { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
     ],
     Emprendedor: [
@@ -109,3 +108,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
