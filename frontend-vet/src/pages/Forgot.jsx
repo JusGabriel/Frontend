@@ -223,7 +223,6 @@ const titleStyle = {
   fontWeight: '600',
   textAlign: 'center',
   marginBottom: '1rem',
-  fontFamily: "'Playfair Display', serif",
   color: '#3B2F2F',
 };
 
@@ -264,7 +263,6 @@ const buttonStyle = {
   borderRadius: '25px',
   fontSize: '1rem',
   cursor: 'pointer',
-  fontFamily: "'Segoe UI', sans-serif",
 };
 
 const errorStyle = {
@@ -272,4 +270,5 @@ const errorStyle = {
   fontSize: '0.8rem',
   marginTop: '0.25rem',
 };
+
 
