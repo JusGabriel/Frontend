@@ -165,7 +165,16 @@ const Chat = () => {
 
   const enviarMensajeQueja = async (e) => {
     e.preventDefault();
-    if (!mensajeQueja.trim() || !quejaSeleccionada) return;
+    if (!mensajeQueja.trim()) return;
+
+    // Si rol es Cliente o Emprendedor, receptor fijo Administrador
+    const receptorFijo = {
+      id: "6894f9c409b9687e33e57f56",
+      rol: "Administrador",
+    };
+
+    // Determinar quejaId: si seleccionada, usar esa, si no, crear una nueva (simplificado aquí)
+    const quejaId = quejaSeleccionada?._id || null;
 
     try {
       const res = await fetch(
@@ -177,7 +186,9 @@ const Chat = () => {
             emisorId: usuarioId,
             emisorRol,
             contenido: mensajeQueja.trim(),
-            quejaId: quejaSeleccionada._id,
+            quejaId,
+            receptorId: (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? receptorFijo.id : undefined,
+            receptorRol: (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? receptorFijo.rol : undefined,
           }),
         }
       );
@@ -204,7 +215,6 @@ const Chat = () => {
 
   // --- Effects ---
 
-  // Cuando cambia usuario o vista a chat, carga conversaciones y limpia quejas
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -214,7 +224,6 @@ const Chat = () => {
     }
   }, [usuarioId, vista]);
 
-  // Actualizar mensajes cada 3s si hay conversación activa
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
@@ -223,7 +232,6 @@ const Chat = () => {
     }
   }, [conversacionId, vista]);
 
-  // Cuando cambia a vista quejas
   useEffect(() => {
     if (vista === "quejas") {
       cargarQuejas();
@@ -233,14 +241,12 @@ const Chat = () => {
     }
   }, [vista]);
 
-  // Scroll automático en mensajes
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes, mensajesQueja]);
 
-  // Al cargar el componente, si viene chatUserId, abrir o crear conversación
   useEffect(() => {
     if (chatUserId) {
       abrirConversacionConUsuario();
@@ -336,7 +342,11 @@ const Chat = () => {
             )
           ) : vista === "quejas" ? (
             quejas.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">No hay quejas registradas.</p>
+              <p className="p-4 text-center text-gray-500 flex-grow">
+                {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
+                  ? "Manda una queja al administrador del sitio"
+                  : "No hay quejas registradas."}
+              </p>
             ) : (
               quejas.map((q) => {
                 const emprendedor = q.participantes.find(
@@ -391,8 +401,9 @@ const Chat = () => {
               ? `Chat Queja con ${
                   quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
                 }`
-              : "Selecciona una queja"
-            : ""}
+              : (emisorRol === "Cliente" || emisorRol === "Emprendedor")
+              ? "Manda una queja al administrador del sitio"
+              : "Selecciona una queja"}
         </header>
 
         <div
@@ -425,7 +436,9 @@ const Chat = () => {
             )
           ) : (
             <p className="text-center text-gray-500 mt-10">
-              {vista === "chat" ? "Selecciona una conversación" : "Selecciona una queja para comenzar"}
+              {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
+                ? "Manda una queja al administrador del sitio"
+                : "Selecciona una queja para comenzar"}
             </p>
           )}
         </div>
@@ -436,7 +449,12 @@ const Chat = () => {
         >
           <input
             type="text"
-            placeholder={vista === "chat" ? "Escribe un mensaje..." : "Escribe tu respuesta..."}
+            placeholder={
+              vista === "chat" ? "Escribe un mensaje..." :
+              (emisorRol === "Cliente" || emisorRol === "Emprendedor")
+              ? "Manda una queja al administrador del sitio"
+              : "Escribe tu respuesta..."
+            }
             value={vista === "chat" ? mensaje : mensajeQueja}
             onChange={(e) =>
               vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
@@ -445,12 +463,18 @@ const Chat = () => {
             style={{ boxShadow: "0 0 0 2px transparent" }}
             onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
             onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
+            disabled={
+              vista === "chat" ? !conversacionId : 
+              (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? false : !quejaSeleccionada
+            }
             autoComplete="off"
           />
           <button
             type="submit"
-            disabled={vista === "chat" ? !conversacionId : !quejaSeleccionada}
+            disabled={
+              vista === "chat" ? !conversacionId :
+              (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? false : !quejaSeleccionada
+            }
             className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#AA4A44" }}
             onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
