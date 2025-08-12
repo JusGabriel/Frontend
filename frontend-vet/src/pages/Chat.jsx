@@ -216,7 +216,30 @@ const Chat = () => {
     }
   };
 
-  // --- Effects ---
+  // --- Effect para actualizar mensajes de quejas cada 2 segundos (chat en tiempo real) ---
+  useEffect(() => {
+    if (vista === "quejas" && quejaSeleccionada) {
+      const cargarMensajesQueja = async () => {
+        try {
+          const res = await fetch(
+            `https://backend-production-bd1d.up.railway.app/api/quejas/mensajes/${quejaSeleccionada._id}`
+          );
+          const data = await res.json();
+          setMensajesQueja(data);
+        } catch (error) {
+          setInfo("❌ Error cargando mensajes de queja");
+        }
+      };
+
+      cargarMensajesQueja(); // carga inicial
+
+      const interval = setInterval(cargarMensajesQueja, 2000); // cada 2 seg.
+
+      return () => clearInterval(interval);
+    }
+  }, [vista, quejaSeleccionada]);
+
+  // --- Otros effects ---
 
   useEffect(() => {
     if (vista === "chat") {
