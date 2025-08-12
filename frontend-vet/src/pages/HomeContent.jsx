@@ -33,33 +33,6 @@ const HomeContent = () => {
     <>
       {section === 'inicio' && (
         <>
-          {/* HERO */}
-          <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
-              <div className="flex-1 text-center md:text-left">
-                <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
-                  Conecta, vende y crece
-                </h1>
-                <p className="text-xl md:text-2xl mb-6 text-gray-800">
-                  QuitoEmprende: Tu espacio digital
-                </p>
-                <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
-                  Un lugar donde los emprendedores promocionan sus productos y reciben su propia página web con URL personalizada.
-                </p>
-              </div>
-              <div className="flex-1 flex justify-center md:justify-end">
-                <img
-                  src={fondoblanco}
-                  alt="Hero"
-                  className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
-                />
-              </div>
-            </div>
-          </main>
-
-          {/* Línea decorativa */}
-          <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
-
           {/* PRODUCTOS DESTACADOS */}
           <section className="py-4 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
@@ -186,8 +159,6 @@ const HomeContent = () => {
           </section>
         </>
       )}
-
-      {section === 'servicios' && <Servicios />}
     </>
   );
 };
