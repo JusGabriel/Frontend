@@ -4,7 +4,7 @@ import axios from 'axios';
 import { toast, Toaster } from 'react-hot-toast';
 
 import fondoblanco from '../assets/fondoblanco.jpg';
-import panecillo from '../pages/Imagenes/panecillo.jpg';
+import panecillo from '../assets/panecillo.jpg';
 
 export const Forgot = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
@@ -201,8 +201,6 @@ const leftPanelStyle = {
   backgroundImage: `url(${panecillo})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
-  border: '4px solid white',        // borde blanco de 4px
-  borderRadius: '25px 0 0 25px',   // esquinas redondeadas solo en la izquierda para que coincida con la tarjeta
 };
 
 const formContainerStyle = {
