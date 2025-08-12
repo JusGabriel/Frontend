@@ -23,7 +23,6 @@ const Dashboard = () => {
       { to: '/dashboard', label: 'Perfil' },
       { to: '/dashboard/inicio', label: 'Inicio' },
       { to: '/dashboard/chat', label: 'Chat' },
-      { to: '/dashboard/favoritos', label: 'Favoritos' },  // <-- Aquí añadí Favoritos para clientes
     ],
   };
 
@@ -108,4 +107,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 
