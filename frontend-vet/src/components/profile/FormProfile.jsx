@@ -28,22 +28,31 @@ const FormularioPerfil = () => {
 
   const updateUser = async (data) => {
     setIsLoading(true);
-    const toastId = "updateProfileToast";
+    const toastId = toast.loading("Actualizando perfil...");
     try {
       const response = await updateProfile(data, user._id);
       if (response.success) {
-        if (!toast.isActive(toastId)) {
-          toast.success("Perfil actualizado correctamente", { toastId });
-        }
+        toast.update(toastId, {
+          render: "Perfil actualizado correctamente",
+          type: "success",
+          isLoading: false,
+          autoClose: 2000,
+        });
       } else {
-        if (!toast.isActive(toastId)) {
-          toast.error(response.error || "Error al actualizar el perfil", { toastId });
-        }
+        toast.update(toastId, {
+          render: response.error || "Error al actualizar el perfil",
+          type: "error",
+          isLoading: false,
+          autoClose: 2000,
+        });
       }
     } catch (error) {
-      if (!toast.isActive(toastId)) {
-        toast.error("Ocurrió un error inesperado", { toastId });
-      }
+      toast.update(toastId, {
+        render: "Ocurrió un error inesperado",
+        type: "error",
+        isLoading: false,
+        autoClose: 2000,
+      });
     } finally {
       setIsLoading(false);
     }
