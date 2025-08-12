@@ -100,10 +100,8 @@ const Chat = () => {
   const abrirConversacionConUsuario = async () => {
     if (!chatUserId || !usuarioId) return;
 
-    // Primero aseguramos cargar las conversaciones
     await cargarConversaciones();
 
-    // Buscar conversación existente con chatUserId
     const convExistente = conversaciones.find((conv) =>
       conv.participantes.some((p) => p.id && p.id._id === chatUserId)
     );
@@ -112,7 +110,6 @@ const Chat = () => {
       setConversacionId(convExistente._id);
       setVista("chat");
     } else {
-      // Crear nueva conversación
       try {
         const res = await fetch(
           "https://backend-production-bd1d.up.railway.app/api/chat/conversacion",
@@ -122,7 +119,7 @@ const Chat = () => {
             body: JSON.stringify({
               participantes: [
                 { id: usuarioId, rol: emisorRol },
-                { id: chatUserId, rol: "Emprendedor" }, // ajusta el rol si necesitas
+                { id: chatUserId, rol: "Emprendedor" },
               ],
             }),
           }
@@ -133,7 +130,6 @@ const Chat = () => {
         const data = await res.json();
         setConversacionId(data._id);
         setVista("chat");
-        // Recargar conversaciones para actualizar la lista
         cargarConversaciones();
       } catch (error) {
         setInfo("❌ Error al crear conversación: " + error.message);
@@ -167,14 +163,18 @@ const Chat = () => {
     e.preventDefault();
     if (!mensajeQueja.trim()) return;
 
-    // Si rol es Cliente o Emprendedor, receptor fijo Administrador
-    const receptorFijo = {
-      id: "6894f9c409b9687e33e57f56",
-      rol: "Administrador",
-    };
+    // Datos receptor quemados si el rol es Cliente o Emprendedor
+    const receptorId =
+      emisorRol === "Cliente" || emisorRol === "Emprendedor"
+        ? "6894f9c409b9687e33e57f56"
+        : quejaSeleccionada?._id;
 
-    // Determinar quejaId: si seleccionada, usar esa, si no, crear una nueva (simplificado aquí)
-    const quejaId = quejaSeleccionada?._id || null;
+    const receptorRol =
+      emisorRol === "Cliente" || emisorRol === "Emprendedor"
+        ? "Administrador"
+        : null;
+
+    if (!receptorId) return;
 
     try {
       const res = await fetch(
@@ -186,9 +186,12 @@ const Chat = () => {
             emisorId: usuarioId,
             emisorRol,
             contenido: mensajeQueja.trim(),
-            quejaId,
-            receptorId: (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? receptorFijo.id : undefined,
-            receptorRol: (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? receptorFijo.rol : undefined,
+            quejaId:
+              emisorRol === "Cliente" || emisorRol === "Emprendedor"
+                ? null
+                : quejaSeleccionada?._id,
+            receptorId,
+            receptorRol,
           }),
         }
       );
@@ -255,16 +258,13 @@ const Chat = () => {
 
   // --- Render ---
 
-  // Conversación o Queja activa (para mostrar mensajes)
   const chatActivo =
     vista === "chat"
       ? conversaciones.find((c) => c._id === conversacionId)
       : quejaSeleccionada;
 
-  // Mensajes activos
   const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
 
-  // Manejar envío según vista
   const handleEnviarMensaje = (e) => {
     if (vista === "chat") {
       const conv = conversaciones.find((c) => c._id === conversacionId);
@@ -314,7 +314,6 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Lista de conversaciones o quejas */}
         <div className="flex-grow overflow-y-auto">
           {vista === "chat" ? (
             conversaciones.length === 0 ? (
@@ -384,26 +383,32 @@ const Chat = () => {
         </div>
       </aside>
 
-      {/* Chat principal */}
       <section className="flex-1 flex flex-col">
         <header
           className="py-4 px-6 font-bold text-lg"
           style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
         >
-          {vista === "chat"
-            ? chatActivo
-              ? `Chat con ${
-                  chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
-                }`
-              : "Selecciona una conversación"
-            : vista === "quejas"
-            ? quejaSeleccionada
-              ? `Chat Queja con ${
-                  quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
-                }`
-              : (emisorRol === "Cliente" || emisorRol === "Emprendedor")
-              ? "Manda una queja al administrador del sitio"
-              : "Selecciona una queja"}
+          {vista === "chat" ? (
+            chatActivo ? (
+              `Chat con ${
+                chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
+              }`
+            ) : (
+              "Selecciona una conversación"
+            )
+          ) : vista === "quejas" ? (
+            quejaSeleccionada ? (
+              `Chat Queja con ${
+                quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
+              }`
+            ) : (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? (
+              "Manda una queja al administrador del sitio"
+            ) : (
+              "Selecciona una queja"
+            )
+          ) : (
+            ""
+          )}
         </header>
 
         <div
@@ -449,12 +454,7 @@ const Chat = () => {
         >
           <input
             type="text"
-            placeholder={
-              vista === "chat" ? "Escribe un mensaje..." :
-              (emisorRol === "Cliente" || emisorRol === "Emprendedor")
-              ? "Manda una queja al administrador del sitio"
-              : "Escribe tu respuesta..."
-            }
+            placeholder={vista === "chat" ? "Escribe un mensaje..." : "Escribe tu respuesta..."}
             value={vista === "chat" ? mensaje : mensajeQueja}
             onChange={(e) =>
               vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
@@ -463,18 +463,12 @@ const Chat = () => {
             style={{ boxShadow: "0 0 0 2px transparent" }}
             onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
             onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            disabled={
-              vista === "chat" ? !conversacionId : 
-              (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? false : !quejaSeleccionada
-            }
+            disabled={vista === "chat" ? !conversacionId : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
             autoComplete="off"
           />
           <button
             type="submit"
-            disabled={
-              vista === "chat" ? !conversacionId :
-              (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? false : !quejaSeleccionada
-            }
+            disabled={vista === "chat" ? !conversacionId : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
             className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#AA4A44" }}
             onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
