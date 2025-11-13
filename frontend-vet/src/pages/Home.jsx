@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';  // <-- importamos useNavigate
+import { Link } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
-import heroImage from '../assets/QuitoHome.jpg'; // o la imagen que quieras para el hero
+import heroImage from '../assets/QuitoHome.jpg';
 import Servicios from './pgPrueba/Servicios';
 
 const Header = ({ onChangeSection, active }) => {
@@ -22,7 +22,7 @@ const Header = ({ onChangeSection, active }) => {
               className={`text-sm md:text-base font-semibold transition-colors ${
                 active === item.id
                   ? 'text-[#AA4A44]'
-                  : 'text-gray-700 hover:text-[#AA4A44]'
+                  : 'text-gray-300 hover:text-[#F7E5D2]'
               }`}
             >
               {item.label}
@@ -50,7 +50,8 @@ export const Home = () => {
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
-  const navigate = useNavigate();  // <-- inicializamos useNavigate
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
@@ -65,11 +66,6 @@ export const Home = () => {
       .then((data) => setProductos(data))
       .catch((error) => console.error('Error al cargar productos:', error));
   }, []);
-
-  // Nueva función para redirigir a página Not Found
-  const handleRedirectNotFound = () => {
-    navigate('/not-found');
-  };
 
   return (
     <>
@@ -101,7 +97,7 @@ export const Home = () => {
             </div>
           </main>
 
-          {/* Línea decorativa entre Hero y Productos */}
+          {/* Línea decorativa */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* PRODUCTOS DESTACADOS */}
@@ -120,12 +116,9 @@ export const Home = () => {
                     <div
                       key={producto._id}
                       className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex cursor-pointer"
-                      onClick={handleRedirectNotFound}  // <-- clic en toda la tarjeta
+                      onClick={() => setProductoSeleccionado(producto)}
                     >
-                      {/* Línea vertical */}
                       <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
-
-                      {/* Contenido producto */}
                       <div className="flex-1">
                         <img
                           src={producto.imagen}
@@ -135,9 +128,6 @@ export const Home = () => {
                         <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
                         <p className="text-sm text-gray-600">{producto.descripcion}</p>
                         <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
-                        <button className="mt-4 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">
-                          Ver más
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -146,7 +136,7 @@ export const Home = () => {
             </div>
           </section>
 
-          {/* Línea decorativa entre Productos y Emprendimientos */}
+          {/* Línea decorativa */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* EMPRENDIMIENTOS */}
@@ -158,7 +148,6 @@ export const Home = () => {
               backgroundPosition: 'center',
             }}
           >
-            {/* Líneas diagonales sutiles */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
@@ -181,7 +170,7 @@ export const Home = () => {
                     <div
                       key={emp._id}
                       className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                      onClick={handleRedirectNotFound}  // <-- clic en toda la tarjeta
+                      onClick={() => setEmprendimientoSeleccionado(emp)}
                     >
                       <img
                         src={emp.logo}
@@ -190,18 +179,9 @@ export const Home = () => {
                       />
                       <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
                       <p className="text-sm text-gray-600">{emp.descripcion}</p>
-                      <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
-                      <div className="flex gap-3 mt-3 flex-wrap text-sm">
-                        {emp.contacto?.sitioWeb && (
-                          <a href={emp.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">Sitio web</a>
-                        )}
-                        {emp.contacto?.facebook && (
-                          <a href={emp.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">Facebook</a>
-                        )}
-                        {emp.contacto?.instagram && (
-                          <a href={emp.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">Instagram</a>
-                        )}
-                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
+                      </p>
                     </div>
                   ))
                 )}
@@ -212,6 +192,85 @@ export const Home = () => {
       )}
 
       {section === 'servicios' && <Servicios />}
+
+      {/* MODAL PRODUCTO */}
+      {productoSeleccionado && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          onClick={() => setProductoSeleccionado(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setProductoSeleccionado(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+            <img
+              src={productoSeleccionado.imagen}
+              alt={productoSeleccionado.nombre}
+              className="w-full h-48 object-cover rounded-md mb-4"
+            />
+            <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
+            <p className="text-gray-600 mt-2">{productoSeleccionado.descripcion}</p>
+            <p className="font-bold text-[#28a745] mt-3 text-lg">
+              ${productoSeleccionado.precio}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EMPRENDIMIENTO */}
+      {emprendimientoSeleccionado && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          onClick={() => setEmprendimientoSeleccionado(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setEmprendimientoSeleccionado(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
+            <img
+              src={emprendimientoSeleccionado.logo}
+              alt={emprendimientoSeleccionado.nombreComercial}
+              className="w-full h-48 object-cover rounded-md mb-4"
+            />
+            <h2 className="text-xl font-bold text-[#AA4A44]">
+              {emprendimientoSeleccionado.nombreComercial}
+            </h2>
+            <p className="text-gray-600 mt-2">{emprendimientoSeleccionado.descripcion}</p>
+            <p className="text-sm text-gray-500 mt-2">
+              {emprendimientoSeleccionado.ubicacion?.ciudad} - {emprendimientoSeleccionado.ubicacion?.direccion}
+            </p>
+            <div className="flex gap-3 mt-4 flex-wrap text-sm">
+              {emprendimientoSeleccionado.contacto?.sitioWeb && (
+                <a href={emprendimientoSeleccionado.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">
+                  Sitio web
+                </a>
+              )}
+              {emprendimientoSeleccionado.contacto?.facebook && (
+                <a href={emprendimientoSeleccionado.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">
+                  Facebook
+                </a>
+              )}
+              {emprendimientoSeleccionado.contacto?.instagram && (
+                <a href={emprendimientoSeleccionado.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">
+                  Instagram
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>
