@@ -37,7 +37,7 @@ const ResetEmprendedor = () => {
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/cambiarpassword/${token}`
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/emprendedore/actualizarpassword/${token}`
       const { data } = await axios.post(url, {
         password: password.trim(),
         confirmpassword: confirmPassword.trim(),
