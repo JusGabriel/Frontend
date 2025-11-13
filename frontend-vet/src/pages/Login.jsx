@@ -199,16 +199,6 @@ const Login = () => {
               <hr style={{ flex: 1, borderColor: '#ccc' }} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <a href={GOOGLE_CLIENT_URL} style={googleButtonStyleGray}>
-                <img src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google" style={{ width: '20px', marginRight: '8px' }} />
-                Ingresar con Google como Cliente
-              </a>
-              <a href={GOOGLE_EMPRENDEDOR_URL} style={googleButtonStyleBlue}>
-                <img src="https://cdn-icons-png.flaticon.com/512/281/281764.png" alt="Google" style={{ width: '20px', marginRight: '8px' }} />
-                Ingresar con Google como Emprendedor
-              </a>
-            </div>
 
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Link to="/" style={{ color: '#AA4A44', fontSize: '0.9rem', textDecoration: 'underline' }}>
