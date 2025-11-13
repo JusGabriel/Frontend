@@ -193,11 +193,7 @@ const Login = () => {
               Iniciar sesión
             </button>
 
-            <div style={{ marginTop: '1.5rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <hr style={{ flex: 1, borderColor: '#ccc' }} />
-              <span style={{ color: '#888', fontSize: '0.9rem' }}>O</span>
-              <hr style={{ flex: 1, borderColor: '#ccc' }} />
-            </div>
+
 
 
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
