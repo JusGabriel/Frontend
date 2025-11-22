@@ -51,14 +51,17 @@ export const Home = () => {
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
+  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] =
+    useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEmprendimientos = async () => {
       try {
-        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos');
+        const res = await fetch(
+          'https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos'
+        );
         const data = await res.json();
         setEmprendimientos(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -72,7 +75,9 @@ export const Home = () => {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos');
+        const res = await fetch(
+          'https://backend-production-bd1d.up.railway.app/api/productos/todos'
+        );
         const data = await res.json();
         setProductos(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -83,7 +88,6 @@ export const Home = () => {
     fetchProductos();
   }, []);
 
-  // Usa slug si existe, si no crea una versión codificada temporal (mejor tener siempre slug en backend)
   const buildPublicUrl = (emp) => {
     const slug = emp?.slug || emp?.nombreComercial;
     return `/${encodeURIComponent(slug)}`;
@@ -106,7 +110,8 @@ export const Home = () => {
                   QuitoEmprende: Tu espacio digital
                 </p>
                 <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
-                  Un lugar donde los emprendedores promocionan sus productos y reciben su propia página web con URL personalizada.
+                  Un lugar donde los emprendedores promocionan sus productos y
+                  reciben su propia página web con URL personalizada.
                 </p>
               </div>
               <div className="flex-1 flex justify-center md:justify-end">
@@ -119,10 +124,10 @@ export const Home = () => {
             </div>
           </main>
 
-          {/* Línea decorativa */}
+          {/* Línea */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-          {/* PRODUCTOS DESTACADOS */}
+          {/* PRODUCTOS */}
           <section className="py-4 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
               <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8 relative inline-block">
@@ -147,9 +152,15 @@ export const Home = () => {
                           alt={producto.nombre}
                           className="w-full h-48 object-cover rounded-lg mb-4"
                         />
-                        <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
-                        <p className="text-sm text-gray-600">{producto.descripcion}</p>
-                        <p className="text-[#28a745] font-bold mt-2">${producto.precio}</p>
+                        <h3 className="font-semibold text-lg text-[#AA4A44]">
+                          {producto.nombre}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {producto.descripcion}
+                        </p>
+                        <p className="text-[#28a745] font-bold mt-2">
+                          ${producto.precio}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -158,7 +169,7 @@ export const Home = () => {
             </div>
           </section>
 
-          {/* Línea decorativa */}
+          {/* Línea */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
           {/* EMPRENDIMIENTOS */}
@@ -184,40 +195,37 @@ export const Home = () => {
                 Explora Emprendimientos
                 <span className="block mx-auto mt-2 h-1 w-24 bg-[#AA4A44] rounded"></span>
               </h2>
-              <div className="flex overflow-x-auto gap-6 pb-4 w-full max-w-[calc(100vw-48px)] md:max-w-full">
-                {emprendimientos.length === 0 ? (
-                  <p className="text-center w-full">Cargando emprendimientos...</p>
-                ) : (
-                  emprendimientos.map((emp) => (
-                    <div
-                      key={emp._id}
-                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
-                      onClick={() => navigate(buildPublicUrl(emp))}
-                    >
-                      <img
-                        src={emp.logo}
-                        alt={emp.nombreComercial}
-                        className="w-full h-36 object-cover rounded-lg mb-3"
-                      />
-                      <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
-                      <p className="text-sm text-gray-600">{emp.descripcion}</p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
-                      </p>
+              <div className="flex overflow-x-auto gap-6 pb-4 w-full">
+                {emprendimientos.map((emp) => (
+                  <div
+                    key={emp._id}
+                    className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
+                    onClick={() => navigate(buildPublicUrl(emp))}
+                  >
+                    <img
+                      src={emp.logo}
+                      alt={emp.nombreComercial}
+                      className="w-full h-36 object-cover rounded-lg mb-3"
+                    />
+                    <h3 className="text-lg font-semibold text-[#AA4A44]">
+                      {emp.nombreComercial}
+                    </h3>
+                    <p className="text-sm text-gray-600">{emp.descripcion}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
+                    </p>
 
-                      {/* Botón pequeño para ver detalles en modal sin salir */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEmprendimientoSeleccionado(emp);
-                        }}
-                        className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                      >
-                        Ver
-                      </button>
-                    </div>
-                  ))
-                )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEmprendimientoSeleccionado(emp);
+                      }}
+                      className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                    >
+                      Ver
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </section>
@@ -226,10 +234,10 @@ export const Home = () => {
 
       {section === 'servicios' && <Servicios />}
 
-      {/* MODAL PRODUCTO */}
+      {/* ---------- MODAL PRODUCTO (BLUR) ---------- */}
       {productoSeleccionado && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          className="fixed inset-0 bg-white/20 backdrop-blur-md flex justify-center items-center z-50"
           onClick={() => setProductoSeleccionado(null)}
         >
           <div
@@ -247,8 +255,12 @@ export const Home = () => {
               alt={productoSeleccionado.nombre}
               className="w-full h-48 object-cover rounded-md mb-4"
             />
-            <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
-            <p className="text-gray-600 mt-2">{productoSeleccionado.descripcion}</p>
+            <h2 className="text-xl font-bold text-[#AA4A44]">
+              {productoSeleccionado.nombre}
+            </h2>
+            <p className="text-gray-600 mt-2">
+              {productoSeleccionado.descripcion}
+            </p>
             <p className="font-bold text-[#28a745] mt-3 text-lg">
               ${productoSeleccionado.precio}
             </p>
@@ -256,10 +268,10 @@ export const Home = () => {
         </div>
       )}
 
-      {/* MODAL EMPRENDIMIENTO */}
+      {/* ---------- MODAL EMPRENDIMIENTO (BLUR) ---------- */}
       {emprendimientoSeleccionado && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+          className="fixed inset-0 bg-white/20 backdrop-blur-md flex justify-center items-center z-50"
           onClick={() => setEmprendimientoSeleccionado(null)}
         >
           <div
@@ -272,18 +284,26 @@ export const Home = () => {
             >
               ✕
             </button>
+
             <img
               src={emprendimientoSeleccionado.logo}
               alt={emprendimientoSeleccionado.nombreComercial}
               className="w-full h-48 object-cover rounded-md mb-4"
             />
+
             <h2 className="text-xl font-bold text-[#AA4A44]">
               {emprendimientoSeleccionado.nombreComercial}
             </h2>
-            <p className="text-gray-600 mt-2">{emprendimientoSeleccionado.descripcion}</p>
-            <p className="text-sm text-gray-500 mt-2">
-              {emprendimientoSeleccionado.ubicacion?.ciudad} - {emprendimientoSeleccionado.ubicacion?.direccion}
+
+            <p className="text-gray-600 mt-2">
+              {emprendimientoSeleccionado.descripcion}
             </p>
+
+            <p className="text-sm text-gray-500 mt-2">
+              {emprendimientoSeleccionado.ubicacion?.ciudad} –
+              {emprendimientoSeleccionado.ubicacion?.direccion}
+            </p>
+
             <div className="flex gap-3 mt-4 flex-wrap text-sm">
               {emprendimientoSeleccionado.contacto?.sitioWeb && (
                 <a
@@ -295,6 +315,7 @@ export const Home = () => {
                   Sitio web
                 </a>
               )}
+
               {emprendimientoSeleccionado.contacto?.facebook && (
                 <a
                   href={emprendimientoSeleccionado.contacto.facebook}
@@ -305,6 +326,7 @@ export const Home = () => {
                   Facebook
                 </a>
               )}
+
               {emprendimientoSeleccionado.contacto?.instagram && (
                 <a
                   href={emprendimientoSeleccionado.contacto.instagram}
@@ -316,7 +338,6 @@ export const Home = () => {
                 </a>
               )}
 
-              {/* Botón para ir al sitio público desde el modal */}
               <button
                 onClick={() => {
                   setEmprendimientoSeleccionado(null);
