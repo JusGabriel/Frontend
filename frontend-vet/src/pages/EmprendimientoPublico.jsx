@@ -2,27 +2,42 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 export default function EmprendimientoPublico() {
-  const { nombreComercial } = useParams();
+  const { slug } = useParams();
   const [emprendimiento, setEmprendimiento] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!slug) {
+      setError('No se proporcionó slug');
+      setLoading(false);
+      return;
+    }
+
     const fetchData = async () => {
       try {
         const res = await fetch(
-          `https://backend-production-bd1d.up.railway.app/api/emprendimientos/publico/${nombreComercial}`
+          `https://backend-production-bd1d.up.railway.app/api/emprendimientos/publico/${encodeURIComponent(slug)}`
         );
+
+        if (!res.ok) {
+          // intenta parsear texto porque el backend podría devolver HTML/texto en errores
+          const text = await res.text();
+          throw new Error(text || 'Error en la respuesta del servidor');
+        }
+
         const data = await res.json();
         setEmprendimiento(data);
-      } catch (error) {
-        console.error("Error cargando emprendimiento:", error);
+      } catch (err) {
+        console.error("Error cargando emprendimiento:", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [nombreComercial]);
+  }, [slug]);
 
   if (loading)
     return (
@@ -31,11 +46,11 @@ export default function EmprendimientoPublico() {
       </div>
     );
 
-  if (!emprendimiento || emprendimiento.message === "No encontrado")
+  if (error || !emprendimiento)
     return (
       <div style={{ textAlign: "center", marginTop: "50px" }}>
         <h2>Emprendimiento no encontrado</h2>
-        <p>No existe un emprendimiento llamado: {nombreComercial}</p>
+        <p>No existe un emprendimiento con la URL: {slug}</p>
       </div>
     );
 
@@ -66,7 +81,7 @@ export default function EmprendimientoPublico() {
           {emprendimiento.contacto?.sitioWeb && (
             <p>
               <strong>Sitio Web:</strong>{" "}
-              <a href={emprendimiento.contacto.sitioWeb} target="_blank">
+              <a href={emprendimiento.contacto.sitioWeb} target="_blank" rel="noreferrer">
                 {emprendimiento.contacto.sitioWeb}
               </a>
             </p>
@@ -75,7 +90,7 @@ export default function EmprendimientoPublico() {
           {emprendimiento.contacto?.facebook && (
             <p>
               <strong>Facebook:</strong>{" "}
-              <a href={emprendimiento.contacto.facebook} target="_blank">
+              <a href={emprendimiento.contacto.facebook} target="_blank" rel="noreferrer">
                 {emprendimiento.contacto.facebook}
               </a>
             </p>
@@ -84,7 +99,7 @@ export default function EmprendimientoPublico() {
           {emprendimiento.contacto?.instagram && (
             <p>
               <strong>Instagram:</strong>{" "}
-              <a href={emprendimiento.contacto.instagram} target="_blank">
+              <a href={emprendimiento.contacto.instagram} target="_blank" rel="noreferrer">
                 {emprendimiento.contacto.instagram}
               </a>
             </p>
