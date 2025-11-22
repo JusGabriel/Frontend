@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
 import Servicios from './pgPrueba/Servicios';
@@ -53,19 +53,42 @@ export const Home = () => {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
-    fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
-      .then((res) => res.json())
-      .then((data) => setEmprendimientos(data))
-      .catch((error) => console.error('Error al cargar emprendimientos:', error));
+    const fetchEmprendimientos = async () => {
+      try {
+        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos');
+        const data = await res.json();
+        setEmprendimientos(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar emprendimientos:', error);
+      }
+    };
+
+    fetchEmprendimientos();
   }, []);
 
   useEffect(() => {
-    fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos')
-      .then((res) => res.json())
-      .then((data) => setProductos(data))
-      .catch((error) => console.error('Error al cargar productos:', error));
+    const fetchProductos = async () => {
+      try {
+        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos');
+        const data = await res.json();
+        setProductos(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error al cargar productos:', error);
+      }
+    };
+
+    fetchProductos();
   }, []);
+
+  // Función helper para crear URL segura
+  const buildPublicUrl = (nombreComercial) => {
+    if (!nombreComercial) return '/';
+    // Si prefieres un slug en vez del nombre, reemplaza por emp.slug si existe
+    return `/${encodeURIComponent(nombreComercial)}`;
+  };
 
   return (
     <>
@@ -169,8 +192,11 @@ export const Home = () => {
                   emprendimientos.map((emp) => (
                     <div
                       key={emp._id}
-                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                      onClick={() => setEmprendimientoSeleccionado(emp)}
+                      className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
+                      onClick={() => {
+                        // Navega a la página pública del emprendimiento
+                        navigate(buildPublicUrl(emp.nombreComercial || emp.slug));
+                      }}
                     >
                       <img
                         src={emp.logo}
@@ -182,6 +208,17 @@ export const Home = () => {
                       <p className="text-xs text-gray-500 mt-2">
                         {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
                       </p>
+
+                      {/* Botón pequeño para ver detalles en modal sin salir */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEmprendimientoSeleccionado(emp);
+                        }}
+                        className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                      >
+                        Ver
+                      </button>
                     </div>
                   ))
                 )}
@@ -253,20 +290,46 @@ export const Home = () => {
             </p>
             <div className="flex gap-3 mt-4 flex-wrap text-sm">
               {emprendimientoSeleccionado.contacto?.sitioWeb && (
-                <a href={emprendimientoSeleccionado.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">
+                <a
+                  href={emprendimientoSeleccionado.contacto.sitioWeb}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#007bff] hover:underline"
+                >
                   Sitio web
                 </a>
               )}
               {emprendimientoSeleccionado.contacto?.facebook && (
-                <a href={emprendimientoSeleccionado.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">
+                <a
+                  href={emprendimientoSeleccionado.contacto.facebook}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#3b5998] hover:underline"
+                >
                   Facebook
                 </a>
               )}
               {emprendimientoSeleccionado.contacto?.instagram && (
-                <a href={emprendimientoSeleccionado.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">
+                <a
+                  href={emprendimientoSeleccionado.contacto.instagram}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[#C13584] hover:underline"
+                >
                   Instagram
                 </a>
               )}
+
+              {/* Botón para ir al sitio público desde el modal */}
+              <button
+                onClick={() => {
+                  setEmprendimientoSeleccionado(null);
+                  navigate(buildPublicUrl(emprendimientoSeleccionado.nombreComercial || emprendimientoSeleccionado.slug));
+                }}
+                className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+              >
+                Ir al sitio
+              </button>
             </div>
           </div>
         </div>
@@ -276,3 +339,5 @@ export const Home = () => {
     </>
   );
 };
+
+export default Home;
