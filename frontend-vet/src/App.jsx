@@ -1,6 +1,6 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'  // corregí aquí 'react-router' a 'react-router-dom'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
-// Importa el nuevo componente HomeContent y DetalleEmprendimiento
+// Páginas
 import HomeContent from './pages/HomeContent'
 import DetalleEmprendimiento from './pages/DetalleEmprendimiento'
 
@@ -22,9 +22,14 @@ import ResetAdministrador from './pages/ResetAdministrador'
 import ResetCliente from './pages/ResetCliente'
 import ResetEmprendedor from './pages/ResetEmprendedor'
 
+// Nueva página pública por slug
+import EmprendimientoPublico from './pages/EmprendimientoPublico'
+
+// Middleware
 import PublicRoute from './routers/PublicRoute'
 import ProtectedRoute from './routers/ProtectedRoute'
 
+// Store
 import { useEffect } from 'react'
 import storeProfile from './context/storeProfile'
 import storeAuth from './context/storeAuth'
@@ -40,46 +45,55 @@ function App() {
   }, [token])
 
   return (
-    <>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<PublicRoute />}>
-            <Route index element={<Home />} />
-            <Route path='login' element={<Login />} />
-            <Route path='register' element={<Register />} />
-            <Route path='forgot/:id' element={<Forgot />} />
-            <Route path='confirm/:token' element={<Confirm />} />
-            <Route path='reset/:token' element={<Reset />} />
-            <Route path='*' element={<NotFound />} />
-            <Route path='reset/admin/:token' element={<ResetAdministrador />} />
-            <Route path='reset/cliente/:token' element={<ResetCliente />} />
-            <Route path='reset/emprendedor/:token' element={<ResetEmprendedor />} />
-          </Route>
+    <BrowserRouter>
+      <Routes>
 
-          <Route
-            path='dashboard/*'
-            element={
-              <ProtectedRoute>
-                <Routes>
-                  <Route element={<Dashboard />}>
-                    <Route index element={<Profile />} />
-                    <Route path='listar' element={<List />} />
-                    <Route path='visualizar/:id' element={<Details />} />
-                    <Route path='crear' element={<Create />} />
-                    <Route path='actualizar/:id' element={<Update />} />
-                    <Route path='chat' element={<Chat />} />
-                    <Route path='inicio' element={<HomeContent />} />
+        {/* ------------------------------ */}
+        {/* RUTAS PÚBLICAS                */}
+        {/* ------------------------------ */}
+        <Route element={<PublicRoute />}>
+          <Route index element={<Home />} />
+          <Route path='login' element={<Login />} />
+          <Route path='register' element={<Register />} />
+          <Route path='forgot/:id' element={<Forgot />} />
+          <Route path='confirm/:token' element={<Confirm />} />
+          <Route path='reset/:token' element={<Reset />} />
+          <Route path='reset/admin/:token' element={<ResetAdministrador />} />
+          <Route path='reset/cliente/:token' element={<ResetCliente />} />
+          <Route path='reset/emprendedor/:token' element={<ResetEmprendedor />} />
 
-                    {/* Ruta nueva para detalle de emprendimiento */}
-                    <Route path='detalle-emprendimiento/:id' element={<DetalleEmprendimiento />} />
-                  </Route>
-                </Routes>
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </>
+          {/* 🔥 NUEVA RUTA PUBLICA POR SLUG */}
+          <Route path=":slug" element={<EmprendimientoPublico />} />
+
+          <Route path='*' element={<NotFound />} />
+        </Route>
+
+        {/* ------------------------------ */}
+        {/* RUTAS PRIVADAS (DASHBOARD)     */}
+        {/* ------------------------------ */}
+        <Route
+          path='dashboard/*'
+          element={
+            <ProtectedRoute>
+              <Routes>
+                <Route element={<Dashboard />}>
+                  <Route index element={<Profile />} />
+                  <Route path='listar' element={<List />} />
+                  <Route path='visualizar/:id' element={<Details />} />
+                  <Route path='crear' element={<Create />} />
+                  <Route path='actualizar/:id' element={<Update />} />
+                  <Route path='chat' element={<Chat />} />
+                  <Route path='inicio' element={<HomeContent />} />
+
+                  {/* Ruta interna para ver emprendimiento desde dashboard */}
+                  <Route path='detalle-emprendimiento/:id' element={<DetalleEmprendimiento />} />
+                </Route>
+              </Routes>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
