@@ -31,17 +31,19 @@ const ResetEmprendedor = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (password.trim() !== confirmPassword.trim()) {
       toast.error('Las contraseñas no coinciden')
       return
     }
 
     try {
-      const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/emprendedore/actualizarpassword/${token}`
-      const { data } = await axios.put(url, {
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/nuevopassword/${token}`
+      const { data } = await axios.post(url, {
         password: password.trim(),
         confirmpassword: confirmPassword.trim(),
       })
+
       toast.success(data.msg || 'Contraseña actualizada correctamente')
       setTimeout(() => navigate('/login'), 2000)
     } catch (error) {
@@ -66,6 +68,7 @@ const ResetEmprendedor = () => {
         src={logoDog}
         alt="logo"
       />
+
       {tokenValid && (
         <form className="w-80" onSubmit={handleSubmit}>
           <div className="mb-1 relative">
