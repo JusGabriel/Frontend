@@ -63,7 +63,7 @@ const Reset = () => {
     >
       <ToastContainer />
       <h1 className="text-3xl font-semibold mb-2 text-center text-gray-500">
-        Restablece tu contraseña
+        Restablece tu contraseña (Cliente)
       </h1>
       <small className="text-gray-400 block my-4 text-sm">
         Ingresa y confirma tu nueva contraseña
