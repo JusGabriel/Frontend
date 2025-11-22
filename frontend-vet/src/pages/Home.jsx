@@ -83,11 +83,10 @@ export const Home = () => {
     fetchProductos();
   }, []);
 
-  // Función helper para crear URL segura
-  const buildPublicUrl = (nombreComercial) => {
-    if (!nombreComercial) return '/';
-    // Si prefieres un slug en vez del nombre, reemplaza por emp.slug si existe
-    return `/${encodeURIComponent(nombreComercial)}`;
+  // Usa slug si existe, si no crea una versión codificada temporal (mejor tener siempre slug en backend)
+  const buildPublicUrl = (emp) => {
+    const slug = emp?.slug || emp?.nombreComercial;
+    return `/${encodeURIComponent(slug)}`;
   };
 
   return (
@@ -193,10 +192,7 @@ export const Home = () => {
                     <div
                       key={emp._id}
                       className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
-                      onClick={() => {
-                        // Navega a la página pública del emprendimiento
-                        navigate(buildPublicUrl(emp.nombreComercial || emp.slug));
-                      }}
+                      onClick={() => navigate(buildPublicUrl(emp))}
                     >
                       <img
                         src={emp.logo}
@@ -324,7 +320,7 @@ export const Home = () => {
               <button
                 onClick={() => {
                   setEmprendimientoSeleccionado(null);
-                  navigate(buildPublicUrl(emprendimientoSeleccionado.nombreComercial || emprendimientoSeleccionado.slug));
+                  navigate(buildPublicUrl(emprendimientoSeleccionado));
                 }}
                 className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
               >
