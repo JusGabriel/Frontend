@@ -105,6 +105,16 @@ export const Home = () => {
     return `/${encodeURIComponent(slug)}`;
   };
 
+  // Helper para mostrar nombre completo del emprendedor con fallback
+  const nombreCompletoEmprendedor = (emp) => {
+    const e = emp?.emprendedor;
+    if (!e) return '—';
+    const nombre = e.nombre ?? e.nombres ?? '';
+    const apellido = e.apellido ?? e.apellidos ?? '';
+    const full = `${nombre} ${apellido}`.trim();
+    return full || '—';
+  };
+
   return (
     <>
       <Header onChangeSection={setSection} active={section} />
@@ -220,9 +230,9 @@ export const Home = () => {
                       {emp.nombreComercial}
                     </h3>
 
-                    {/* Nombre del emprendedor */}
+                    {/* Nombre del emprendedor (ahora usa nombre / apellido) */}
                     <p className="text-sm text-gray-700 font-semibold mt-1">
-                      {emp.emprendedor?.nombres} {emp.emprendedor?.apellidos}
+                      {nombreCompletoEmprendedor(emp)}
                     </p>
 
                     <p className="text-sm text-gray-600 mt-1">
@@ -235,7 +245,7 @@ export const Home = () => {
 
                     <button
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e.stopPropagation(); // evita que navegue al hacer click en Ver
                         setEmprendimientoSeleccionado(emp);
                       }}
                       className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
@@ -318,11 +328,9 @@ export const Home = () => {
               {emprendimientoSeleccionado.nombreComercial}
             </h2>
 
-            {/* Nombre y apellido del emprendedor */}
+            {/* Nombre y apellido del emprendedor (corregido) */}
             <p className="text-gray-800 font-bold text-sm mt-1">
-              Emprendedor:{" "}
-              {emprendimientoSeleccionado.emprendedor?.nombres}{" "}
-              {emprendimientoSeleccionado.emprendedor?.apellidos}
+              Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}
             </p>
 
             <p className="text-gray-600 mt-2">
@@ -330,7 +338,7 @@ export const Home = () => {
             </p>
 
             <p className="text-sm text-gray-500 mt-2">
-              {emprendimientoSeleccionado.ubicacion?.ciudad} –{" "}
+              {emprendimientoSeleccionado.ubicacion?.ciudad} –{' '}
               {emprendimientoSeleccionado.ubicacion?.direccion}
             </p>
 
