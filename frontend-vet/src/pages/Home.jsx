@@ -1,4 +1,3 @@
-// src/components/Home.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -56,7 +55,7 @@ const Footer = () => (
 );
 
 // ---------------- HOME ----------------
-const Home = () => {
+export const Home = () => {
   const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -64,16 +63,15 @@ const Home = () => {
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] =
     useState(null);
 
-  const [emprendedoresMap, setEmprendedoresMap] = useState({}); // id -> { nombre, apellido }
-
   const navigate = useNavigate();
-  const API_BASE = 'https://backend-production-bd1d.up.railway.app';
 
   // =============== OBTENER EMPRENDIMIENTOS ===============
   useEffect(() => {
     const fetchEmprendimientos = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/emprendimientos/publicos`);
+        const res = await fetch(
+          'https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos'
+        );
         const data = await res.json();
         setEmprendimientos(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -84,73 +82,21 @@ const Home = () => {
     fetchEmprendimientos();
   }, []);
 
-  // =============== OBTENER PRODUCTOS y luego emprendedores relacionados ===============
+  // =============== OBTENER PRODUCTOS ===============
   useEffect(() => {
-    const fetchProductosYEmprendedores = async () => {
+    const fetchProductos = async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/productos/todos`);
+        const res = await fetch(
+          'https://backend-production-bd1d.up.railway.app/api/productos/todos'
+        );
         const data = await res.json();
-
-        // El backend puede devolver array directamente (como en tu ejemplo)
-        // o un objeto { ok: true, productos: [...] }
-        const listaProductos = Array.isArray(data)
-          ? data
-          : Array.isArray(data.productos)
-            ? data.productos
-            : [];
-
-        setProductos(listaProductos);
-
-        // Extraer ids únicos de emprendedores desde los productos
-        const emprendedorIds = listaProductos
-          .map(p => {
-            if (!p) return null;
-            // varios posibles nombres: emprendedor (string), emprendimiento (string), o objeto
-            if (typeof p.emprendedor === 'string') return p.emprendedor;
-            if (typeof p.emprendimiento === 'string') return p.emprendimiento;
-            if (p.emprendedor && typeof p.emprendedor === 'object' && p.emprendedor._id) return p.emprendedor._id;
-            if (p.emprendimiento && typeof p.emprendimiento === 'object' && p.emprendimiento._id) return p.emprendimiento._id;
-            // fallback: si tu modelo usa campo `emprendimiento` como ObjectId (según schema)
-            return p.emprendimiento ?? p.emprendedor ?? null;
-          })
-          .filter(Boolean);
-
-        const uniqueIds = [...new Set(emprendedorIds)];
-
-        if (uniqueIds.length === 0) return;
-
-        // Hacer peticiones paralelas al endpoint /api/emprendedores/:id
-        const fetchEmprendedor = async (id) => {
-          try {
-            const r = await fetch(`${API_BASE}/api/emprendedores/${id}`);
-            if (!r.ok) return null;
-            const json = await r.json();
-            // tu controller devuelve { ok: true, emprendedor }
-            return json?.emprendedor ?? json ?? null;
-          } catch (err) {
-            console.error('Error fetch emprendedor', id, err);
-            return null;
-          }
-        };
-
-        const promises = uniqueIds.map(id => fetchEmprendedor(id));
-        const results = await Promise.all(promises);
-
-        const map = {};
-        uniqueIds.forEach((id, idx) => {
-          const e = results[idx];
-          if (e) {
-            map[id] = { nombre: e.nombre ?? '', apellido: e.apellido ?? '' };
-          }
-        });
-
-        setEmprendedoresMap(prev => ({ ...prev, ...map }));
+        setProductos(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error('Error al cargar productos o emprendedores:', error);
+        console.error('Error al cargar productos:', error);
       }
     };
 
-    fetchProductosYEmprendedores();
+    fetchProductos();
   }, []);
 
   // URL pública del emprendimiento
@@ -167,27 +113,6 @@ const Home = () => {
     const apellido = e.apellido ?? e.apellidos ?? '';
     const full = `${nombre} ${apellido}`.trim();
     return full || '—';
-  };
-
-  // Helper para obtener nombre del emprendedor desde un producto (usa el map cargado)
-  const obtenerNombreEmprendedorFromProduct = (producto) => {
-    if (!producto) return '—';
-
-    const id = typeof producto.emprendedor === 'string'
-      ? producto.emprendedor
-      : (producto.emprendimiento && typeof producto.emprendimiento === 'string')
-        ? producto.emprendimiento
-        : (producto.emprendedor && producto.emprendedor._id)
-          ? producto.emprendedor._id
-          : (producto.emprendimiento && producto.emprendimiento._id)
-            ? producto.emprendimiento._id
-            : null;
-
-    if (!id) return '—';
-
-    const e = emprendedoresMap[id];
-    if (e) return `${e.nombre} ${e.apellido}`.trim() || '—';
-    return 'Cargando...';
   };
 
   return (
@@ -260,10 +185,6 @@ const Home = () => {
                           {producto.descripcion}
                         </p>
 
-                        <p className="text-sm text-gray-700 font-semibold mt-1">
-                          Emprendedor: {obtenerNombreEmprendedorFromProduct(producto)}
-                        </p>
-
                         <p className="text-[#28a745] font-bold mt-2">
                           ${producto.precio}
                         </p>
@@ -309,7 +230,7 @@ const Home = () => {
                       {emp.nombreComercial}
                     </h3>
 
-                    {/* Nombre del emprendedor (siempre viene dentro del emprendimiento en ese endpoint) */}
+                    {/* Nombre del emprendedor (ahora usa nombre / apellido) */}
                     <p className="text-sm text-gray-700 font-semibold mt-1">
                       {nombreCompletoEmprendedor(emp)}
                     </p>
@@ -371,10 +292,6 @@ const Home = () => {
 
             <p className="text-gray-600 mt-2">
               {productoSeleccionado.descripcion}
-            </p>
-
-            <p className="text-sm text-gray-700 font-semibold mt-1">
-              Emprendedor: {obtenerNombreEmprendedorFromProduct(productoSeleccionado)}
             </p>
 
             <p className="font-bold text-[#28a745] mt-3 text-lg">
