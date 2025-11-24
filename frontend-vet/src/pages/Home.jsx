@@ -133,8 +133,7 @@ export const Home = () => {
                   QuitoEmprende: Tu espacio digital
                 </p>
                 <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
-                  Un lugar donde los emprendedores promocionan sus productos y
-                  reciben su propia página web con URL personalizada.
+                  Un lugar donde los emprendedores promocionan productos y reciben su propia página web personalizada.
                 </p>
               </div>
 
@@ -188,6 +187,11 @@ export const Home = () => {
                         <p className="text-[#28a745] font-bold mt-2">
                           ${producto.precio}
                         </p>
+
+                        {/* STOCK */}
+                        <p className="text-sm font-semibold text-gray-700 mt-1">
+                          Stock: {producto.stock}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -230,7 +234,6 @@ export const Home = () => {
                       {emp.nombreComercial}
                     </h3>
 
-                    {/* Nombre del emprendedor (ahora usa nombre / apellido) */}
                     <p className="text-sm text-gray-700 font-semibold mt-1">
                       {nombreCompletoEmprendedor(emp)}
                     </p>
@@ -245,7 +248,7 @@ export const Home = () => {
 
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); // evita que navegue al hacer click en Ver
+                        e.stopPropagation();
                         setEmprendimientoSeleccionado(emp);
                       }}
                       className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
@@ -297,6 +300,11 @@ export const Home = () => {
             <p className="font-bold text-[#28a745] mt-3 text-lg">
               ${productoSeleccionado.precio}
             </p>
+
+            {/* STOCK EN MODAL */}
+            <p className="font-semibold text-gray-800 mt-2">
+              Stock disponible: {productoSeleccionado.stock}
+            </p>
           </div>
         </div>
       )}
@@ -328,7 +336,6 @@ export const Home = () => {
               {emprendimientoSeleccionado.nombreComercial}
             </h2>
 
-            {/* Nombre y apellido del emprendedor (corregido) */}
             <p className="text-gray-800 font-bold text-sm mt-1">
               Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}
             </p>
@@ -342,7 +349,7 @@ export const Home = () => {
               {emprendimientoSeleccionado.ubicacion?.direccion}
             </p>
 
-            {/* Redes sociales (solo si existen) */}
+            {/* Redes sociales */}
             <div className="flex gap-3 mt-4 flex-wrap text-sm">
               {emprendimientoSeleccionado.contacto?.sitioWeb && (
                 <a
