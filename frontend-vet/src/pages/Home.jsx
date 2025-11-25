@@ -6,7 +6,7 @@ import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
 import Servicios from './pgPrueba/Servicios';
 
-// ---------------- HEADER ----------------
+// ------------- HEADER ----------------
 const Header = ({ onChangeSection, active }) => {
   const menuItems = [
     { id: 'inicio', label: 'Inicio' },
@@ -404,3 +404,4 @@ export const Home = () => {
 };
 
 export default Home;
+
