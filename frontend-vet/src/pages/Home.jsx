@@ -4,15 +4,9 @@ import { Link, useNavigate } from 'react-router-dom';
 // IMÁGENES
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
-import Servicios from './pgPrueba/Servicios';
 
 // ------------- HEADER ----------------
-const Header = ({ onChangeSection, active }) => {
-  const menuItems = [
-    { id: 'inicio', label: 'Inicio' },
-    { id: 'servicios', label: 'Nosotros' },
-  ];
-
+const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
@@ -21,20 +15,6 @@ const Header = ({ onChangeSection, active }) => {
         </h2>
 
         <nav className="flex items-center gap-6">
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onChangeSection(item.id)}
-              className={`text-sm md:text-base font-semibold transition-colors ${
-                active === item.id
-                  ? 'text-[#AA4A44]'
-                  : 'text-gray-300 hover:text-[#F7E5D2]'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-
           <Link
             to="/login"
             className="bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
@@ -56,7 +36,6 @@ const Footer = () => (
 
 // ---------------- HOME ----------------
 export const Home = () => {
-  const [section, setSection] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
@@ -99,13 +78,11 @@ export const Home = () => {
     fetchProductos();
   }, []);
 
-  // URL pública del emprendimiento
   const buildPublicUrl = (emp) => {
     const slug = emp?.slug || emp?.nombreComercial;
     return `/${encodeURIComponent(slug)}`;
   };
 
-  // Helper para mostrar nombre completo del emprendedor con fallback
   const nombreCompletoEmprendedor = (emp) => {
     const e = emp?.emprendedor;
     if (!e) return '—';
@@ -117,154 +94,145 @@ export const Home = () => {
 
   return (
     <>
-      <Header onChangeSection={setSection} active={section} />
+      <Header />
 
-      {/* ---------------- SECCIÓN INICIO ---------------- */}
-      {section === 'inicio' && (
-        <>
-          {/* HERO */}
-          <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
-              <div className="flex-1 text-center md:text-left">
-                <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
-                  Conecta, vende y crece
-                </h1>
-                <p className="text-xl md:text-2xl mb-6 text-gray-800">
-                  QuitoEmprende: Tu espacio digital
-                </p>
-                <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
-                  Un lugar donde los emprendedores promocionan productos y reciben su propia página web personalizada.
-                </p>
-              </div>
+      {/* HERO */}
+      <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
+          <div className="flex-1 text-center md:text-left">
+            <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
+              Conecta, vende y crece
+            </h1>
+            <p className="text-xl md:text-2xl mb-6 text-gray-800">
+              QuitoEmprende: Tu espacio digital
+            </p>
+            <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
+              Un lugar donde los emprendedores promocionan productos y reciben su propia página web personalizada.
+            </p>
+          </div>
 
-              <div className="flex-1 flex justify-center md:justify-end">
-                <img
-                  src={heroImage}
-                  alt="Hero"
-                  className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
-                />
-              </div>
-            </div>
-          </main>
+          <div className="flex-1 flex justify-center md:justify-end">
+            <img
+              src={heroImage}
+              alt="Hero"
+              className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
+            />
+          </div>
+        </div>
+      </main>
 
-          {/* Línea */}
-          <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+      {/* Línea */}
+      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-          {/* ---------------- PRODUCTOS ---------------- */}
-          <section className="py-4 px-6 bg-white text-gray-800">
-            <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-                Productos Destacados
-              </h2>
+      {/* ---------------- PRODUCTOS ---------------- */}
+      <section className="py-4 px-6 bg-white text-gray-800">
+        <div className="max-w-7xl mx-auto flex flex-col items-center">
+          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
+            Productos Destacados
+          </h2>
 
-              {productos.length === 0 ? (
-                <p className="text-center mt-6">Cargando productos...</p>
-              ) : (
-                <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
-                  {productos.map((producto) => (
-                    <div
-                      key={producto._id}
-                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex cursor-pointer"
-                      onClick={() => setProductoSeleccionado(producto)}
-                    >
-                      <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
+          {productos.length === 0 ? (
+            <p className="text-center mt-6">Cargando productos...</p>
+          ) : (
+            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
+              {productos.map((producto) => (
+                <div
+                  key={producto._id}
+                  className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex cursor-pointer"
+                  onClick={() => setProductoSeleccionado(producto)}
+                >
+                  <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
 
-                      <div className="flex-1">
-                        <img
-                          src={producto.imagen}
-                          alt={producto.nombre}
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
-
-                        <h3 className="font-semibold text-lg text-[#AA4A44]">
-                          {producto.nombre}
-                        </h3>
-
-                        <p className="text-sm text-gray-600">
-                          {producto.descripcion}
-                        </p>
-
-                        <p className="text-[#28a745] font-bold mt-2">
-                          ${producto.precio}
-                        </p>
-
-                        {/* STOCK */}
-                        <p className="text-sm font-semibold text-gray-700 mt-1">
-                          Stock: {producto.stock}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Línea */}
-          <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
-
-          {/* ---------------- EMPRENDIMIENTOS ---------------- */}
-          <section
-            className="py-16 px-4 text-gray-800 relative overflow-hidden"
-            style={{
-              backgroundImage: `url(${fondoblanco})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          >
-            <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-                Explora Emprendimientos
-              </h2>
-
-              <div className="flex overflow-x-auto gap-6 pb-4 w-full">
-                {emprendimientos.map((emp) => (
-                  <div
-                    key={emp._id}
-                    className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
-                    onClick={() => navigate(buildPublicUrl(emp))}
-                  >
+                  <div className="flex-1">
                     <img
-                      src={emp.logo}
-                      alt={emp.nombreComercial}
-                      className="w-full h-36 object-cover rounded-lg mb-3"
+                      src={producto.imagen}
+                      alt={producto.nombre}
+                      className="w-full h-48 object-cover rounded-lg mb-4"
                     />
 
-                    <h3 className="text-lg font-semibold text-[#AA4A44]">
-                      {emp.nombreComercial}
+                    <h3 className="font-semibold text-lg text-[#AA4A44]">
+                      {producto.nombre}
                     </h3>
 
-                    <p className="text-sm text-gray-700 font-semibold mt-1">
-                      {nombreCompletoEmprendedor(emp)}
+                    <p className="text-sm text-gray-600">
+                      {producto.descripcion}
                     </p>
 
-                    <p className="text-sm text-gray-600 mt-1">
-                      {emp.descripcion}
+                    <p className="text-[#28a745] font-bold mt-2">
+                      ${producto.precio}
                     </p>
 
-                    <p className="text-xs text-gray-500 mt-2">
-                      {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
+                    <p className="text-sm font-semibold text-gray-700 mt-1">
+                      Stock: {producto.stock}
                     </p>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEmprendimientoSeleccionado(emp);
-                      }}
-                      className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                    >
-                      Ver
-                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          </section>
-        </>
-      )}
+          )}
+        </div>
+      </section>
 
-      {/* ---------------- SECCIÓN NOSOTROS ---------------- */}
-      {section === 'servicios' && <Servicios />}
+      {/* Línea */}
+      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+
+      {/* ---------------- EMPRENDIMIENTOS ---------------- */}
+      <section
+        className="py-16 px-4 text-gray-800 relative overflow-hidden"
+        style={{
+          backgroundImage: `url(${fondoblanco})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
+          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
+            Explora Emprendimientos
+          </h2>
+
+          <div className="flex overflow-x-auto gap-6 pb-4 w-full">
+            {emprendimientos.map((emp) => (
+              <div
+                key={emp._id}
+                className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
+                onClick={() => navigate(buildPublicUrl(emp))}
+              >
+                <img
+                  src={emp.logo}
+                  alt={emp.nombreComercial}
+                  className="w-full h-36 object-cover rounded-lg mb-3"
+                />
+
+                <h3 className="text-lg font-semibold text-[#AA4A44]">
+                  {emp.nombreComercial}
+                </h3>
+
+                <p className="text-sm text-gray-700 font-semibold mt-1">
+                  {nombreCompletoEmprendedor(emp)}
+                </p>
+
+                <p className="text-sm text-gray-600 mt-1">
+                  {emp.descripcion}
+                </p>
+
+                <p className="text-xs text-gray-500 mt-2">
+                  {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
+                </p>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEmprendimientoSeleccionado(emp);
+                  }}
+                  className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                >
+                  Ver
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* ---------------- MODAL PRODUCTO ---------------- */}
       {productoSeleccionado && (
@@ -301,7 +269,6 @@ export const Home = () => {
               ${productoSeleccionado.precio}
             </p>
 
-            {/* STOCK EN MODAL */}
             <p className="font-semibold text-gray-800 mt-2">
               Stock disponible: {productoSeleccionado.stock}
             </p>
@@ -349,7 +316,6 @@ export const Home = () => {
               {emprendimientoSeleccionado.ubicacion?.direccion}
             </p>
 
-            {/* Redes sociales */}
             <div className="flex gap-3 mt-4 flex-wrap text-sm">
               {emprendimientoSeleccionado.contacto?.sitioWeb && (
                 <a
@@ -404,4 +370,3 @@ export const Home = () => {
 };
 
 export default Home;
-
