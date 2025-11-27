@@ -13,7 +13,7 @@ export const FormProducto = () => {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form producto
+  // Productos - formulario
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -23,9 +23,8 @@ export const FormProducto = () => {
   });
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
-  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
 
-  // Form emprendimiento
+  // Emprendimientos - formulario (solo para crear/mostrar)
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
@@ -37,6 +36,9 @@ export const FormProducto = () => {
   });
   const [modoEdicionEmp, setModoEdicionEmp] = useState(false);
   const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
+
+  // Emprendimiento seleccionado para el producto (obligatorio)
+  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
 
   // --- Cargar Productos ---
   const cargarProductos = async () => {
@@ -63,10 +65,10 @@ export const FormProducto = () => {
       });
       const lista = res.data || [];
       setEmprendimientos(lista);
-      if (!selectedEmprendimiento && lista.length === 1) setSelectedEmprendimiento(lista[0]._id);
+      // si sólo hay uno lo seleccionamos por defecto
+      if (lista.length === 1) setSelectedEmprendimiento(lista[0]._id);
     } catch (err) {
-      // si falla no rompemos (puede que no exista endpoint público)
-      setError(null);
+      setError("Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
     }
@@ -78,13 +80,13 @@ export const FormProducto = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId, token]);
 
-  // Manejo inputs producto
+  // --- Manejo inputs productos ---
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Manejo inputs emprendimiento
+  // --- Manejo inputs emprendimientos ---
   const handleChangeEmprendimiento = (e) => {
     const { name, value } = e.target;
     if (["direccion", "ciudad", "lat", "lng"].includes(name)) {
@@ -102,6 +104,7 @@ export const FormProducto = () => {
     }
   };
 
+  // --- Reset formularios ---
   const resetFormProducto = () => {
     setForm({
       nombre: "",
@@ -113,9 +116,8 @@ export const FormProducto = () => {
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
-    if (emprendimientos.length === 1 && !selectedEmprendimiento) {
-      setSelectedEmprendimiento(emprendimientos[0]._id);
-    }
+    // si solo existe 1 emprendimiento mantenerlo seleccionado
+    if (emprendimientos.length === 1) setSelectedEmprendimiento(emprendimientos[0]._id);
   };
 
   const resetFormEmprendimiento = () => {
@@ -140,7 +142,7 @@ export const FormProducto = () => {
       return;
     }
 
-    // Validaciones mínimas frontend
+    // validaciones básicas
     if (!form.nombre || form.nombre.trim().length < 3) {
       setError("El nombre es obligatorio y debe tener al menos 3 caracteres");
       return;
@@ -150,7 +152,7 @@ export const FormProducto = () => {
       return;
     }
 
-    // Emprendimiento obligatorio: usar seleccionado o el primero disponible
+    // emprendimiento obligatorio: usar seleccionado o el primero disponible
     let emprendimientoId = selectedEmprendimiento;
     if (!emprendimientoId) {
       if (emprendimientos.length > 0) emprendimientoId = emprendimientos[0]._id;
@@ -160,14 +162,13 @@ export const FormProducto = () => {
       }
     }
 
-    // Preparar payload: categoria siempre null (no existen categorías en backend)
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion ? form.descripcion.trim() : "",
       precio: Number(form.precio),
       imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
       stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
-      categoria: null, // <-- enviado explícitamente como null
+      categoria: null, // <-- siempre enviamos null para categoría
       emprendimiento: emprendimientoId,
     };
 
@@ -181,13 +182,14 @@ export const FormProducto = () => {
       resetFormProducto();
       alert("Producto creado con éxito");
     } catch (err) {
+      // muestra mensaje del backend si existe
       setError(err.response?.data?.mensaje || "Error al crear producto");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // --- Editar producto ---
+  // --- Editar producto (carga datos al formulario) ---
   const editarProducto = (producto) => {
     setModoEdicionProducto(true);
     setProductoEditId(producto._id);
@@ -198,8 +200,7 @@ export const FormProducto = () => {
       imagen: producto.imagen || "",
       stock: producto.stock !== undefined ? producto.stock : "",
     });
-
-    // establecer emprendimiento si viene
+    // si el producto tiene emprendimiento lo seleccionamos
     const emp = producto.emprendimiento;
     if (emp) {
       const empId = typeof emp === "object" ? emp._id : emp;
@@ -215,7 +216,6 @@ export const FormProducto = () => {
       return;
     }
 
-    // validaciones mínimas
     if (form.nombre && form.nombre.trim().length < 3) {
       setError("El nombre debe tener al menos 3 caracteres");
       return;
@@ -225,22 +225,21 @@ export const FormProducto = () => {
       return;
     }
 
-    const camposActualizar = {};
-    if (form.nombre !== undefined) camposActualizar.nombre = form.nombre.trim();
-    if (form.descripcion !== undefined) camposActualizar.descripcion = form.descripcion.trim();
-    if (form.precio !== undefined && form.precio !== "") camposActualizar.precio = Number(form.precio);
-    if (form.imagen !== undefined) camposActualizar.imagen = form.imagen.trim() === "" ? null : form.imagen.trim();
-    if (form.stock !== undefined && form.stock !== "") camposActualizar.stock = Number(form.stock);
+    const campos = {
+      ...form,
+      precio: form.precio === "" ? 0 : Number(form.precio),
+      stock: form.stock === "" ? 0 : Number(form.stock),
+      imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
+      categoria: null, // <-- siempre enviamos null para categoría
+    };
 
-    // Siempre enviar categoria: null (según tu backend / petición)
-    camposActualizar.categoria = null;
-
-    if (selectedEmprendimiento) camposActualizar.emprendimiento = selectedEmprendimiento;
+    // si hay emprendimiento seleccionado lo actualizamos
+    if (selectedEmprendimiento) campos.emprendimiento = selectedEmprendimiento;
 
     setSubmitting(true);
     setError(null);
     try {
-      await axios.put(`${API_BASE}/api/productos/${productoEditId}`, camposActualizar, {
+      await axios.put(`${API_BASE}/api/productos/${productoEditId}`, campos, {
         headers: { Authorization: `Bearer ${token}` },
       });
       await cargarProductos();
@@ -265,7 +264,7 @@ export const FormProducto = () => {
       await axios.delete(`${API_BASE}/api/productos/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      cargarProductos();
+      await cargarProductos();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al eliminar producto");
     }
@@ -335,14 +334,18 @@ export const FormProducto = () => {
       return;
     }
     try {
-      await axios.put(`${API_BASE}/api/emprendimientos/${emprendimientoEditId}`, {
-        ...formEmprendimiento,
-        ubicacion: {
-          ...formEmprendimiento.ubicacion,
-          lat: formEmprendimiento.ubicacion.lat === "" ? null : parseFloat(formEmprendimiento.ubicacion.lat),
-          lng: formEmprendimiento.ubicacion.lng === "" ? null : parseFloat(formEmprendimiento.ubicacion.lng),
+      await axios.put(
+        `${API_BASE}/api/emprendimientos/${emprendimientoEditId}`,
+        {
+          ...formEmprendimiento,
+          ubicacion: {
+            ...formEmprendimiento.ubicacion,
+            lat: formEmprendimiento.ubicacion.lat === "" ? null : parseFloat(formEmprendimiento.ubicacion.lat),
+            lng: formEmprendimiento.ubicacion.lng === "" ? null : parseFloat(formEmprendimiento.ubicacion.lng),
+          },
         },
-      }, { headers: { Authorization: `Bearer ${token}` } });
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       await cargarEmprendimientos();
       alert("Emprendimiento actualizado con éxito");
       resetFormEmprendimiento();
@@ -430,11 +433,11 @@ export const FormProducto = () => {
         <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmitProducto} style={styles.form}>
-          <input type="text" name="nombre" placeholder="Nombre (obligatorio)" value={form.nombre} onChange={handleChange} required style={styles.input} />
-          <textarea name="descripcion" placeholder="Descripción (opcional)" value={form.descripcion} onChange={handleChange} style={{ ...styles.input, minHeight: 80 }} />
-          <input type="number" name="precio" placeholder="Precio (obligatorio)" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
-          <input type="text" name="imagen" placeholder="URL Imagen (opcional)" value={form.imagen} onChange={handleChange} style={styles.input} />
-          <input type="number" name="stock" placeholder="Stock (opcional, por defecto 0)" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
+          <input type="text" name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required style={styles.input} />
+          <input type="text" name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} style={styles.input} />
+          <input type="number" name="precio" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
+          <input type="text" name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} style={styles.input} />
+          <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
 
           {/* Nota: no mostramos ni cargamos categorías. El backend siempre recibirá "categoria": null */}
 
@@ -443,7 +446,7 @@ export const FormProducto = () => {
           <select value={selectedEmprendimiento} onChange={(e) => setSelectedEmprendimiento(e.target.value)} style={{ ...styles.input, appearance: "menu" }} required disabled={loadingEmprendimientos}>
             <option value="">{emprendimientos.length === 0 ? "Crea un emprendimiento primero" : "Selecciona un emprendimiento"}</option>
             {emprendimientos.map((emp) => (
-              <option key={emp._1} value={emp._id}>{emp.nombreComercial}</option>
+              <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
             ))}
           </select>
 
@@ -481,7 +484,6 @@ export const FormProducto = () => {
   );
 };
 
-// estilos
 const styles = {
   formContainer: {
     background: "#fff",
