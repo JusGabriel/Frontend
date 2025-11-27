@@ -26,6 +26,7 @@ export const FormProducto = () => {
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
   const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
+  // mantenemos "" como valor por defecto; si queda "", se enviará "" al backend
   const [selectedCategoria, setSelectedCategoria] = useState(""); // opcional
 
   // Form emprendimiento (igual que antes)
@@ -183,14 +184,15 @@ export const FormProducto = () => {
       }
     }
 
-    // Preparar payload: categoría opcional -> enviar null si vacío
+    // Preparar payload: categoría opcional -> enviar "" si vacío (según lo que pediste)
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion ? form.descripcion.trim() : "",
       precio: Number(form.precio),
       imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
       stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
-      categoria: selectedCategoria && selectedCategoria !== "" ? selectedCategoria : null,
+      // aquí enviamos "" si no se seleccionó categoría (cadena vacía)
+      categoria: selectedCategoria === "" ? "" : selectedCategoria,
       emprendimiento: emprendimientoId,
     };
 
@@ -204,7 +206,6 @@ export const FormProducto = () => {
       resetFormProducto();
       alert("Producto creado con éxito");
     } catch (err) {
-      // mostrar mensaje del backend si existe
       setError(err.response?.data?.mensaje || "Error al crear producto");
     } finally {
       setSubmitting(false);
@@ -234,6 +235,7 @@ export const FormProducto = () => {
       const catId = typeof cat === "object" ? cat._id : cat;
       setSelectedCategoria(catId);
     } else {
+      // sin categoría -> cadena vacía
       setSelectedCategoria("");
     }
     setError(null);
@@ -262,8 +264,8 @@ export const FormProducto = () => {
     if (form.precio !== undefined && form.precio !== "") camposActualizar.precio = Number(form.precio);
     if (form.imagen !== undefined) camposActualizar.imagen = form.imagen.trim() === "" ? null : form.imagen.trim();
     if (form.stock !== undefined && form.stock !== "") camposActualizar.stock = Number(form.stock);
-    // categoría opcional: si está vacía, enviamos null para quitarla
-    camposActualizar.categoria = selectedCategoria && selectedCategoria !== "" ? selectedCategoria : null;
+    // categoría opcional: si está vacía, enviamos "" para representarla como vacía
+    camposActualizar.categoria = selectedCategoria === "" ? "" : selectedCategoria;
     if (selectedEmprendimiento) camposActualizar.emprendimiento = selectedEmprendimiento;
 
     setSubmitting(true);
@@ -464,6 +466,9 @@ export const FormProducto = () => {
           <input type="number" name="precio" placeholder="Precio (obligatorio)" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
           <input type="text" name="imagen" placeholder="URL Imagen (opcional)" value={form.imagen} onChange={handleChange} style={styles.input} />
           <input type="number" name="stock" placeholder="Stock (opcional, por defecto 0)" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
+
+          {/* Hidden input solo para que el campo aparezca en el DOM (no necesario para axios) */}
+          <input type="hidden" name="categoria" value={selectedCategoria === "" ? "" : selectedCategoria} />
 
           {/* Selector de Categoría (OPCIONAL) */}
           <label style={{ fontSize: 12, color: "#666" }}>Categoría (opcional)</label>
