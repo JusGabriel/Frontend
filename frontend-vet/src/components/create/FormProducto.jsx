@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth";
 
-const API_BASE = "https://backend-production-bd1d.up.railway.app";
-
 export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
   const [productos, setProductos] = useState([]);
@@ -11,7 +9,6 @@ export const FormProducto = () => {
   const [loading, setLoading] = useState(false);
   const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
   const [error, setError] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
   // Productos - formulario
   const [form, setForm] = useState({
@@ -24,7 +21,7 @@ export const FormProducto = () => {
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
-  // Emprendimientos - solo para mostrar la lista (no se usa para enviar producto)
+  // Emprendimientos - formulario
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
@@ -43,25 +40,30 @@ export const FormProducto = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/api/productos/emprendedor/${emprendedorId}`);
-      setProductos(res.data || []);
-    } catch (err) {
+      const res = await axios.get(
+        `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
+      );
+      setProductos(res.data);
+    } catch {
       setError("Error al cargar productos");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Cargar Emprendimientos (solo para mostrar) ---
+  // --- Cargar Emprendimientos ---
   const cargarEmprendimientos = async () => {
     setLoadingEmprendimientos(true);
     setError(null);
     try {
-      const res = await axios.get(`${API_BASE}/api/emprendimientos`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      setEmprendimientos(res.data || []);
-    } catch (err) {
+      const res = await axios.get(
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setEmprendimientos(res.data);
+    } catch {
       setError("Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
@@ -71,8 +73,7 @@ export const FormProducto = () => {
   useEffect(() => {
     cargarProductos();
     cargarEmprendimientos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emprendedorId, token]);
+  }, [emprendedorId]);
 
   // --- Manejo inputs productos ---
   const handleChange = (e) => {
@@ -127,101 +128,69 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // --- Crear producto (envía categoria: null como en primer código) ---
+  // --- Crear producto ---
   const crearProducto = async () => {
     if (!token) {
       setError("No autenticado");
       return;
     }
-
-    // validaciones básicas en frontend
-    if (!form.nombre || form.nombre.trim().length < 3) {
-      setError("El nombre es obligatorio y debe tener al menos 3 caracteres");
-      return;
-    }
-    if (form.precio === "" || isNaN(Number(form.precio)) || Number(form.precio) < 0) {
-      setError("El precio es obligatorio y debe ser un número >= 0");
-      return;
-    }
-
-    // Payload: **no incluimos emprendimiento ni categoría (categoria: null)**
-    const payload = {
-      nombre: form.nombre.trim(),
-      descripcion: form.descripcion ? form.descripcion.trim() : "",
-      precio: Number(form.precio),
-      imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
-      stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
-      categoria: null, // <-- siempre null (comportamiento del primer código)
-    };
-
-    setSubmitting(true);
-    setError(null);
     try {
-      await axios.post(`${API_BASE}/api/productos`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await cargarProductos();
+      await axios.post(
+        "https://backend-production-bd1d.up.railway.app/api/productos",
+        {
+          ...form,
+          categoria: null,
+          precio: Number(form.precio),
+          stock: Number(form.stock),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarProductos();
       resetFormProducto();
-      alert("Producto creado con éxito");
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al crear producto");
-    } finally {
-      setSubmitting(false);
     }
   };
 
-  // --- Editar producto (carga datos al formulario) ---
+  // --- Editar producto ---
   const editarProducto = (producto) => {
     setModoEdicionProducto(true);
     setProductoEditId(producto._id);
     setForm({
       nombre: producto.nombre || "",
       descripcion: producto.descripcion || "",
-      precio: producto.precio !== undefined ? producto.precio : "",
+      precio: producto.precio || "",
       imagen: producto.imagen || "",
-      stock: producto.stock !== undefined ? producto.stock : "",
+      stock: producto.stock || "",
     });
     setError(null);
   };
 
-  // --- Actualizar producto (envía categoria: null como en primer código) ---
+  // --- Actualizar producto ---
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
       return;
     }
-
-    if (form.nombre && form.nombre.trim().length < 3) {
-      setError("El nombre debe tener al menos 3 caracteres");
-      return;
-    }
-    if (form.precio !== "" && (isNaN(Number(form.precio)) || Number(form.precio) < 0)) {
-      setError("El precio debe ser un número >= 0");
-      return;
-    }
-
-    const campos = {
-      nombre: form.nombre ? form.nombre.trim() : undefined,
-      descripcion: form.descripcion ? form.descripcion.trim() : undefined,
-      precio: form.precio === "" ? 0 : Number(form.precio),
-      stock: form.stock === "" ? 0 : Number(form.stock),
-      imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
-      categoria: null, // <-- siempre null
-    };
-
-    setSubmitting(true);
-    setError(null);
     try {
-      await axios.put(`${API_BASE}/api/productos/${productoEditId}`, campos, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await cargarProductos();
+      await axios.put(
+        `https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId}`,
+        {
+          ...form,
+          categoria: null,
+          precio: Number(form.precio),
+          stock: Number(form.stock),
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarProductos();
       resetFormProducto();
-      alert("Producto actualizado con éxito");
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al actualizar producto");
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -234,40 +203,40 @@ export const FormProducto = () => {
     if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
 
     try {
-      await axios.delete(`${API_BASE}/api/productos/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await cargarProductos();
+      await axios.delete(
+        `https://backend-production-bd1d.up.railway.app/api/productos/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarProductos();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al eliminar producto");
     }
   };
 
-  // --- Crear / Actualizar emprendimiento (sin cambios, solo para lista) ---
+  // --- Crear emprendimiento ---
   const crearEmprendimiento = async () => {
     if (!token) {
       setError("No autenticado");
       return;
     }
-    if (!formEmprendimiento.nombreComercial || formEmprendimiento.nombreComercial.trim().length < 3) {
-      setError("El nombre comercial es obligatorio y debe tener al menos 3 caracteres");
-      return;
-    }
-
     try {
       await axios.post(
-        `${API_BASE}/api/emprendimientos`,
+        "https://backend-production-bd1d.up.railway.app/api/emprendimientos",
         {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: formEmprendimiento.ubicacion.lat === "" ? null : parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: formEmprendimiento.ubicacion.lng === "" ? null : parseFloat(formEmprendimiento.ubicacion.lng),
+            lat: parseFloat(formEmprendimiento.ubicacion.lat),
+            lng: parseFloat(formEmprendimiento.ubicacion.lng),
           },
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      await cargarEmprendimientos();
+      cargarEmprendimientos();
       alert("Emprendimiento creado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
@@ -275,6 +244,7 @@ export const FormProducto = () => {
     }
   };
 
+  // --- Editar emprendimiento ---
   const editarEmprendimiento = (emp) => {
     setModoEdicionEmp(true);
     setEmprendimientoEditId(emp._id);
@@ -301,6 +271,7 @@ export const FormProducto = () => {
     setError(null);
   };
 
+  // --- Actualizar emprendimiento ---
   const actualizarEmprendimiento = async () => {
     if (!token || !emprendimientoEditId) {
       setError("No autenticado o emprendimiento inválido");
@@ -308,18 +279,20 @@ export const FormProducto = () => {
     }
     try {
       await axios.put(
-        `${API_BASE}/api/emprendimientos/${emprendimientoEditId}`,
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${emprendimientoEditId}`,
         {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: formEmprendimiento.ubicacion.lat === "" ? null : parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: formEmprendimiento.ubicacion.lng === "" ? null : parseFloat(formEmprendimiento.ubicacion.lng),
+            lat: parseFloat(formEmprendimiento.ubicacion.lat),
+            lng: parseFloat(formEmprendimiento.ubicacion.lng),
           },
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
-      await cargarEmprendimientos();
+      cargarEmprendimientos();
       alert("Emprendimiento actualizado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
@@ -327,32 +300,44 @@ export const FormProducto = () => {
     }
   };
 
+  // --- Eliminar emprendimiento ---
   const eliminarEmprendimiento = async (id) => {
     if (!token) {
       setError("No autenticado");
       return;
     }
     if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
+
     try {
-      await axios.delete(`${API_BASE}/api/emprendimientos/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      await cargarEmprendimientos();
+      await axios.delete(
+        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      cargarEmprendimientos();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al eliminar emprendimiento");
     }
   };
 
+  // --- Submit formularios ---
   const handleSubmitProducto = (e) => {
     e.preventDefault();
-    if (modoEdicionProducto) actualizarProducto();
-    else crearProducto();
+    if (modoEdicionProducto) {
+      actualizarProducto();
+    } else {
+      crearProducto();
+    }
   };
 
   const handleSubmitEmprendimiento = (e) => {
     e.preventDefault();
-    if (modoEdicionEmp) actualizarEmprendimiento();
-    else crearEmprendimiento();
+    if (modoEdicionEmp) {
+      actualizarEmprendimiento();
+    } else {
+      crearEmprendimiento();
+    }
   };
 
   return (
@@ -362,18 +347,90 @@ export const FormProducto = () => {
         <h2 style={styles.title}>{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
-          <input type="text" name="nombreComercial" placeholder="Nombre Comercial" value={formEmprendimiento.nombreComercial} onChange={handleChangeEmprendimiento} required style={styles.input} />
-          <input type="text" name="descripcion" placeholder="Descripción" value={formEmprendimiento.descripcion} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="logo" placeholder="URL Logo" value={formEmprendimiento.logo} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="direccion" placeholder="Dirección" value={formEmprendimiento.ubicacion.direccion} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="ciudad" placeholder="Ciudad" value={formEmprendimiento.ubicacion.ciudad} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="number" step="any" name="lat" placeholder="Latitud" value={formEmprendimiento.ubicacion.lat} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="number" step="any" name="lng" placeholder="Longitud" value={formEmprendimiento.ubicacion.lng} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="text" name="telefono" placeholder="Teléfono" value={formEmprendimiento.contacto.telefono} onChange={handleChangeEmprendimiento} style={styles.input} />
-          <input type="email" name="email" placeholder="Email" value={formEmprendimiento.contacto.email} onChange={handleChangeEmprendimiento} style={styles.input} />
+          <input
+            type="text"
+            name="nombreComercial"
+            placeholder="Nombre Comercial"
+            value={formEmprendimiento.nombreComercial}
+            onChange={handleChangeEmprendimiento}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={formEmprendimiento.descripcion}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="logo"
+            placeholder="URL Logo"
+            value={formEmprendimiento.logo}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="direccion"
+            placeholder="Dirección"
+            value={formEmprendimiento.ubicacion.direccion}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="ciudad"
+            placeholder="Ciudad"
+            value={formEmprendimiento.ubicacion.ciudad}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            step="any"
+            name="lat"
+            placeholder="Latitud"
+            value={formEmprendimiento.ubicacion.lat}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            step="any"
+            name="lng"
+            placeholder="Longitud"
+            value={formEmprendimiento.ubicacion.lng}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="telefono"
+            placeholder="Teléfono"
+            value={formEmprendimiento.contacto.telefono}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={formEmprendimiento.contacto.email}
+            onChange={handleChangeEmprendimiento}
+            style={styles.input}
+          />
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate} disabled={submitting}>{modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}</button>
-            {modoEdicionEmp && <button type="button" onClick={resetFormEmprendimiento} style={styles.buttonCancel}>Cancelar</button>}
+            <button type="submit" style={styles.buttonCreate}>
+              {modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}
+            </button>
+            {modoEdicionEmp && (
+              <button type="button" onClick={resetFormEmprendimiento} style={styles.buttonCancel}>
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -381,24 +438,33 @@ export const FormProducto = () => {
       {/* LISTA EMPRENDIMIENTOS */}
       <div style={styles.listaContainer}>
         <h3 style={{ width: "100%", marginBottom: 12 }}>Todos los Emprendimientos</h3>
-        {loadingEmprendimientos ? <p>Cargando emprendimientos...</p> :
-          emprendimientos.length === 0 ? <p>No hay emprendimientos aún. Crea uno arriba para poder asociar productos (si el backend lo requiere).</p> :
-            emprendimientos.map((emp) => (
-              <div key={emp._id} style={styles.productoCard}>
-                <div>
-                  <strong style={{ fontSize: "1.1rem" }}>{emp.nombreComercial}</strong>
-                  <p style={{ minHeight: 36, color: "#555" }}>{emp.descripcion}</p>
-                  {emp.logo && <img src={emp.logo} alt={emp.nombreComercial} style={{ ...styles.imagen, maxHeight: 120, objectFit: "contain" }} />}
-                  <p style={{ marginTop: 6 }}><b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}</p>
-                  <p><b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}</p>
-                </div>
-                <div style={styles.buttonsCard}>
-                  <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
-                </div>
+        {loadingEmprendimientos ? (
+          <p>Cargando emprendimientos...</p>
+        ) : emprendimientos.length === 0 ? (
+          <p>No hay emprendimientos aún.</p>
+        ) : (
+          emprendimientos.map((emp) => (
+            <div key={emp._id} style={styles.productoCard}>
+              <div>
+                <strong style={{ fontSize: "1.1rem" }}>{emp.nombreComercial}</strong>
+                <p style={{ minHeight: 36, color: "#555" }}>{emp.descripcion}</p>
+                {emp.logo && (
+                  <img src={emp.logo} alt={emp.nombreComercial} style={{ ...styles.imagen, maxHeight: 120, objectFit: "contain" }} />
+                )}
+                <p style={{ marginTop: 6 }}>
+                  <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
+                </p>
+                <p>
+                  <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
+                </p>
               </div>
-            ))
-        }
+              <div style={styles.buttonsCard}>
+                <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
+                <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* FORMULARIO PRODUCTO */}
@@ -406,44 +472,93 @@ export const FormProducto = () => {
         <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
         {error && <p style={styles.error}>{error}</p>}
         <form onSubmit={handleSubmitProducto} style={styles.form}>
-          <input type="text" name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required style={styles.input} />
-          <input type="text" name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} style={styles.input} />
-          <input type="number" name="precio" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
-          <input type="text" name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} style={styles.input} />
-          <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
-
-          {/* Nota: no mostramos ni cargamos categorías ni emprendimiento en el formulario de producto.
-              El frontend envía siempre categoria: null (igual que el primer código que compartiste). */}
-
+          <input
+            type="text"
+            name="nombre"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={form.descripcion}
+            onChange={handleChange}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            name="precio"
+            placeholder="Precio"
+            step="0.01"
+            value={form.precio}
+            onChange={handleChange}
+            required
+            min="0"
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="imagen"
+            placeholder="URL Imagen"
+            value={form.imagen}
+            onChange={handleChange}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            name="stock"
+            placeholder="Stock"
+            value={form.stock}
+            onChange={handleChange}
+            min="0"
+            style={styles.input}
+          />
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate} disabled={submitting}>
-              {submitting ? (modoEdicionProducto ? "Actualizando..." : "Creando...") : (modoEdicionProducto ? "Actualizar Producto" : "Crear Producto")}
+            <button type="submit" style={styles.buttonCreate}>
+              {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
             </button>
-            {modoEdicionProducto && <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>Cancelar</button>}
+            {modoEdicionProducto && (
+              <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
       </div>
 
       {/* LISTA PRODUCTOS */}
       <div style={styles.listaContainer}>
-        {loading ? <p>Cargando productos...</p> :
-          productos.length === 0 ? <p>No tienes productos aún.</p> :
-            productos.map((prod) => (
-              <div key={prod._id} style={styles.productoCard}>
-                <div>
-                  <strong>{prod.nombre}</strong>
-                  <p>{prod.descripcion}</p>
-                  <p>Precio: <b>${Number(prod.precio || 0).toFixed(2)}</b></p>
-                  <p>Stock: {prod.stock ?? 0}</p>
-                  {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
-                </div>
-                <div style={styles.buttonsCard}>
-                  <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>Editar</button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>Eliminar</button>
-                </div>
+        {loading ? (
+          <p>Cargando productos...</p>
+        ) : productos.length === 0 ? (
+          <p>No tienes productos aún.</p>
+        ) : (
+          productos.map((prod) => (
+            <div key={prod._id} style={styles.productoCard}>
+              <div>
+                <strong>{prod.nombre}</strong>
+                <p>{prod.descripcion}</p>
+                <p>
+                  Precio: <b>${prod.precio.toFixed(2)}</b>
+                </p>
+                <p>Stock: {prod.stock}</p>
+                {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
               </div>
-            ))
-        }
+              <div style={styles.buttonsCard}>
+                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
+                  Editar
+                </button>
+                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </>
   );
@@ -499,6 +614,9 @@ const styles = {
     fontSize: "1rem",
     cursor: "pointer",
     transition: "background-color 0.3s",
+  },
+  buttonCreateHover: {
+    backgroundColor: "#8b3b3b",
   },
   buttonRow: {
     display: "flex",
@@ -565,5 +683,3 @@ const styles = {
     textAlign: "center",
   },
 };
-
-export default FormProducto;
