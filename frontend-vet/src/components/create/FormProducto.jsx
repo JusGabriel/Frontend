@@ -9,6 +9,7 @@ export const FormProducto = () => {
   const [loading, setLoading] = useState(false);
   const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Productos - formulario
   const [form, setForm] = useState({
@@ -20,6 +21,7 @@ export const FormProducto = () => {
   });
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
+  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState(""); // guarda _id del emprendimiento seleccionado
 
   // Emprendimientos - formulario
   const [formEmprendimiento, setFormEmprendimiento] = useState({
@@ -43,8 +45,8 @@ export const FormProducto = () => {
       const res = await axios.get(
         `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
-      setProductos(res.data);
-    } catch {
+      setProductos(res.data || []);
+    } catch (err) {
       setError("Error al cargar productos");
     } finally {
       setLoading(false);
@@ -62,17 +64,26 @@ export const FormProducto = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setEmprendimientos(res.data);
-    } catch {
+      const lista = res.data || [];
+      setEmprendimientos(lista);
+
+      // Si sólo hay uno y no hay selección, seleccionar automáticamente
+      if (lista.length === 1) setSelectedEmprendimiento(lista[0]._id);
+
+      // Si estamos en modo edición producto, posiblemente queremos seleccionar el emprendimiento que tenga el producto.
+      // (lo manejamos en editarProducto)
+    } catch (err) {
       setError("Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
     }
   };
 
+  // cargar al inicio y cuando cambie el id del emprendedor
   useEffect(() => {
     cargarProductos();
     cargarEmprendimientos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId]);
 
   // --- Manejo inputs productos ---
@@ -111,6 +122,7 @@ export const FormProducto = () => {
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
+    // Si hay emprendimientos y sólo uno, mantenerlo seleccionado; no tocar selectedEmp
   };
 
   const resetFormEmprendimiento = () => {
@@ -134,23 +146,50 @@ export const FormProducto = () => {
       setError("No autenticado");
       return;
     }
+
+    // Validaciones frontend
+    if (!form.nombre || form.nombre.trim().length < 3) {
+      setError("El nombre es obligatorio y debe tener al menos 3 caracteres");
+      return;
+    }
+    if (form.precio === "" || isNaN(Number(form.precio)) || Number(form.precio) < 0) {
+      setError("El precio es obligatorio y debe ser un número >= 0");
+      return;
+    }
+    // Emprendimiento obligatorio: si el usuario no seleccionó ninguno, intentar seleccionar el primero
+    let emprendimientoId = selectedEmprendimiento;
+    if (!emprendimientoId) {
+      if (emprendimientos.length > 0) emprendimientoId = emprendimientos[0]._id;
+      else {
+        setError("Necesitas crear o seleccionar un emprendimiento antes de crear un producto");
+        return;
+      }
+    }
+
+    // Valores por defecto (autocompletar campos opcionales)
+    const payload = {
+      nombre: form.nombre.trim(),
+      descripcion: form.descripcion ? form.descripcion.trim() : "",
+      precio: Number(form.precio),
+      imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
+      stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
+      categoria: null,
+      emprendimiento: emprendimientoId,
+    };
+
+    setSubmitting(true);
+    setError(null);
     try {
-      await axios.post(
-        "https://backend-production-bd1d.up.railway.app/api/productos",
-        {
-          ...form,
-          categoria: null,
-          precio: Number(form.precio),
-          stock: Number(form.stock),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      cargarProductos();
+      await axios.post("https://backend-production-bd1d.up.railway.app/api/productos", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await cargarProductos();
       resetFormProducto();
+      alert("Producto creado con éxito");
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al crear producto");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -161,10 +200,19 @@ export const FormProducto = () => {
     setForm({
       nombre: producto.nombre || "",
       descripcion: producto.descripcion || "",
-      precio: producto.precio || "",
+      precio: producto.precio !== undefined ? producto.precio : "",
       imagen: producto.imagen || "",
-      stock: producto.stock || "",
+      stock: producto.stock !== undefined ? producto.stock : "",
     });
+
+    // Si producto.emprendimiento viene como objeto o id -> tratar de setear selección
+    const emp = producto.emprendimiento;
+    if (emp) {
+      const empId = typeof emp === "object" ? emp._id : emp;
+      setSelectedEmprendimiento(empId);
+    } else if (emprendimientos.length === 1) {
+      setSelectedEmprendimiento(emprendimientos[0]._1d);
+    }
     setError(null);
   };
 
@@ -174,23 +222,44 @@ export const FormProducto = () => {
       setError("No autenticado o producto inválido");
       return;
     }
+
+    // Validaciones si vienen
+    if (form.nombre && form.nombre.trim().length < 3) {
+      setError("El nombre debe tener al menos 3 caracteres");
+      return;
+    }
+    if (form.precio !== "" && (isNaN(Number(form.precio)) || Number(form.precio) < 0)) {
+      setError("El precio debe ser un número >= 0");
+      return;
+    }
+
+    const camposActualizar = {
+      // si están vacíos, dejar que backend mantenga su valor; sólo enviar los presentados
+    };
+    if (form.nombre !== undefined) camposActualizar.nombre = form.nombre.trim();
+    if (form.descripcion !== undefined) camposActualizar.descripcion = form.descripcion.trim();
+    if (form.precio !== undefined && form.precio !== "") camposActualizar.precio = Number(form.precio);
+    if (form.imagen !== undefined) camposActualizar.imagen = form.imagen.trim() === "" ? null : form.imagen.trim();
+    if (form.stock !== undefined && form.stock !== "") camposActualizar.stock = Number(form.stock);
+    if (selectedEmprendimiento) camposActualizar.emprendimiento = selectedEmprendimiento;
+    // categoria dejamos null si no hay (puedes adaptarlo)
+    camposActualizar.categoria = null;
+
+    setSubmitting(true);
+    setError(null);
     try {
       await axios.put(
         `https://backend-production-bd1d.up.railway.app/api/productos/${productoEditId}`,
-        {
-          ...form,
-          categoria: null,
-          precio: Number(form.precio),
-          stock: Number(form.stock),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        camposActualizar,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      cargarProductos();
+      await cargarProductos();
       resetFormProducto();
+      alert("Producto actualizado con éxito");
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al actualizar producto");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -203,12 +272,9 @@ export const FormProducto = () => {
     if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
 
     try {
-      await axios.delete(
-        `https://backend-production-bd1d.up.railway.app/api/productos/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.delete(`https://backend-production-bd1d.up.railway.app/api/productos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       cargarProductos();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al eliminar producto");
@@ -221,6 +287,12 @@ export const FormProducto = () => {
       setError("No autenticado");
       return;
     }
+    // Validación mínima
+    if (!formEmprendimiento.nombreComercial || formEmprendimiento.nombreComercial.trim().length < 3) {
+      setError("El nombre comercial es obligatorio y debe tener al menos 3 caracteres");
+      return;
+    }
+
     try {
       await axios.post(
         "https://backend-production-bd1d.up.railway.app/api/emprendimientos",
@@ -228,17 +300,30 @@ export const FormProducto = () => {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+            lat:
+              formEmprendimiento.ubicacion.lat === ""
+                ? null
+                : parseFloat(formEmprendimiento.ubicacion.lat),
+            lng:
+              formEmprendimiento.ubicacion.lng === ""
+                ? null
+                : parseFloat(formEmprendimiento.ubicacion.lng),
           },
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      cargarEmprendimientos();
+      await cargarEmprendimientos();
       alert("Emprendimiento creado con éxito");
       resetFormEmprendimiento();
+      // seleccionar el último añadido (asumimos que el backend devuelve lista actualizada en cargarEmprendimientos)
+      setTimeout(() => {
+        if (emprendimientos.length > 0) {
+          const last = emprendimientos[emprendimientos.length - 1];
+          if (last) setSelectedEmprendimiento(last._id);
+        }
+      }, 200);
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al crear emprendimiento");
     }
@@ -284,15 +369,21 @@ export const FormProducto = () => {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+            lat:
+              formEmprendimiento.ubicacion.lat === ""
+                ? null
+                : parseFloat(formEmprendimiento.ubicacion.lat),
+            lng:
+              formEmprendimiento.ubicacion.lng === ""
+                ? null
+                : parseFloat(formEmprendimiento.ubicacion.lng),
           },
         },
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      cargarEmprendimientos();
+      await cargarEmprendimientos();
       alert("Emprendimiento actualizado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
@@ -309,13 +400,10 @@ export const FormProducto = () => {
     if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
 
     try {
-      await axios.delete(
-        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      cargarEmprendimientos();
+      await axios.delete(`https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await cargarEmprendimientos();
     } catch (err) {
       setError(err.response?.data?.mensaje || "Error al eliminar emprendimiento");
     }
@@ -423,7 +511,7 @@ export const FormProducto = () => {
             style={styles.input}
           />
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
+            <button type="submit" style={styles.buttonCreate} disabled={submitting}>
               {modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}
             </button>
             {modoEdicionEmp && (
@@ -441,7 +529,7 @@ export const FormProducto = () => {
         {loadingEmprendimientos ? (
           <p>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
-          <p>No hay emprendimientos aún.</p>
+          <p>No hay emprendimientos aún. Crea uno arriba para poder asociar productos.</p>
         ) : (
           emprendimientos.map((emp) => (
             <div key={emp._id} style={styles.productoCard}>
@@ -475,24 +563,25 @@ export const FormProducto = () => {
           <input
             type="text"
             name="nombre"
-            placeholder="Nombre"
+            placeholder="Nombre (obligatorio)"
             value={form.nombre}
             onChange={handleChange}
             required
             style={styles.input}
           />
-          <input
-            type="text"
+
+          <textarea
             name="descripcion"
-            placeholder="Descripción"
+            placeholder="Descripción (opcional)"
             value={form.descripcion}
             onChange={handleChange}
-            style={styles.input}
+            style={{ ...styles.input, minHeight: 80 }}
           />
+
           <input
             type="number"
             name="precio"
-            placeholder="Precio"
+            placeholder="Precio (obligatorio)"
             step="0.01"
             value={form.precio}
             onChange={handleChange}
@@ -500,26 +589,46 @@ export const FormProducto = () => {
             min="0"
             style={styles.input}
           />
+
           <input
             type="text"
             name="imagen"
-            placeholder="URL Imagen"
+            placeholder="URL Imagen (opcional)"
             value={form.imagen}
             onChange={handleChange}
             style={styles.input}
           />
+
           <input
             type="number"
             name="stock"
-            placeholder="Stock"
+            placeholder="Stock (opcional, por defecto 0)"
             value={form.stock}
             onChange={handleChange}
             min="0"
             style={styles.input}
           />
+
+          {/* Selector de Emprendimiento (obligatorio) */}
+          <label style={{ fontSize: 12, color: "#666" }}>Emprendimiento (obligatorio)</label>
+          <select
+            value={selectedEmprendimiento}
+            onChange={(e) => setSelectedEmprendimiento(e.target.value)}
+            style={{ ...styles.input, appearance: "menu" }}
+            required
+            disabled={loadingEmprendimientos}
+          >
+            <option value="">{emprendimientos.length === 0 ? "Crea un emprendimiento primero" : "Selecciona un emprendimiento"}</option>
+            {emprendimientos.map((emp) => (
+              <option key={emp._id} value={emp._id}>
+                {emp.nombreComercial}
+              </option>
+            ))}
+          </select>
+
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
-              {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
+            <button type="submit" style={styles.buttonCreate} disabled={submitting}>
+              {submitting ? (modoEdicionProducto ? "Actualizando..." : "Creando...") : (modoEdicionProducto ? "Actualizar Producto" : "Crear Producto")}
             </button>
             {modoEdicionProducto && (
               <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>
@@ -543,9 +652,9 @@ export const FormProducto = () => {
                 <strong>{prod.nombre}</strong>
                 <p>{prod.descripcion}</p>
                 <p>
-                  Precio: <b>${prod.precio.toFixed(2)}</b>
+                  Precio: <b>${Number(prod.precio || 0).toFixed(2)}</b>
                 </p>
-                <p>Stock: {prod.stock}</p>
+                <p>Stock: {prod.stock ?? 0}</p>
                 {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
               </div>
               <div style={styles.buttonsCard}>
@@ -564,6 +673,7 @@ export const FormProducto = () => {
   );
 };
 
+// Estilos (los mantuve similares a los tuyos)
 const styles = {
   formContainer: {
     background: "#fff",
@@ -614,9 +724,6 @@ const styles = {
     fontSize: "1rem",
     cursor: "pointer",
     transition: "background-color 0.3s",
-  },
-  buttonCreateHover: {
-    backgroundColor: "#8b3b3b",
   },
   buttonRow: {
     display: "flex",
@@ -683,3 +790,5 @@ const styles = {
     textAlign: "center",
   },
 };
+
+export default FormProducto;
