@@ -8,8 +8,6 @@ export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
   const [productos, setProductos] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
-  // no intentamos cargar categorias desde el backend (no existe el endpoint)
-  const [categorias] = useState([]); // dejamos la opción pero sin fetch
   const [loading, setLoading] = useState(false);
   const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
   const [error, setError] = useState(null);
@@ -26,8 +24,6 @@ export const FormProducto = () => {
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
   const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
-  // mantenemos "" como valor por defecto; al crear/actualizar enviamos null si ""
-  const [selectedCategoria, setSelectedCategoria] = useState("");
 
   // Form emprendimiento
   const [formEmprendimiento, setFormEmprendimiento] = useState({
@@ -79,7 +75,6 @@ export const FormProducto = () => {
   useEffect(() => {
     cargarProductos();
     cargarEmprendimientos();
-    // No llamamos a cargar categorias (ya que no existe el endpoint)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId, token]);
 
@@ -118,7 +113,6 @@ export const FormProducto = () => {
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
-    setSelectedCategoria("");
     if (emprendimientos.length === 1 && !selectedEmprendimiento) {
       setSelectedEmprendimiento(emprendimientos[0]._id);
     }
@@ -166,14 +160,14 @@ export const FormProducto = () => {
       }
     }
 
-    // Preparar payload: enviamos null si no hay categoría seleccionada
+    // Preparar payload: categoria siempre null (no existen categorías en backend)
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion ? form.descripcion.trim() : "",
       precio: Number(form.precio),
       imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
       stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
-      categoria: selectedCategoria === "" ? null : selectedCategoria, // <-- aquí enviamos null si no hay categoría
+      categoria: null, // <-- enviado explícitamente como null
       emprendimiento: emprendimientoId,
     };
 
@@ -205,18 +199,11 @@ export const FormProducto = () => {
       stock: producto.stock !== undefined ? producto.stock : "",
     });
 
-    // establecer emprendimiento y categoria si vienen
+    // establecer emprendimiento si viene
     const emp = producto.emprendimiento;
     if (emp) {
       const empId = typeof emp === "object" ? emp._id : emp;
       setSelectedEmprendimiento(empId);
-    }
-    const cat = producto.categoria;
-    if (cat) {
-      const catId = typeof cat === "object" ? cat._id : cat;
-      setSelectedCategoria(catId);
-    } else {
-      setSelectedCategoria("");
     }
     setError(null);
   };
@@ -244,8 +231,10 @@ export const FormProducto = () => {
     if (form.precio !== undefined && form.precio !== "") camposActualizar.precio = Number(form.precio);
     if (form.imagen !== undefined) camposActualizar.imagen = form.imagen.trim() === "" ? null : form.imagen.trim();
     if (form.stock !== undefined && form.stock !== "") camposActualizar.stock = Number(form.stock);
-    // categoría opcional: si está vacía, enviamos null para que el backend reciba "categoria": null
-    camposActualizar.categoria = selectedCategoria === "" ? null : selectedCategoria;
+
+    // Siempre enviar categoria: null (según tu backend / petición)
+    camposActualizar.categoria = null;
+
     if (selectedEmprendimiento) camposActualizar.emprendimiento = selectedEmprendimiento;
 
     setSubmitting(true);
@@ -447,22 +436,14 @@ export const FormProducto = () => {
           <input type="text" name="imagen" placeholder="URL Imagen (opcional)" value={form.imagen} onChange={handleChange} style={styles.input} />
           <input type="number" name="stock" placeholder="Stock (opcional, por defecto 0)" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
 
-          {/* Nota: no cargamos categorias desde backend (no existe endpoint).
-              El select permite (Sin categoría) y si no seleccionas nada enviamos null. */}
-          <label style={{ fontSize: 12, color: "#666" }}>Categoría (opcional)</label>
-          <select value={selectedCategoria} onChange={(e) => setSelectedCategoria(e.target.value)} style={{ ...styles.input, appearance: "menu" }}>
-            <option value="">(Sin categoría)</option>
-            {categorias.map((c) => (
-              <option key={c._id} value={c._id}>{c.nombre || c._id}</option>
-            ))}
-          </select>
+          {/* Nota: no mostramos ni cargamos categorías. El backend siempre recibirá "categoria": null */}
 
           {/* Selector de Emprendimiento (OBLIGATORIO) */}
           <label style={{ fontSize: 12, color: "#666", marginTop: 6 }}>Emprendimiento (obligatorio)</label>
           <select value={selectedEmprendimiento} onChange={(e) => setSelectedEmprendimiento(e.target.value)} style={{ ...styles.input, appearance: "menu" }} required disabled={loadingEmprendimientos}>
             <option value="">{emprendimientos.length === 0 ? "Crea un emprendimiento primero" : "Selecciona un emprendimiento"}</option>
             {emprendimientos.map((emp) => (
-              <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
+              <option key={emp._1} value={emp._id}>{emp.nombreComercial}</option>
             ))}
           </select>
 
