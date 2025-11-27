@@ -18,6 +18,7 @@ export const FormProducto = () => {
     imagen: "",
     stock: "",
   });
+  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState(""); // <-- id seleccionado
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
@@ -44,7 +45,8 @@ export const FormProducto = () => {
         `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
       setProductos(res.data);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Error al cargar productos");
     } finally {
       setLoading(false);
@@ -62,8 +64,24 @@ export const FormProducto = () => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setEmprendimientos(res.data);
-    } catch {
+
+      // Filtrar solo los emprendimientos que pertenecen al usuario autenticado (el backend puede devolver 'emprendedor' poblado o solo el id)
+      const data = res.data || [];
+      const soloMios = data.filter(emp => {
+        if (!emp) return false;
+        // emp.emprendedor puede venir como id o objeto
+        const ownerId = emp.emprendedor && emp.emprendedor._id ? emp.emprendedor._id : emp.emprendedor;
+        return ownerId && ownerId.toString() === emprendedorId?.toString();
+      });
+
+      setEmprendimientos(soloMios);
+
+      // si no hay selección y existe al menos un emprendimiento, seleccionar el primero por defecto
+      if (soloMios.length > 0 && !selectedEmprendimiento) {
+        setSelectedEmprendimiento(soloMios[0]._id);
+      }
+    } catch (err) {
+      console.error(err);
       setError("Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
@@ -73,12 +91,18 @@ export const FormProducto = () => {
   useEffect(() => {
     cargarProductos();
     cargarEmprendimientos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId]);
 
   // --- Manejo inputs productos ---
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // --- Manejo select emprendimiento para producto ---
+  const handleChangeEmprSeleccion = (e) => {
+    setSelectedEmprendimiento(e.target.value);
   };
 
   // --- Manejo inputs emprendimientos ---
@@ -108,6 +132,8 @@ export const FormProducto = () => {
       imagen: "",
       stock: "",
     });
+    // mantener selección de emprendimiento actual (opcional) o resetear:
+    // setSelectedEmprendimiento("");
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
@@ -134,6 +160,10 @@ export const FormProducto = () => {
       setError("No autenticado");
       return;
     }
+    if (!selectedEmprendimiento) {
+      setError("Debes seleccionar el emprendimiento donde guardar el producto");
+      return;
+    }
     try {
       await axios.post(
         "https://backend-production-bd1d.up.railway.app/api/productos",
@@ -142,6 +172,7 @@ export const FormProducto = () => {
           categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
+          emprendimiento: selectedEmprendimiento
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -150,6 +181,7 @@ export const FormProducto = () => {
       cargarProductos();
       resetFormProducto();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al crear producto");
     }
   };
@@ -165,6 +197,13 @@ export const FormProducto = () => {
       imagen: producto.imagen || "",
       stock: producto.stock || "",
     });
+
+    // si el producto trae su emprendimiento, seleccionarlo en el select
+    if (producto.emprendimiento) {
+      const empId = typeof producto.emprendimiento === 'object' ? producto.emprendimiento._id : producto.emprendimiento;
+      setSelectedEmprendimiento(empId);
+    }
+
     setError(null);
   };
 
@@ -172,6 +211,10 @@ export const FormProducto = () => {
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
+      return;
+    }
+    if (!selectedEmprendimiento) {
+      setError("Debes seleccionar el emprendimiento donde guardar el producto");
       return;
     }
     try {
@@ -182,6 +225,8 @@ export const FormProducto = () => {
           categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
+          // NOTA: el backend actual no permite cambiar emprendimiento en update a menos que lo implementes;
+          // si permites cambiarlo, envía `emprendimiento: selectedEmprendimiento`
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -190,6 +235,7 @@ export const FormProducto = () => {
       cargarProductos();
       resetFormProducto();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al actualizar producto");
     }
   };
@@ -211,6 +257,7 @@ export const FormProducto = () => {
       );
       cargarProductos();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al eliminar producto");
     }
   };
@@ -240,6 +287,7 @@ export const FormProducto = () => {
       alert("Emprendimiento creado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al crear emprendimiento");
     }
   };
@@ -296,6 +344,7 @@ export const FormProducto = () => {
       alert("Emprendimiento actualizado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al actualizar emprendimiento");
     }
   };
@@ -317,6 +366,7 @@ export const FormProducto = () => {
       );
       cargarEmprendimientos();
     } catch (err) {
+      console.error(err);
       setError(err.response?.data?.mensaje || "Error al eliminar emprendimiento");
     }
   };
@@ -437,11 +487,11 @@ export const FormProducto = () => {
 
       {/* LISTA EMPRENDIMIENTOS */}
       <div style={styles.listaContainer}>
-        <h3 style={{ width: "100%", marginBottom: 12 }}>Todos los Emprendimientos</h3>
+        <h3 style={{ width: "100%", marginBottom: 12 }}>Tus Emprendimientos</h3>
         {loadingEmprendimientos ? (
           <p>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
-          <p>No hay emprendimientos aún.</p>
+          <p>No tienes emprendimientos aún.</p>
         ) : (
           emprendimientos.map((emp) => (
             <div key={emp._id} style={styles.productoCard}>
@@ -517,6 +567,21 @@ export const FormProducto = () => {
             min="0"
             style={styles.input}
           />
+
+          {/* SELECT DE EMPRENDIMIENTOS (propios del usuario) */}
+          <label style={{ fontSize: 14, marginTop: 6 }}>Selecciona el emprendimiento</label>
+          <select
+            value={selectedEmprendimiento}
+            onChange={handleChangeEmprSeleccion}
+            style={{ ...styles.input, appearance: 'menulist' }}
+            required
+          >
+            <option value="">-- Selecciona el emprendimiento --</option>
+            {emprendimientos.map(emp => (
+              <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
+            ))}
+          </select>
+
           <div style={styles.buttonRow}>
             <button type="submit" style={styles.buttonCreate}>
               {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
@@ -543,9 +608,10 @@ export const FormProducto = () => {
                 <strong>{prod.nombre}</strong>
                 <p>{prod.descripcion}</p>
                 <p>
-                  Precio: <b>${prod.precio.toFixed(2)}</b>
+                  Precio: <b>${Number(prod.precio).toFixed(2)}</b>
                 </p>
                 <p>Stock: {prod.stock}</p>
+                <p>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
                 {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
               </div>
               <div style={styles.buttonsCard}>
@@ -564,6 +630,7 @@ export const FormProducto = () => {
   );
 };
 
+// styles... (puedes reutilizar los tuyos)
 const styles = {
   formContainer: {
     background: "#fff",
@@ -614,9 +681,6 @@ const styles = {
     fontSize: "1rem",
     cursor: "pointer",
     transition: "background-color 0.3s",
-  },
-  buttonCreateHover: {
-    backgroundColor: "#8b3b3b",
   },
   buttonRow: {
     display: "flex",
