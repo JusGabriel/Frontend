@@ -24,7 +24,7 @@ export const FormProducto = () => {
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
-  // Emprendimientos - formulario (solo para crear/mostrar)
+  // Emprendimientos - solo para mostrar la lista (no se usa para enviar producto)
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
@@ -36,9 +36,6 @@ export const FormProducto = () => {
   });
   const [modoEdicionEmp, setModoEdicionEmp] = useState(false);
   const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
-
-  // Emprendimiento seleccionado para el producto (obligatorio)
-  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
 
   // --- Cargar Productos ---
   const cargarProductos = async () => {
@@ -55,7 +52,7 @@ export const FormProducto = () => {
     }
   };
 
-  // --- Cargar Emprendimientos ---
+  // --- Cargar Emprendimientos (solo para mostrar) ---
   const cargarEmprendimientos = async () => {
     setLoadingEmprendimientos(true);
     setError(null);
@@ -63,10 +60,7 @@ export const FormProducto = () => {
       const res = await axios.get(`${API_BASE}/api/emprendimientos`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      const lista = res.data || [];
-      setEmprendimientos(lista);
-      // si sólo hay uno lo seleccionamos por defecto
-      if (lista.length === 1) setSelectedEmprendimiento(lista[0]._id);
+      setEmprendimientos(res.data || []);
     } catch (err) {
       setError("Error al cargar emprendimientos");
     } finally {
@@ -116,8 +110,6 @@ export const FormProducto = () => {
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
-    // si solo existe 1 emprendimiento mantenerlo seleccionado
-    if (emprendimientos.length === 1) setSelectedEmprendimiento(emprendimientos[0]._id);
   };
 
   const resetFormEmprendimiento = () => {
@@ -135,14 +127,14 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // --- Crear producto ---
+  // --- Crear producto (envía categoria: null como en primer código) ---
   const crearProducto = async () => {
     if (!token) {
       setError("No autenticado");
       return;
     }
 
-    // validaciones básicas
+    // validaciones básicas en frontend
     if (!form.nombre || form.nombre.trim().length < 3) {
       setError("El nombre es obligatorio y debe tener al menos 3 caracteres");
       return;
@@ -152,24 +144,14 @@ export const FormProducto = () => {
       return;
     }
 
-    // emprendimiento obligatorio: usar seleccionado o el primero disponible
-    let emprendimientoId = selectedEmprendimiento;
-    if (!emprendimientoId) {
-      if (emprendimientos.length > 0) emprendimientoId = emprendimientos[0]._id;
-      else {
-        setError("Necesitas crear o seleccionar un emprendimiento antes de crear un producto");
-        return;
-      }
-    }
-
+    // Payload: **no incluimos emprendimiento ni categoría (categoria: null)**
     const payload = {
       nombre: form.nombre.trim(),
       descripcion: form.descripcion ? form.descripcion.trim() : "",
       precio: Number(form.precio),
       imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
       stock: form.stock === "" || isNaN(Number(form.stock)) ? 0 : Number(form.stock),
-      categoria: null, // <-- siempre enviamos null para categoría
-      emprendimiento: emprendimientoId,
+      categoria: null, // <-- siempre null (comportamiento del primer código)
     };
 
     setSubmitting(true);
@@ -182,7 +164,6 @@ export const FormProducto = () => {
       resetFormProducto();
       alert("Producto creado con éxito");
     } catch (err) {
-      // muestra mensaje del backend si existe
       setError(err.response?.data?.mensaje || "Error al crear producto");
     } finally {
       setSubmitting(false);
@@ -200,16 +181,10 @@ export const FormProducto = () => {
       imagen: producto.imagen || "",
       stock: producto.stock !== undefined ? producto.stock : "",
     });
-    // si el producto tiene emprendimiento lo seleccionamos
-    const emp = producto.emprendimiento;
-    if (emp) {
-      const empId = typeof emp === "object" ? emp._id : emp;
-      setSelectedEmprendimiento(empId);
-    }
     setError(null);
   };
 
-  // --- Actualizar producto ---
+  // --- Actualizar producto (envía categoria: null como en primer código) ---
   const actualizarProducto = async () => {
     if (!token || !productoEditId) {
       setError("No autenticado o producto inválido");
@@ -226,15 +201,13 @@ export const FormProducto = () => {
     }
 
     const campos = {
-      ...form,
+      nombre: form.nombre ? form.nombre.trim() : undefined,
+      descripcion: form.descripcion ? form.descripcion.trim() : undefined,
       precio: form.precio === "" ? 0 : Number(form.precio),
       stock: form.stock === "" ? 0 : Number(form.stock),
       imagen: form.imagen && form.imagen.trim() !== "" ? form.imagen.trim() : null,
-      categoria: null, // <-- siempre enviamos null para categoría
+      categoria: null, // <-- siempre null
     };
-
-    // si hay emprendimiento seleccionado lo actualizamos
-    if (selectedEmprendimiento) campos.emprendimiento = selectedEmprendimiento;
 
     setSubmitting(true);
     setError(null);
@@ -270,7 +243,7 @@ export const FormProducto = () => {
     }
   };
 
-  // --- Crear emprendimiento ---
+  // --- Crear / Actualizar emprendimiento (sin cambios, solo para lista) ---
   const crearEmprendimiento = async () => {
     if (!token) {
       setError("No autenticado");
@@ -409,7 +382,7 @@ export const FormProducto = () => {
       <div style={styles.listaContainer}>
         <h3 style={{ width: "100%", marginBottom: 12 }}>Todos los Emprendimientos</h3>
         {loadingEmprendimientos ? <p>Cargando emprendimientos...</p> :
-          emprendimientos.length === 0 ? <p>No hay emprendimientos aún. Crea uno arriba para poder asociar productos.</p> :
+          emprendimientos.length === 0 ? <p>No hay emprendimientos aún. Crea uno arriba para poder asociar productos (si el backend lo requiere).</p> :
             emprendimientos.map((emp) => (
               <div key={emp._id} style={styles.productoCard}>
                 <div>
@@ -439,16 +412,8 @@ export const FormProducto = () => {
           <input type="text" name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} style={styles.input} />
           <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
 
-          {/* Nota: no mostramos ni cargamos categorías. El backend siempre recibirá "categoria": null */}
-
-          {/* Selector de Emprendimiento (OBLIGATORIO) */}
-          <label style={{ fontSize: 12, color: "#666", marginTop: 6 }}>Emprendimiento (obligatorio)</label>
-          <select value={selectedEmprendimiento} onChange={(e) => setSelectedEmprendimiento(e.target.value)} style={{ ...styles.input, appearance: "menu" }} required disabled={loadingEmprendimientos}>
-            <option value="">{emprendimientos.length === 0 ? "Crea un emprendimiento primero" : "Selecciona un emprendimiento"}</option>
-            {emprendimientos.map((emp) => (
-              <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
-            ))}
-          </select>
+          {/* Nota: no mostramos ni cargamos categorías ni emprendimiento en el formulario de producto.
+              El frontend envía siempre categoria: null (igual que el primer código que compartiste). */}
 
           <div style={styles.buttonRow}>
             <button type="submit" style={styles.buttonCreate} disabled={submitting}>
