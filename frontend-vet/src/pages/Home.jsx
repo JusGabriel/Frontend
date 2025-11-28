@@ -96,6 +96,55 @@ export const Home = () => {
     <>
       <Header />
 
+      {/* ================== SECCIÓN TIPOS DE USUARIO ================== */}
+      <section className="bg-white py-12 px-6 border-b border-[#E0C7B6]">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-3xl font-extrabold text-[#AA4A44] mb-4">
+            ¿Cómo deseas usar QuitoEmprende?
+          </h2>
+          <p className="text-gray-700 max-w-2xl mx-auto mb-10">
+            Elige la opción que se adapta a tus necesidades. Tanto clientes como emprendedores
+            pueden beneficiarse de nuestra plataforma.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            
+            {/* CLIENTE */}
+            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow hover:shadow-lg transition-all">
+              <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
+                Iniciar sesión como Cliente
+              </h3>
+              <p className="text-gray-700 mb-4">
+                Contáctate con emprendedores, explora productos reales y recibe atención directa.
+              </p>
+              <Link
+                to="/login?rol=cliente"
+                className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
+              >
+                Iniciar como Cliente
+              </Link>
+            </div>
+
+            {/* EMPRENDEDOR */}
+            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow hover:shadow-lg transition-all">
+              <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
+                Iniciar sesión como Emprendedor
+              </h3>
+              <p className="text-gray-700 mb-4">
+                Crea tu propio sitio web, publica productos y promociona tu emprendimiento.
+              </p>
+              <Link
+                to="/login?rol=emprendedor"
+                className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
+              >
+                Iniciar como Emprendedor
+              </Link>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* HERO */}
       <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
