@@ -8,18 +8,23 @@ import heroImage from '../assets/QuitoHome.jpg';
 // ---------------- HEADER ----------------
 const Header = () => {
   return (
-    <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
+    <header className="sticky top-0 z-50 bg-[#0F1724] border-b border-[#F7E5D2] shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <h2 className="text-2xl font-extrabold text-[#AA4A44]">
+        <h2 className="text-2xl font-extrabold text-[#FF6B5F] tracking-tight">
           QuitoEmprende
         </h2>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4">
           <Link
             to="/login"
-            className="bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
+            className="inline-flex items-center gap-2 bg-[#FF6B5F] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:translate-y-[-1px] transition-transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B5F]/40"
+            aria-label="Iniciar sesión"
           >
-            Inicio de sesión
+            <!-- icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12H3m12 0l-4-4m4 4l-4 4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Iniciar sesión
           </Link>
         </nav>
       </div>
@@ -29,7 +34,7 @@ const Header = () => {
 
 // ---------------- FOOTER ----------------
 const Footer = () => (
-  <footer className="bg-[#F3E1CE] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#E0C7B6]">
+  <footer className="bg-[#FCF7F5] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#EDE0D8]">
     © 2025 QuitoEmprende. Todos los derechos reservados.
   </footer>
 );
@@ -95,65 +100,150 @@ export const Home = () => {
     <>
       <Header />
 
-      {/* ================== SECCIÓN TIPOS DE USUARIO ================== */}
-      <section className="bg-white py-12 px-6 border-b border-[#E0C7B6]">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-3xl font-extrabold text-[#AA4A44] mb-4">
-            ¿Cómo deseas usar QuitoEmprende?
-          </h2>
-          <p className="text-gray-700 max-w-2xl mx-auto mb-10">
-            Elige la opción que mejor se adapte a tus necesidades.
-          </p>
+      {/* ================== SECCIÓN TIPOS DE USUARIO (REDISEÑO) ================== */}
+      <section className="bg-gradient-to-b from-white/60 to-[#FFF6F4] py-12 px-6 border-b border-[#EDE0D8]">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-extrabold text-[#FF6B5F] tracking-tight">
+              ¿Cómo deseas usar <span className="text-[#1F2937]">QuitoEmprende</span>?
+            </h2>
+            <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
+              Elige tu perfil y accede a herramientas pensadas para impulsar ventas y visibilidad.
+            </p>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            {/* CLIENTE */}
-            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow-md hover:shadow-lg transition-all">
-              <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
-                Iniciar sesión como Cliente
-              </h3>
-              <p className="text-gray-700 mb-4">
-                Explora productos reales y comunícate directamente con emprendedores.
-              </p>
-              <Link
-                to="/login?rol=cliente"
-                className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
-              >
-                Iniciar como Cliente
-              </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Tarjeta Cliente */}
+            <div
+              className="relative overflow-hidden rounded-2xl p-6 bg-white shadow-lg border border-[#F0E6E3] transform hover:-translate-y-1 transition-transform"
+              role="article"
+              aria-label="Iniciar sesión como Cliente"
+            >
+              {/* Decorative gradient circle */}
+              <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 rounded-full bg-gradient-to-tr from-[#FFF1EE] to-[#FFE0D9] opacity-80 blur-2xl" />
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-[#FFB8A6] to-[#FF6B5F] flex items-center justify-center shadow-md">
+                    {/* Cliente icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M5.121 17.804A9 9 0 1118.88 6.196M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-[#1F2937]">Cliente</h3>
+                  <p className="mt-2 text-gray-600">
+                    Encuentra productos reales de emprendedores locales, chatea directamente y compra con confianza.
+                  </p>
+
+                  <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#34D399]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                      Productos verificados
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#34D399]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                      Chat directo con emprendedores
+                    </li>
+                  </ul>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link
+                      to="/login?rol=cliente"
+                      className="inline-flex items-center gap-2 bg-[#FF6B5F] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:scale-[1.01] transition-transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF6B5F]/30"
+                      aria-label="Iniciar como Cliente"
+                    >
+                      Iniciar como Cliente
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    </Link>
+
+                    <button
+                      onClick={() => window.scrollTo({ top: document.getElementById('productos-section')?.offsetTop || 0, behavior: 'smooth' })}
+                      className="inline-flex items-center gap-2 border border-[#FFD6CE] bg-white px-3 py-2 rounded-lg text-sm font-medium text-[#FF6B5F] hover:bg-[#FFF6F5]"
+                    >
+                      Ver productos
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* EMPRENDEDOR */}
-            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow-md hover:shadow-lg transition-all">
-              <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
-                Iniciar sesión como Emprendedor
-              </h3>
-              <p className="text-gray-700 mb-4">
-                Publica productos, crea tu sitio y promociona tu negocio.
-              </p>
-              <Link
-                to="/login?rol=emprendedor"
-                className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
-              >
-                Iniciar como Emprendedor
-              </Link>
+            {/* Tarjeta Emprendedor */}
+            <div
+              className="relative overflow-hidden rounded-2xl p-6 bg-white shadow-lg border border-[#F0E6E3] transform hover:-translate-y-1 transition-transform"
+              role="article"
+              aria-label="Iniciar sesión como Emprendedor"
+            >
+              <div className="pointer-events-none absolute -left-10 -bottom-10 w-44 h-44 rounded-full bg-gradient-to-tr from-[#FDEBD8] to-[#FFD0C2] opacity-80 blur-2xl" />
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-[#FFD1A9] to-[#FF8A66] flex items-center justify-center shadow-md">
+                    {/* Emprendedor icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8c1.657 0 3-1.567 3-3.5S13.657 1 12 1 9 2.567 9 4.5 10.343 8 12 8zM19.5 21a3.5 3.5 0 01-3.5-3.5V14a3.5 3.5 0 00-3.5-3.5H12a3.5 3.5 0 00-3.5 3.5v3.5A3.5 3.5 0 015 21" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-[#1F2937]">Emprendedor</h3>
+                  <p className="mt-2 text-gray-600">
+                    Crea tu sitio, publica productos y accede a herramientas de promoción y métricas.
+                  </p>
+
+                  <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#FFB548]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4" /></svg>
+                      Página personalizada
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#FFB548]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h3m10-12v10a2 2 0 01-2 2h-3" /></svg>
+                      Gestión de productos
+                    </li>
+                  </ul>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link
+                      to="/login?rol=emprendedor"
+                      className="inline-flex items-center gap-2 bg-[#FF8A66] text-white px-4 py-2 rounded-lg text-sm font-semibold shadow hover:scale-[1.01] transition-transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#FF8A66]/30"
+                      aria-label="Iniciar como Emprendedor"
+                    >
+                      Iniciar como Emprendedor
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                    </Link>
+
+                    <Link
+                      to="/registro-emprendedor"
+                      className="inline-flex items-center gap-2 border border-[#FFE7DB] bg-white px-3 py-2 rounded-lg text-sm font-medium text-[#FF8A66] hover:bg-[#FFF6F5]"
+                    >
+                      Crea tu página
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* micro nota */}
+          <div className="mt-6 text-xs text-gray-500 text-center">
+            ¿No sabes qué elegir? Elige "Cliente" para comprar o "Emprendedor" si quieres vender.
           </div>
         </div>
       </section>
 
       {/* HERO */}
-      <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
+      <main className="py-20 px-6 bg-[#FFF5F3] text-gray-900">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10">
           <div className="flex-1 text-center md:text-left">
-            <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
+            <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#FF6B5F] mb-4">
               Conecta, vende y crece
             </h1>
             <p className="text-xl md:text-2xl mb-6 text-gray-800">
               QuitoEmprende: Tu espacio digital
             </p>
             <p className="max-w-2xl text-gray-700 mx-auto md:mx-0">
-              Un lugar donde los emprendedores promocionan productos y reciben su
-              propia página personalizada.
+              Un lugar donde los emprendedores promocionan productos y reciben su propia página personalizada.
             </p>
           </div>
 
@@ -161,19 +251,19 @@ export const Home = () => {
             <img
               src={heroImage}
               alt="Hero"
-              className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
+              className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#FF6B5F]"
             />
           </div>
         </div>
       </main>
 
       {/* Línea */}
-      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#FF6B5F] via-transparent to-[#FF6B5F]" />
 
       {/* ---------------- PRODUCTOS ---------------- */}
-      <section className="py-10 px-6 bg-white text-gray-800">
+      <section id="productos-section" className="py-10 px-6 bg-white text-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
-          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
+          <h2 className="text-3xl font-bold text-[#FF6B5F] text-center mb-8">
             Productos Destacados
           </h2>
 
@@ -184,7 +274,7 @@ export const Home = () => {
               {productos.map((producto) => (
                 <div
                   key={producto._id}
-                  className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
+                  className="bg-white border border-[#F0E6E3] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
                   onClick={() => setProductoSeleccionado(producto)}
                 >
                   <img
@@ -193,19 +283,16 @@ export const Home = () => {
                     className="w-full h-48 object-cover rounded-lg mb-4"
                   />
 
-                  <h3 className="font-semibold text-lg text-[#AA4A44]">
+                  <h3 className="font-semibold text-lg text-[#1F2937]">
                     {producto.nombre}
                   </h3>
 
                   <p className="text-sm text-gray-600">{producto.descripcion}</p>
 
-                  <p className="text-[#28a745] font-bold mt-2">
-                    ${producto.precio}
-                  </p>
-
-                  <p className="text-sm font-semibold text-gray-700 mt-1">
-                    Stock: {producto.stock}
-                  </p>
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="text-[#10B981] font-bold">${producto.precio}</p>
+                    <p className="text-sm font-semibold text-gray-700">Stock: {producto.stock}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -214,7 +301,7 @@ export const Home = () => {
       </section>
 
       {/* Línea */}
-      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
+      <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#FF6B5F] via-transparent to-[#FF6B5F]" />
 
       {/* ---------------- EMPRENDIMIENTOS EN VERTICAL ---------------- */}
       <section
@@ -226,7 +313,7 @@ export const Home = () => {
         }}
       >
         <div className="max-w-7xl mx-auto flex flex-col items-center">
-          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
+          <h2 className="text-3xl font-bold text-[#FF6B5F] text-center mb-8">
             Explora Emprendimientos
           </h2>
 
@@ -234,7 +321,7 @@ export const Home = () => {
             {emprendimientos.map((emp) => (
               <div
                 key={emp._id}
-                className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                className="bg-white rounded-2xl shadow-md border border-[#F0E6E3] p-5 hover:shadow-lg transition-all cursor-pointer"
                 onClick={() => navigate(buildPublicUrl(emp))}
               >
                 <img
@@ -243,7 +330,7 @@ export const Home = () => {
                   className="w-full h-40 object-cover rounded-lg mb-3"
                 />
 
-                <h3 className="text-lg font-semibold text-[#AA4A44]">
+                <h3 className="text-lg font-semibold text-[#1F2937]">
                   {emp.nombreComercial}
                 </h3>
 
@@ -264,7 +351,7 @@ export const Home = () => {
                     e.stopPropagation();
                     setEmprendimientoSeleccionado(emp);
                   }}
-                  className="mt-3 bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                  className="mt-3 bg-[#FF6B5F] text-white w-full py-2 rounded-md text-sm hover:bg-[#ff4f3f] transition-colors"
                 >
                   Ver detalles
                 </button>
@@ -287,6 +374,7 @@ export const Home = () => {
             <button
               onClick={() => setProductoSeleccionado(null)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              aria-label="Cerrar modal producto"
             >
               ✕
             </button>
@@ -297,7 +385,7 @@ export const Home = () => {
               className="w-full h-48 object-cover rounded-md mb-4"
             />
 
-            <h2 className="text-xl font-bold text-[#AA4A44]">
+            <h2 className="text-xl font-bold text-[#1F2937]">
               {productoSeleccionado.nombre}
             </h2>
 
@@ -305,7 +393,7 @@ export const Home = () => {
               {productoSeleccionado.descripcion}
             </p>
 
-            <p className="font-bold text-[#28a745] mt-3 text-lg">
+            <p className="font-bold text-[#10B981] mt-3 text-lg">
               ${productoSeleccionado.precio}
             </p>
 
@@ -329,6 +417,7 @@ export const Home = () => {
             <button
               onClick={() => setEmprendimientoSeleccionado(null)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              aria-label="Cerrar modal emprendimiento"
             >
               ✕
             </button>
@@ -339,7 +428,7 @@ export const Home = () => {
               className="w-full h-48 object-cover rounded-md mb-4"
             />
 
-            <h2 className="text-xl font-bold text-[#AA4A44]">
+            <h2 className="text-xl font-bold text-[#1F2937]">
               {emprendimientoSeleccionado.nombreComercial}
             </h2>
 
@@ -395,7 +484,7 @@ export const Home = () => {
                   setEmprendimientoSeleccionado(null);
                   navigate(buildPublicUrl(emprendimientoSeleccionado));
                 }}
-                className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                className="bg-[#FF6B5F] text-white px-3 py-1 rounded-md text-sm hover:bg-[#ff4f3f] transition-colors"
               >
                 Ir al sitio
               </button>
