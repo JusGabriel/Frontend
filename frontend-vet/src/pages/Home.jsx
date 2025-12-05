@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
 
-// ------------- HEADER ----------------
+// ---------------- HEADER ----------------
 const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
@@ -88,8 +88,7 @@ export const Home = () => {
     if (!e) return '—';
     const nombre = e.nombre ?? e.nombres ?? '';
     const apellido = e.apellido ?? e.apellidos ?? '';
-    const full = `${nombre} ${apellido}`.trim();
-    return full || '—';
+    return `${nombre} ${apellido}`.trim() || '—';
   };
 
   return (
@@ -103,19 +102,17 @@ export const Home = () => {
             ¿Cómo deseas usar QuitoEmprende?
           </h2>
           <p className="text-gray-700 max-w-2xl mx-auto mb-10">
-            Elige la opción que se adapta a tus necesidades. Tanto clientes como emprendedores
-            pueden beneficiarse de nuestra plataforma.
+            Elige la opción que mejor se adapte a tus necesidades.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            
             {/* CLIENTE */}
-            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow hover:shadow-lg transition-all">
+            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow-md hover:shadow-lg transition-all">
               <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
                 Iniciar sesión como Cliente
               </h3>
               <p className="text-gray-700 mb-4">
-                Contáctate con emprendedores, explora productos reales y recibe atención directa.
+                Explora productos reales y comunícate directamente con emprendedores.
               </p>
               <Link
                 to="/login?rol=cliente"
@@ -126,12 +123,12 @@ export const Home = () => {
             </div>
 
             {/* EMPRENDEDOR */}
-            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow hover:shadow-lg transition-all">
+            <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-xl p-8 shadow-md hover:shadow-lg transition-all">
               <h3 className="text-xl font-bold text-[#AA4A44] mb-2">
                 Iniciar sesión como Emprendedor
               </h3>
               <p className="text-gray-700 mb-4">
-                Crea tu propio sitio web, publica productos y promociona tu emprendimiento.
+                Publica productos, crea tu sitio y promociona tu negocio.
               </p>
               <Link
                 to="/login?rol=emprendedor"
@@ -140,14 +137,13 @@ export const Home = () => {
                 Iniciar como Emprendedor
               </Link>
             </div>
-
           </div>
         </div>
       </section>
 
       {/* HERO */}
       <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center md:items-start gap-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10">
           <div className="flex-1 text-center md:text-left">
             <h1 className="font-extrabold uppercase text-4xl md:text-5xl text-[#AA4A44] mb-4">
               Conecta, vende y crece
@@ -155,8 +151,9 @@ export const Home = () => {
             <p className="text-xl md:text-2xl mb-6 text-gray-800">
               QuitoEmprende: Tu espacio digital
             </p>
-            <p className="max-w-2xl text-gray-700 text-base mx-auto md:mx-0">
-              Un lugar donde los emprendedores promocionan productos y reciben su propia página web personalizada.
+            <p className="max-w-2xl text-gray-700 mx-auto md:mx-0">
+              Un lugar donde los emprendedores promocionan productos y reciben su
+              propia página personalizada.
             </p>
           </div>
 
@@ -174,47 +171,41 @@ export const Home = () => {
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
       {/* ---------------- PRODUCTOS ---------------- */}
-      <section className="py-4 px-6 bg-white text-gray-800">
+      <section className="py-10 px-6 bg-white text-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
             Productos Destacados
           </h2>
 
           {productos.length === 0 ? (
-            <p className="text-center mt-6">Cargando productos...</p>
+            <p>Cargando productos...</p>
           ) : (
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
               {productos.map((producto) => (
                 <div
                   key={producto._id}
-                  className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all flex cursor-pointer"
+                  className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
                   onClick={() => setProductoSeleccionado(producto)}
                 >
-                  <div className="w-1 bg-[#AA4A44] rounded-l-xl mr-4"></div>
+                  <img
+                    src={producto.imagen}
+                    alt={producto.nombre}
+                    className="w-full h-48 object-cover rounded-lg mb-4"
+                  />
 
-                  <div className="flex-1">
-                    <img
-                      src={producto.imagen}
-                      alt={producto.nombre}
-                      className="w-full h-48 object-cover rounded-lg mb-4"
-                    />
+                  <h3 className="font-semibold text-lg text-[#AA4A44]">
+                    {producto.nombre}
+                  </h3>
 
-                    <h3 className="font-semibold text-lg text-[#AA4A44]">
-                      {producto.nombre}
-                    </h3>
+                  <p className="text-sm text-gray-600">{producto.descripcion}</p>
 
-                    <p className="text-sm text-gray-600">
-                      {producto.descripcion}
-                    </p>
+                  <p className="text-[#28a745] font-bold mt-2">
+                    ${producto.precio}
+                  </p>
 
-                    <p className="text-[#28a745] font-bold mt-2">
-                      ${producto.precio}
-                    </p>
-
-                    <p className="text-sm font-semibold text-gray-700 mt-1">
-                      Stock: {producto.stock}
-                    </p>
-                  </div>
+                  <p className="text-sm font-semibold text-gray-700 mt-1">
+                    Stock: {producto.stock}
+                  </p>
                 </div>
               ))}
             </div>
@@ -225,31 +216,31 @@ export const Home = () => {
       {/* Línea */}
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-      {/* ---------------- EMPRENDIMIENTOS ---------------- */}
+      {/* ---------------- EMPRENDIMIENTOS EN VERTICAL ---------------- */}
       <section
-        className="py-16 px-4 text-gray-800 relative overflow-hidden"
+        className="py-16 px-4 text-gray-800"
         style={{
           backgroundImage: `url(${fondoblanco})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
+        <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
             Explora Emprendimientos
           </h2>
 
-          <div className="flex overflow-x-auto gap-6 pb-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
             {emprendimientos.map((emp) => (
               <div
                 key={emp._id}
-                className="min-w-[280px] bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer relative"
+                className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
                 onClick={() => navigate(buildPublicUrl(emp))}
               >
                 <img
                   src={emp.logo}
                   alt={emp.nombreComercial}
-                  className="w-full h-36 object-cover rounded-lg mb-3"
+                  className="w-full h-40 object-cover rounded-lg mb-3"
                 />
 
                 <h3 className="text-lg font-semibold text-[#AA4A44]">
@@ -273,9 +264,9 @@ export const Home = () => {
                     e.stopPropagation();
                     setEmprendimientoSeleccionado(emp);
                   }}
-                  className="absolute right-4 bottom-4 bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                  className="mt-3 bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
                 >
-                  Ver
+                  Ver detalles
                 </button>
               </div>
             ))}
@@ -286,7 +277,7 @@ export const Home = () => {
       {/* ---------------- MODAL PRODUCTO ---------------- */}
       {productoSeleccionado && (
         <div
-          className="fixed inset-0 bg-white/20 backdrop-blur-md flex justify-center items-center z-50"
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
           onClick={() => setProductoSeleccionado(null)}
         >
           <div
@@ -328,7 +319,7 @@ export const Home = () => {
       {/* ---------------- MODAL EMPRENDIMIENTO ---------------- */}
       {emprendimientoSeleccionado && (
         <div
-          className="fixed inset-0 bg-white/20 backdrop-blur-md flex justify-center items-center z-50"
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
           onClick={() => setEmprendimientoSeleccionado(null)}
         >
           <div
