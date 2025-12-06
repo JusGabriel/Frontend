@@ -114,7 +114,9 @@ export const Home = () => {
       try {
         const res = await fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos');
         const data = await res.json();
-        setProductos(Array.isArray(data) ? data : []);
+        // Si el backend devuelve un objeto con {productos: []} o directamente array, normalizamos:
+        const productosArray = Array.isArray(data) ? data : (Array.isArray(data?.productos) ? data.productos : []);
+        setProductos(productosArray);
       } catch (error) {
         console.error('Error al cargar productos:', error);
       }
@@ -200,44 +202,59 @@ export const Home = () => {
       {/* Línea */}
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-      {/* ---------------- PRODUCTOS (con botón Contactar) ---------------- */}
+      {/* ---------------- PRODUCTOS (con botón Contactar + Emprendimiento/Emprendedor) ---------------- */}
       <section className="py-10 px-6 bg-white text-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
 
           {productos.length === 0 ? (
-            <p>Cargando productos...</p>
+            <p className="text-gray-600">Cargando productos...</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
-              {productos.map((producto) => (
-                <article
-                  key={producto._id}
-                  className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
-                  onClick={() => setProductoSeleccionado(producto)}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <img src={producto.imagen} alt={producto.nombre} className="w-full h-48 object-cover rounded-lg mb-4" />
+              {productos.map((producto) => {
+                const empr = producto.emprendimiento ?? {};
+                const dueño = empr?.emprendedor ?? null;
 
-                  <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                return (
+                  <article
+                    key={producto._id}
+                    className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
+                    onClick={() => setProductoSeleccionado(producto)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-48 object-cover rounded-lg mb-4" />
 
-                  <p className="text-sm text-gray-600 line-clamp-2">{producto.descripcion}</p>
+                    {/* Nombre */}
+                    <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
 
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-[#28a745] font-bold">${producto.precio}</p>
-                    <p className="text-sm font-semibold text-gray-700">Stock: {producto.stock}</p>
-                  </div>
+                    {/* Descripción */}
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
 
-                  <div className="mt-3">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
-                      className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                    >
-                      Contactar
-                    </button>
-                  </div>
-                </article>
-              ))}
+                    {/* Precio */}
+                    <p className="mt-3 text-lg font-bold text-[#28a745]">${producto.precio}</p>
+
+                    {/* Stock */}
+                    <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
+
+                    {/* Emprendimiento */}
+                    <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
+
+                    {/* Emprendedor */}
+                    <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
+
+                    <div className="mt-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
+                        className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                        aria-label={`Contactar ${producto.nombre}`}
+                      >
+                        Contactar
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </div>
@@ -312,7 +329,11 @@ export const Home = () => {
 
             <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
 
-            <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock}</p>
+            <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock ?? '—'}</p>
+
+            <p className="text-sm text-gray-600 mt-2"><strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}</p>
+
+            <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
             <div className="mt-4">
               <button
