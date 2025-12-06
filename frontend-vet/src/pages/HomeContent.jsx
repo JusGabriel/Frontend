@@ -16,7 +16,7 @@ const HomeContent = () => {
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
   // ---------------------------------------
-  // 🔵 GENERAR SLUG IGUAL QUE EN HOME
+  // 🔵 SLUG IGUAL QUE EN HOME
   // ---------------------------------------
   const generarSlug = (texto) => {
     return texto
@@ -34,7 +34,7 @@ const HomeContent = () => {
   };
 
   // ---------------------------------------
-  // 🔵 URL PÚBLICA IGUAL AL HOME
+  // 🔵 URL PÚBLICA IGUAL QUE EN HOME
   // ---------------------------------------
   const buildPublicUrl = (emp) => {
     const slug =
@@ -42,11 +42,11 @@ const HomeContent = () => {
       generarSlug(emp?.nombreComercial) ||
       emp?._id;
 
-    return `/emprendimiento/${slug}`;
+    return `https://frontend-production-480a.up.railway.app/${slug}`;
   };
 
   // ---------------------------------------
-  // Fetch emprendimientos públicos
+  // Fetch emprendimientos
   // ---------------------------------------
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
@@ -68,9 +68,6 @@ const HomeContent = () => {
       .catch(err => console.error('Error productos:', err));
   }, []);
 
-  // ---------------------------------------
-  // Helpers
-  // ---------------------------------------
   const nombreCompletoEmprendedor = (emp) => {
     const e = emp?.emprendedor;
     if (!e) return '—';
@@ -177,7 +174,7 @@ const HomeContent = () => {
                     <div
                       key={emp._id}
                       className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                      onClick={() => navigate(buildPublicUrl(emp))}
+                      onClick={() => window.open(buildPublicUrl(emp), "_blank")}
                     >
                       <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
 
@@ -195,8 +192,7 @@ const HomeContent = () => {
                             e.stopPropagation();
                             setEmprendimientoSeleccionado(emp);
                           }}
-                          className="bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]"
-                        >
+                          className="bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]">
                           Ver detalles
                         </button>
 
@@ -354,8 +350,9 @@ const HomeContent = () => {
 
                   <button
                     onClick={() => {
+                      const url = buildPublicUrl(emprendimientoSeleccionado);
+                      window.open(url, "_blank");
                       setEmprendimientoSeleccionado(null);
-                      navigate(buildPublicUrl(emprendimientoSeleccionado));
                     }}
                     className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
                   >
