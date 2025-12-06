@@ -56,7 +56,6 @@ const HomeContent = () => {
     a.href = url;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
-    // fijar estilos para evitar que el navegador haga scroll al elemento
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
