@@ -15,17 +15,10 @@ const Header = () => {
         <nav className="flex items-center gap-4">
           <Link
             to="/login"
-            className="hidden sm:inline-block bg-transparent text-white/90 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/5 transition-colors"
+            className="inline-block bg-transparent text-white/90 px-4 py-2 rounded-md text-sm font-medium hover:bg-white/5 transition-colors"
             aria-label="Abrir formulario de inicio de sesión"
           >
             Iniciar sesión
-          </Link>
-
-          <Link
-            to="/login?rol=cliente"
-            className="inline-flex items-center gap-2 bg-[#AA4A44] text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors"
-          >
-            Ingresar
           </Link>
         </nav>
       </div>
@@ -86,13 +79,6 @@ const RoleCard = ({ title, subtitle, features = [], to, variant = 'primary', ico
               }`}
             >
               {title.includes('Cliente') ? 'Iniciar como Cliente' : 'Iniciar como Emprendedor'}
-            </Link>
-
-            <Link
-              to={`/register?rol=${title.toLowerCase().includes('cliente') ? 'cliente' : 'emprendedor'}`}
-              className="inline-block px-3 py-2 rounded-md text-sm font-medium bg-white/40 text-[#333] hover:bg-white/60"
-            >
-              Registrarse
             </Link>
           </div>
         </div>
@@ -168,8 +154,7 @@ export const Home = () => {
               subtitle="Explora productos reales, guarda favoritos y contacta directamente con emprendedores."
               features={[
                 'Buscar y filtrar productos',
-                'Favoritos y chat con emprendedores',
-                'Compras y reseñas (próximamente)'
+                'Favoritos y chat con emprendedores'
               ]}
               to="/login?rol=cliente"
               variant="primary"
@@ -189,13 +174,6 @@ export const Home = () => {
               icon={<IconStore />}
             />
           </div>
-
-          {/* CTA secundaria: botón para ver productos sin iniciar sesión */}
-          <div className="mt-8 text-center">
-            <Link to="/explorar" className="inline-block text-sm px-4 py-2 rounded-md font-medium border border-[#AA4A44] hover:bg-[#AA4A44]/5">
-              Ver productos sin iniciar sesión
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -208,8 +186,8 @@ export const Home = () => {
             <p className="max-w-2xl text-gray-700 mx-auto md:mx-0">Un lugar donde los emprendedores promocionan productos y reciben su propia página personalizada.</p>
 
             <div className="mt-6 flex flex-wrap gap-3 justify-center md:justify-start">
-              <Link to="/login?rol=cliente" className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">Ingresar como Cliente</Link>
-              <Link to="/login?rol=emprendedor" className="inline-block bg-white text-[#AA4A44] px-5 py-2 rounded-md text-sm font-semibold border border-[#AA4A44] hover:bg-white/90">Soy emprendedor</Link>
+              <Link to="/login?rol=cliente" className="inline-block bg-[#AA4A44] text-white px-5 py-2 rounded-md text-sm font-semibold hover:bg-[#933834] transition-colors">Iniciar como Cliente</Link>
+              <Link to="/login?rol=emprendedor" className="inline-block bg-white text-[#AA4A44] px-5 py-2 rounded-md text-sm font-semibold border border-[#AA4A44] hover:bg-white/90">Iniciar como Emprendedor</Link>
             </div>
           </div>
 
@@ -222,7 +200,7 @@ export const Home = () => {
       {/* Línea */}
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-      {/* ---------------- PRODUCTOS (sin cambios funcionales, mejora visual) ---------------- */}
+      {/* ---------------- PRODUCTOS (con botón Contactar) ---------------- */}
       <section className="py-10 px-6 bg-white text-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
@@ -248,6 +226,15 @@ export const Home = () => {
                   <div className="mt-3 flex items-center justify-between">
                     <p className="text-[#28a745] font-bold">${producto.precio}</p>
                     <p className="text-sm font-semibold text-gray-700">Stock: {producto.stock}</p>
+                  </div>
+
+                  <div className="mt-3">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
+                      className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                    >
+                      Contactar
+                    </button>
                   </div>
                 </article>
               ))}
@@ -298,11 +285,26 @@ export const Home = () => {
 
       {/* ---------------- MODAL PRODUCTO ---------------- */}
       {productoSeleccionado && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50" onClick={() => setProductoSeleccionado(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setProductoSeleccionado(null)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">✕</button>
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
+          onClick={() => setProductoSeleccionado(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setProductoSeleccionado(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
 
-            <img src={productoSeleccionado.imagen} alt={productoSeleccionado.nombre} className="w-full h-48 object-cover rounded-md mb-4" />
+            <img
+              src={productoSeleccionado.imagen}
+              alt={productoSeleccionado.nombre}
+              className="w-full h-48 object-cover rounded-md mb-4"
+            />
 
             <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
 
@@ -311,17 +313,41 @@ export const Home = () => {
             <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
 
             <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock}</p>
+
+            <div className="mt-4">
+              <button
+                onClick={() => { navigate('/login?rol=cliente'); }}
+                className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+              >
+                Contactar (iniciar sesión)
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* ---------------- MODAL EMPRENDIMIENTO ---------------- */}
       {emprendimientoSeleccionado && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50" onClick={() => setEmprendimientoSeleccionado(null)}>
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setEmprendimientoSeleccionado(null)} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl">✕</button>
+        <div
+          className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
+          onClick={() => setEmprendimientoSeleccionado(null)}
+        >
+          <div
+            className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setEmprendimientoSeleccionado(null)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+            >
+              ✕
+            </button>
 
-            <img src={emprendimientoSeleccionado.logo} alt={emprendimientoSeleccionado.nombreComercial} className="w-full h-48 object-cover rounded-md mb-4" />
+            <img
+              src={emprendimientoSeleccionado.logo}
+              alt={emprendimientoSeleccionado.nombreComercial}
+              className="w-full h-48 object-cover rounded-md mb-4"
+            />
 
             <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
 
