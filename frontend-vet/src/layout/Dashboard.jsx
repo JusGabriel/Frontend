@@ -10,19 +10,22 @@ const Dashboard = () => {
 
   const menuLinks = {
     Administrador: [
-      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/inicio', label: 'Inicio' },
       { to: '/dashboard/listar', label: 'Listar' },
       { to: '/dashboard/chat', label: 'Chat' },
+      { to: '/dashboard', label: 'Perfil' },
     ],
     Emprendedor: [
-      { to: '/dashboard', label: 'Perfil' },
+      { to: '/dashboard/inicio', label: 'Inicio' },
       { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
+      { to: '/dashboard', label: 'Perfil' },
+
     ],
     Cliente: [
-      { to: '/dashboard', label: 'Perfil' },
       { to: '/dashboard/inicio', label: 'Inicio' },
       { to: '/dashboard/chat', label: 'Chat' },
+      { to: '/dashboard', label: 'Perfil' },
     ],
   };
 
