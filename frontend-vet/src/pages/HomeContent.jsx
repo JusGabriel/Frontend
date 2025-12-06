@@ -34,7 +34,7 @@ const HomeContent = () => {
   };
 
   // ---------------------------------------
-  // 🔵 URL PÚBLICA IGUAL QUE EN HOME
+  // 🔵 URL PÚBLICA IGUAL QUE EN HOME (DOMINIO COMPLETO)
   // ---------------------------------------
   const buildPublicUrl = (emp) => {
     const slug =
@@ -43,6 +43,29 @@ const HomeContent = () => {
       emp?._id;
 
     return `https://frontend-production-480a.up.railway.app/${slug}`;
+  };
+
+  // ---------------------------------------
+  // 🔵 ABRIR PÁGINA PÚBLICA EN NUEVA PESTAÑA (SEGURA: NOOPENER)
+  // ---------------------------------------
+  const openPublicSite = (emp, { closeModal = false } = {}) => {
+    const url = buildPublicUrl(emp);
+
+    // Crear enlace temporal con rel="noopener noreferrer" y hacer click
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    // fijar estilos para evitar que el navegador haga scroll al elemento
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    if (closeModal) {
+      setEmprendimientoSeleccionado(null);
+      setProductoSeleccionado(null);
+    }
   };
 
   // ---------------------------------------
@@ -174,7 +197,7 @@ const HomeContent = () => {
                     <div
                       key={emp._id}
                       className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                      onClick={() => window.open(buildPublicUrl(emp), "_blank")}
+                      onClick={() => openPublicSite(emp)}   // ← ABRIR EN NUEVA PESTAÑA (SEGURA)
                     >
                       <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
 
@@ -319,7 +342,7 @@ const HomeContent = () => {
                     <a
                       href={emprendimientoSeleccionado.contacto.sitioWeb}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-[#007bff] hover:underline"
                     >
                       Sitio web
@@ -330,7 +353,7 @@ const HomeContent = () => {
                     <a
                       href={emprendimientoSeleccionado.contacto.facebook}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-[#3b5998] hover:underline"
                     >
                       Facebook
@@ -341,7 +364,7 @@ const HomeContent = () => {
                     <a
                       href={emprendimientoSeleccionado.contacto.instagram}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="text-[#C13584] hover:underline"
                     >
                       Instagram
@@ -350,9 +373,7 @@ const HomeContent = () => {
 
                   <button
                     onClick={() => {
-                      const url = buildPublicUrl(emprendimientoSeleccionado);
-                      window.open(url, "_blank");
-                      setEmprendimientoSeleccionado(null);
+                      openPublicSite(emprendimientoSeleccionado, { closeModal: true });
                     }}
                     className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
                   >
