@@ -1,18 +1,12 @@
-import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router';
 import storeAuth from '../context/storeAuth';
 import storeProfile from '../context/storeProfile';
 
 const Dashboard = () => {
   const location = useLocation();
   const urlActual = location.pathname;
-
   const { clearToken } = storeAuth();
   const { user } = storeProfile();
-
-  // 🔥 Redirección automática cuando entren a /dashboard
-  if (urlActual === "/dashboard" || urlActual === "/dashboard/") {
-    return <Navigate to="/dashboard/inicio" replace />;
-  }
 
   const menuLinks = {
     Administrador: [
@@ -26,6 +20,7 @@ const Dashboard = () => {
       { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
       { to: '/dashboard', label: 'Perfil' },
+
     ],
     Cliente: [
       { to: '/dashboard/inicio', label: 'Inicio' },
@@ -45,7 +40,6 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#F7E5D2] to-[#FCEEE3]">
-
       {/* Header */}
       <header className="bg-white shadow-md border-b border-[#E0C7B6] px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -66,12 +60,13 @@ const Dashboard = () => {
         <button
           onClick={() => clearToken()}
           className="bg-[#AA4A44] hover:bg-[#933834] text-white px-4 py-2 rounded-md font-semibold transition-colors"
+          title="Cerrar sesión"
         >
           Salir
         </button>
       </header>
 
-      {/* Navegación */}
+      {/* Navegación horizontal (menú) */}
       <nav className="bg-[#1E1E2F] text-white shadow-md flex justify-center gap-6 py-3">
         {links.map(({ to, label }) => (
           <Link
@@ -102,3 +97,6 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+
+
