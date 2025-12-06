@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';  // <-- navegación
+import { useNavigate } from 'react-router-dom';  
 import fondoblanco from '../assets/fondoblanco.jpg';
 import Servicios from './pgPrueba/Servicios';
-import storeAuth from '../context/storeAuth';  // <-- importamos el auth para obtener id y rol
+import storeAuth from '../context/storeAuth';
 
 const HomeContent = () => {
   const navigate = useNavigate();
@@ -12,48 +12,71 @@ const HomeContent = () => {
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
 
-  // nuevos estados para modales (copiados del Home para igualar comportamiento)
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
+  // ---------------------------------------
+  // 🔵 GENERAR SLUG IGUAL QUE EN HOME
+  // ---------------------------------------
+  const generarSlug = (texto) => {
+    return texto
+      ?.toString()
+      .toLowerCase()
+      .trim()
+      .replace(/[áàäâ]/g, "a")
+      .replace(/[éèëê]/g, "e")
+      .replace(/[íìïî]/g, "i")
+      .replace(/[óòöô]/g, "o")
+      .replace(/[úùüû]/g, "u")
+      .replace(/ñ/g, "n")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  };
+
+  // ---------------------------------------
+  // 🔵 URL PÚBLICA IGUAL AL HOME
+  // ---------------------------------------
+  const buildPublicUrl = (emp) => {
+    const slug =
+      emp?.slug ||
+      generarSlug(emp?.nombreComercial) ||
+      emp?._id;
+
+    return `/emprendimiento/${slug}`;
+  };
+
+  // ---------------------------------------
+  // Fetch emprendimientos públicos
+  // ---------------------------------------
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos')
       .then(res => res.json())
       .then(data => setEmprendimientos(Array.isArray(data) ? data : []))
-      .catch(error => console.error('Error al cargar emprendimientos:', error));
+      .catch(err => console.error('Error emprendimientos:', err));
   }, []);
 
+  // ---------------------------------------
+  // Fetch productos
+  // ---------------------------------------
   useEffect(() => {
     fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos')
       .then(res => res.json())
       .then(data => {
-        // normalizar respuesta: puede venir array o { productos: [] }
         const productosArray = Array.isArray(data) ? data : (Array.isArray(data?.productos) ? data.productos : []);
         setProductos(productosArray);
       })
-      .catch(error => console.error('Error al cargar productos:', error));
+      .catch(err => console.error('Error productos:', err));
   }, []);
 
-  // Navegar a detalle emprendimiento (tu original)
-  const handleVerMasEmprendimiento = (id) => {
-    navigate(`/dashboard/detalle-emprendimiento/${id}`);
-  };
-
-  // helpers (copiados/ajustados del Home para que todo coincida)
-  const buildPublicUrl = (emp) => {
-    const slug = emp?.slug || emp?.nombreComercial || emp?._id;
-    return `/emprendimiento/${encodeURIComponent(slug)}`;
-  };
-
+  // ---------------------------------------
+  // Helpers
+  // ---------------------------------------
   const nombreCompletoEmprendedor = (emp) => {
     const e = emp?.emprendedor;
     if (!e) return '—';
-    const nombre = e.nombre ?? e.nombres ?? '';
-    const apellido = e.apellido ?? e.apellidos ?? '';
-    return `${nombre} ${apellido}`.trim() || '—';
+    return `${e.nombre ?? e.nombres ?? ''} ${e.apellido ?? e.apellidos ?? ''}`.trim() || '—';
   };
 
-  // comportamiento del botón Contactar (mismo que Home: si está auth -> chat, si no -> login)
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
@@ -77,7 +100,10 @@ const HomeContent = () => {
     <>
       {section === 'inicio' && (
         <>
-          {/* ---------------- PRODUCTOS (adaptado al estilo del Home) ---------------- */}
+
+          {/* ====================================================== */}
+          {/* 🎯 PRODUCTOS DESTACADOS */}
+          {/* ====================================================== */}
           <section className="py-10 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
               <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
@@ -95,8 +121,6 @@ const HomeContent = () => {
                         key={producto._id}
                         className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
                         onClick={() => setProductoSeleccionado(producto)}
-                        role="button"
-                        tabIndex={0}
                       >
                         <img src={producto.imagen} alt={producto.nombre} className="w-full h-48 object-cover rounded-lg mb-4" />
 
@@ -110,17 +134,17 @@ const HomeContent = () => {
 
                         <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
 
-                        <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          <strong>Emprendedor:</strong>{" "}
+                          {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
+                        </p>
 
-                        <div className="mt-3">
-                          <button
-                            onClick={(e) => handleContactarProducto(e, producto)}
-                            className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                            aria-label={`Contactar ${producto.nombre}`}
-                          >
-                            Contactar
-                          </button>
-                        </div>
+                        <button
+                          onClick={(e) => handleContactarProducto(e, producto)}
+                          className="w-full mt-3 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                        >
+                          Contactar
+                        </button>
                       </article>
                     );
                   })}
@@ -129,10 +153,11 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* Línea decorativa */}
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-          {/* ---------------- EMPRENDIMIENTOS (adaptado al estilo del Home: vertical grid) ---------------- */}
+          {/* ====================================================== */}
+          {/* 🎯 EMPRENDIMIENTOS */}
+          {/* ====================================================== */}
           <section
             className="py-16 px-4 text-gray-800"
             style={{
@@ -141,7 +166,7 @@ const HomeContent = () => {
               backgroundPosition: 'center',
             }}
           >
-            <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center">
+            <div className="max-w-7xl mx-auto flex flex-col items-center">
               <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Explora Emprendimientos</h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
@@ -170,14 +195,14 @@ const HomeContent = () => {
                             e.stopPropagation();
                             setEmprendimientoSeleccionado(emp);
                           }}
-                          className="mt-3 bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                          className="bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]"
                         >
                           Ver detalles
                         </button>
 
                         <button
                           onClick={(e) => handleContactarEmprendimiento(e, emp)}
-                          className="mt-3 bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-2 rounded-md text-sm hover:bg-white/90 transition-colors"
+                          className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-2 rounded-md text-sm hover:bg-white/90"
                         >
                           Contactar
                         </button>
@@ -189,7 +214,9 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* ---------------- MODAL PRODUCTO (igual que en Home) ---------------- */}
+          {/* ====================================================== */}
+          {/* MODAL PRODUCTO */}
+          {/* ====================================================== */}
           {productoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -218,33 +245,42 @@ const HomeContent = () => {
 
                 <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
 
-                <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock ?? '—'}</p>
+                <p className="font-semibold text-gray-800 mt-2">
+                  Stock disponible: {productoSeleccionado.stock ?? '—'}
+                </p>
 
-                <p className="text-sm text-gray-600 mt-2"><strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}</p>
+                <p className="text-sm text-gray-600 mt-2">
+                  <strong>Emprendimiento:</strong>{" "}
+                  {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}
+                </p>
 
-                <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  <strong>Emprendedor:</strong>{" "}
+                  {productoSeleccionado.emprendimiento?.emprendedor
+                    ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`
+                    : '—'}
+                </p>
 
-                <div className="mt-4">
-                  <button
-                    onClick={() => {
-                      // si está autenticado, llevar al chat; si no, al login (igual comportamiento)
-                      if (usuarioId) {
-                        const empr = productoSeleccionado.emprendimiento ?? {};
-                        navigate(`/dashboard/chat?emprendimientoId=${empr._id}&productoId=${productoSeleccionado._id}`);
-                      } else {
-                        navigate('/login?rol=cliente');
-                      }
-                    }}
-                    className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                  >
-                    Contactar
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    if (usuarioId) {
+                      const empr = productoSeleccionado.emprendimiento ?? {};
+                      navigate(`/dashboard/chat?emprendimientoId=${empr._id}&productoId=${productoSeleccionado._id}`);
+                    } else {
+                      navigate('/login?rol=cliente');
+                    }
+                  }}
+                  className="w-full mt-4 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834]"
+                >
+                  Contactar
+                </button>
               </div>
             </div>
           )}
 
-          {/* ---------------- MODAL EMPRENDIMIENTO (igual que en Home) ---------------- */}
+          {/* ====================================================== */}
+          {/* MODAL EMPRENDIMIENTO */}
+          {/* ====================================================== */}
           {emprendimientoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -267,25 +303,53 @@ const HomeContent = () => {
                   className="w-full h-48 object-cover rounded-md mb-4"
                 />
 
-                <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
+                <h2 className="text-xl font-bold text-[#AA4A44]">
+                  {emprendimientoSeleccionado.nombreComercial}
+                </h2>
 
-                <p className="text-gray-800 font-bold text-sm mt-1">Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}</p>
+                <p className="text-gray-800 font-bold text-sm mt-1">
+                  Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}
+                </p>
 
                 <p className="text-gray-600 mt-2">{emprendimientoSeleccionado.descripcion}</p>
 
-                <p className="text-sm text-gray-500 mt-2">{emprendimientoSeleccionado.ubicacion?.ciudad} – {emprendimientoSeleccionado.ubicacion?.direccion}</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {emprendimientoSeleccionado.ubicacion?.ciudad} –{" "}
+                  {emprendimientoSeleccionado.ubicacion?.direccion}
+                </p>
 
                 <div className="flex gap-3 mt-4 flex-wrap text-sm">
                   {emprendimientoSeleccionado.contacto?.sitioWeb && (
-                    <a href={emprendimientoSeleccionado.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">Sitio web</a>
+                    <a
+                      href={emprendimientoSeleccionado.contacto.sitioWeb}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#007bff] hover:underline"
+                    >
+                      Sitio web
+                    </a>
                   )}
 
                   {emprendimientoSeleccionado.contacto?.facebook && (
-                    <a href={emprendimientoSeleccionado.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">Facebook</a>
+                    <a
+                      href={emprendimientoSeleccionado.contacto.facebook}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#3b5998] hover:underline"
+                    >
+                      Facebook
+                    </a>
                   )}
 
                   {emprendimientoSeleccionado.contacto?.instagram && (
-                    <a href={emprendimientoSeleccionado.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">Instagram</a>
+                    <a
+                      href={emprendimientoSeleccionado.contacto.instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#C13584] hover:underline"
+                    >
+                      Instagram
+                    </a>
                   )}
 
                   <button
@@ -293,7 +357,7 @@ const HomeContent = () => {
                       setEmprendimientoSeleccionado(null);
                       navigate(buildPublicUrl(emprendimientoSeleccionado));
                     }}
-                    className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                    className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
                   >
                     Ir al sitio
                   </button>
@@ -301,6 +365,7 @@ const HomeContent = () => {
               </div>
             </div>
           )}
+
         </>
       )}
     </>
