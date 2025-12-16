@@ -26,10 +26,13 @@ const Chat = () => {
   // Ref para scroll automático
   const mensajesRef = useRef(null);
 
-  // Para leer parámetro "user" de la URL
+  // Para leer parámetros de la URL
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const chatUserId = params.get("user"); // id del emprendedor con quien chatear
+  const productoId = params.get("productoId");
+  const productoNombreParam = params.get("productoNombre");
+  const productoNombre = productoNombreParam ? decodeURIComponent(productoNombreParam) : null;
 
   // --- Funciones Chat General ---
 
@@ -40,10 +43,12 @@ const Chat = () => {
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
       );
       const data = await res.json();
-      setConversaciones(data);
+      setConversaciones(Array.isArray(data) ? data : []);
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.error("Error cargando conversaciones", error);
       setInfo("❌ Error cargando conversaciones");
+      return [];
     }
   };
 
@@ -54,7 +59,7 @@ const Chat = () => {
         `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
       );
       const data = await res.json();
-      setMensajes(data);
+      setMensajes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error cargando mensajes", error);
       setInfo("❌ Error cargando mensajes");
@@ -86,7 +91,8 @@ const Chat = () => {
         setMensaje("");
         setInfo("");
         obtenerMensajes();
-        cargarConversaciones();
+        // actualizar lista local de conversaciones (opcional)
+        cargarConversaciones().then((list) => setConversaciones(list));
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
       }
@@ -96,21 +102,32 @@ const Chat = () => {
   };
 
   // --- Función para abrir o crear conversación con chatUserId ---
-
   const abrirConversacionConUsuario = async () => {
     if (!chatUserId || !usuarioId) return;
 
-    await cargarConversaciones();
+    try {
+      // Traer conversaciones directamente del backend (evita stale state)
+      const resConv = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
+      );
+      const convList = await resConv.json();
+      const conversacionesArr = Array.isArray(convList) ? convList : [];
 
-    const convExistente = conversaciones.find((conv) =>
-      conv.participantes.some((p) => p.id && p.id._id === chatUserId)
-    );
+      // Buscar conversación existente con ese usuario
+      const convExistente = conversacionesArr.find((conv) =>
+        conv.participantes.some((p) => p.id && p.id._id === chatUserId)
+      );
 
-    if (convExistente) {
-      setConversacionId(convExistente._id);
-      setVista("chat");
-    } else {
-      try {
+      if (convExistente) {
+        setConversacionId(convExistente._id);
+        setVista("chat");
+        setConversaciones(conversacionesArr);
+        // prefill mensaje si viene productoNombre y el input está vacío
+        if (productoNombre && !mensaje) {
+          setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
+        }
+      } else {
+        // crear conversación
         const res = await fetch(
           "https://backend-production-bd1d.up.railway.app/api/chat/conversacion",
           {
@@ -130,15 +147,20 @@ const Chat = () => {
         const data = await res.json();
         setConversacionId(data._id);
         setVista("chat");
-        cargarConversaciones();
-      } catch (error) {
-        setInfo("❌ Error al crear conversación: " + error.message);
+        // agregar a lista local
+        setConversaciones((prev) => (Array.isArray(prev) ? [...prev, data] : [data]));
+        // prefill mensaje si viene productoNombre
+        if (productoNombre) {
+          setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
+        }
       }
+    } catch (error) {
+      setInfo("❌ Error al abrir/crear conversación: " + (error.message || error));
+      console.error(error);
     }
   };
 
   // --- Funciones Quejas ---
-
   const cargarQuejas = async () => {
     try {
       const res = await fetch(
@@ -146,12 +168,11 @@ const Chat = () => {
       );
       const data = await res.json();
 
-      let quejasFiltradas = data;
+      let quejasFiltradas = Array.isArray(data) ? data : [];
 
       // Si no es administrador, filtrar quejas solo del usuario actual
       if (emisorRol !== "Administrador") {
-        quejasFiltradas = data.filter((q) => {
-          // Busca si el usuario actual es uno de los participantes que envió la queja
+        quejasFiltradas = quejasFiltradas.filter((q) => {
           return q.participantes.some(
             (p) => p.id && p.id._id === usuarioId
           );
@@ -165,7 +186,6 @@ const Chat = () => {
     }
   };
 
-
   const seleccionarQueja = (queja) => {
     setQuejaSeleccionada(queja);
     setMensajesQueja(queja.mensajes || []);
@@ -177,7 +197,6 @@ const Chat = () => {
     e.preventDefault();
     if (!mensajeQueja.trim()) return;
 
-    // Datos receptor quemados si el rol es Cliente o Emprendedor
     const receptorId =
       emisorRol === "Cliente" || emisorRol === "Emprendedor"
         ? "6894f9c409b9687e33e57f56"
@@ -230,7 +249,7 @@ const Chat = () => {
     }
   };
 
-  // --- Effect para actualizar mensajes de quejas cada 2 segundos (chat en tiempo real) ---
+  // --- Effect para actualizar mensajes de quejas cada 2 segundos ---
   useEffect(() => {
     if (vista === "quejas" && quejaSeleccionada) {
       const cargarMensajesQueja = async () => {
@@ -239,22 +258,21 @@ const Chat = () => {
             `https://backend-production-bd1d.up.railway.app/api/quejas/mensajes/${quejaSeleccionada._id}`
           );
           const data = await res.json();
-          setMensajesQueja(data);
+          setMensajesQueja(Array.isArray(data) ? data : []);
         } catch (error) {
           setInfo("❌ Error cargando mensajes de queja");
         }
       };
 
-      cargarMensajesQueja(); // carga inicial
+      cargarMensajesQueja();
 
-      const interval = setInterval(cargarMensajesQueja, 2000); // cada 2 seg.
+      const interval = setInterval(cargarMensajesQueja, 2000);
 
       return () => clearInterval(interval);
     }
   }, [vista, quejaSeleccionada]);
 
   // --- Otros effects ---
-
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -287,14 +305,15 @@ const Chat = () => {
     }
   }, [mensajes, mensajesQueja]);
 
+  // abrir conversación cuando llegue chatUserId en la URL
   useEffect(() => {
-    if (chatUserId) {
+    if (chatUserId && usuarioId) {
       abrirConversacionConUsuario();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUserId, usuarioId]);
 
   // --- Render ---
-
   const chatActivo =
     vista === "chat"
       ? conversaciones.find((c) => c._id === conversacionId)
@@ -321,7 +340,7 @@ const Chat = () => {
       className="flex bg-white"
       style={{ width: "calc(100vw - 1.5cm)", height: "calc(100vh - 7cm)", padding: 5 }}
     >
-      {/* Sidebar con selector de vista y lista */}
+      {/* Sidebar */}
       <aside className="w-80 border-r border-gray-300 flex flex-col">
         <div
           className="py-4 px-6 font-bold text-lg text-center cursor-pointer"
@@ -336,7 +355,7 @@ const Chat = () => {
                   : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
               }`}
             >
-              💬 Chat General
+              Chat General
             </button>
             <button
               onClick={() => setVista("quejas")}
@@ -346,7 +365,7 @@ const Chat = () => {
                   : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
               }`}
             >
-              📢 Quejas
+              Quejas
             </button>
           </div>
         </div>
@@ -429,7 +448,7 @@ const Chat = () => {
             chatActivo ? (
               `Chat con ${
                 chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
-              }`
+              }${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
             ) : (
               "Selecciona una conversación"
             )
@@ -491,7 +510,10 @@ const Chat = () => {
         >
           <input
             type="text"
-            placeholder={vista === "chat" ? "Escribe un mensaje..." : "Escribe tu respuesta..."}
+            placeholder={vista === "chat"
+              ? productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje..."
+              : "Escribe tu respuesta..."
+            }
             value={vista === "chat" ? mensaje : mensajeQueja}
             onChange={(e) =>
               vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
