@@ -79,7 +79,6 @@ const Chat = () => {
    * Devuelve true si envío OK, false si error.
    */
   const handleEnviar = async (e, receptorId, receptorRol) => {
-    // Nota: e puede ser undefined cuando llamamos desde programático, así que protegemos
     if (e && typeof e.preventDefault === "function") e.preventDefault();
 
     if (!mensaje.trim() || !receptorId || !receptorRol) return false;
@@ -96,7 +95,7 @@ const Chat = () => {
             receptorId,
             receptorRol,
             contenido: mensaje.trim(),
-            // si tu backend admite productoId, descomenta la siguiente línea:
+            // si el backend admite productoId, descomenta:
             // productoId: productoIdParam || null,
           }),
         }
@@ -107,7 +106,8 @@ const Chat = () => {
         setMensaje("");
         setInfo("");
         // refrescar mensajes y conversaciones
-        await obtenerMensajes(); // si ya existe conversacionId cargará
+        // Si ya existe conversacionId, obtenerMensajes lo cargará; si no, se refreshearán conversaciones
+        await obtenerMensajes();
         await cargarConversaciones();
         return true;
       } else {
@@ -220,6 +220,7 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUserIdParam, productoNombreParam]);
 
+  // Cargar conversaciones al entrar a vista chat
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -229,6 +230,24 @@ const Chat = () => {
     }
   }, [usuarioId, vista]);
 
+  // Si la lista de conversaciones cambia y tenemos chatTargetId, buscar conversación existente
+  useEffect(() => {
+    if (!chatTargetId) return;
+    if (!conversaciones || conversaciones.length === 0) return;
+
+    const convExistente = conversaciones.find((conv) =>
+      conv.participantes.some((p) => p.id && p.id._id === chatTargetId)
+    );
+
+    if (convExistente) {
+      setConversacionId(convExistente._id);
+      setVista("chat");
+      // No mostramos ni el id en UI; setConversacionId activará el efecto que obtiene mensajes
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatTargetId, conversaciones]);
+
+  // Polling de mensajes si hay conversación seleccionada
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
@@ -264,8 +283,6 @@ const Chat = () => {
         if (receptor) {
           const ok = await handleEnviar(e, receptor.id._id, receptor.rol);
           if (ok) {
-            // refrescar mensajes ya lo hace handleEnviar; obtenerMensajes y cargarConversaciones se ejecutaron
-            // si no tenemos mensajes, intentar obtenerlos
             await obtenerMensajes();
           }
         }
@@ -283,8 +300,9 @@ const Chat = () => {
           );
           if (nuevaConv) {
             setConversacionId(nuevaConv._id);
-            // cargar mensajes de la nueva conversación
             await obtenerMensajes();
+            // una vez seleccionada la conv, limpiamos chatTargetId si quieres; opcional:
+            setChatTargetId(null);
           }
         }
         return;
@@ -357,7 +375,7 @@ const Chat = () => {
                     key={conv._id}
                     onClick={() => {
                       setConversacionId(conv._id);
-                      // si venimos por chatTarget, al seleccionar una conv limpiaremos chatTargetId
+                      // si venimos por chatTarget, al seleccionar una conv limpiamos chatTargetId
                       setChatTargetId(null);
                     }}
                     className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex justify-between items-center ${
@@ -396,9 +414,7 @@ const Chat = () => {
                     <p className="font-semibold text-[#AA4A44]">
                       Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
                     </p>
-                    <p className="text-sm text-gray-600">
-                      Receptor: {admin?.nombre} {admin?.apellido}
-                    </p>
+                    <p className="text-sm text-gray-600">Receptor: {admin?.nombre} {admin?.apellido}</p>
                     <p className="mt-1 text-gray-800 text-sm line-clamp-2">
                       <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
                     </p>
@@ -424,8 +440,8 @@ const Chat = () => {
                 chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
               }${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
             ) : chatTargetId ? (
-              // si no hay chatActivo pero sí target (llegó desde HomeContent), mostrar nombre genérico
-              `Chat con emprendedor (ID: ${chatTargetId})${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
+              // Si no hay conversación seleccionada pero venimos desde HomeContent: mostrar texto amigable sin ID
+              `Chat con el emprendedor${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
             ) : (
               "Selecciona una conversación"
             )
@@ -455,14 +471,9 @@ const Chat = () => {
               mensajesActivos.map((msg) => {
                 const esMio = msg.emisor === usuarioId;
                 return (
-                  <div
-                    key={msg._id || msg.id}
-                    className={`flex ${esMio ? "justify-end" : "justify-start"}`}
-                  >
+                  <div key={msg._id || msg.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${
-                        esMio ? "text-white" : "bg-white border border-gray-300"
-                      }`}
+                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${esMio ? "text-white" : "bg-white border border-gray-300"}`}
                       style={esMio ? { backgroundColor: "#AA4A44" } : {}}
                     >
                       {msg.contenido}
@@ -481,10 +492,7 @@ const Chat = () => {
           )}
         </div>
 
-        <form
-          onSubmit={handleEnviarMensaje}
-          className="flex p-4 border-t border-gray-300 bg-white"
-        >
+        <form onSubmit={handleEnviarMensaje} className="flex p-4 border-t border-gray-300 bg-white">
           <input
             type="text"
             placeholder={
@@ -493,9 +501,7 @@ const Chat = () => {
                 : "Escribe tu respuesta..."
             }
             value={vista === "chat" ? mensaje : mensajeQueja}
-            onChange={(e) =>
-              vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
-            }
+            onChange={(e) => (vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value))}
             className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
             style={{ boxShadow: "0 0 0 2px transparent" }}
             onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
