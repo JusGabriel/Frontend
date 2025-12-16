@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';  
+import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import Servicios from './pgPrueba/Servicios';
 import storeAuth from '../context/storeAuth';
@@ -16,7 +16,7 @@ const HomeContent = () => {
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
   // ---------------------------------------
-  // 🔵 SLUG IGUAL QUE EN HOME
+  // SLUG
   // ---------------------------------------
   const generarSlug = (texto) => {
     return texto
@@ -34,7 +34,7 @@ const HomeContent = () => {
   };
 
   // ---------------------------------------
-  // 🔵 URL PÚBLICA IGUAL QUE EN HOME (DOMINIO COMPLETO)
+  // URL PÚBLICA
   // ---------------------------------------
   const buildPublicUrl = (emp) => {
     const slug =
@@ -46,12 +46,10 @@ const HomeContent = () => {
   };
 
   // ---------------------------------------
-  // 🔵 ABRIR PÁGINA PÚBLICA EN NUEVA PESTAÑA (SEGURA: NOOPENER)
+  // ABRIR PÁGINA PÚBLICA
   // ---------------------------------------
   const openPublicSite = (emp, { closeModal = false } = {}) => {
     const url = buildPublicUrl(emp);
-
-    // Crear enlace temporal con rel="noopener noreferrer" y hacer click
     const a = document.createElement('a');
     a.href = url;
     a.target = '_blank';
@@ -96,11 +94,24 @@ const HomeContent = () => {
     return `${e.nombre ?? e.nombres ?? ''} ${e.apellido ?? e.apellidos ?? ''}`.trim() || '—';
   };
 
+  // ---------------------------------------
+  // CONTACTAR: usar ID del EMPRENDEDOR (user param)
+  // ---------------------------------------
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
+    const emprendedorId = empr?.emprendedor?._id;
+
+    if (!emprendedorId) {
+      console.warn('Producto sin emprendedor:', producto);
+      return;
+    }
+
     if (usuarioId) {
-      navigate(`/dashboard/chat?emprendimientoId=${empr._id}&productoId=${producto._id}`);
+      // enviamos user (ID del emprendedor), productoid y productonombre (encoded) para contexto/prefill
+      navigate(
+        `/dashboard/chat?user=${emprendedorId}&productoId=${producto._id}&productoNombre=${encodeURIComponent(producto.nombre)}`
+      );
     } else {
       navigate('/login?rol=cliente');
     }
@@ -108,8 +119,15 @@ const HomeContent = () => {
 
   const handleContactarEmprendimiento = (e, emp) => {
     e.stopPropagation();
+    const emprendedorId = emp?.emprendedor?._id;
+
+    if (!emprendedorId) {
+      console.warn('Emprendimiento sin emprendedor:', emp);
+      return;
+    }
+
     if (usuarioId) {
-      navigate(`/dashboard/chat?emprendimientoId=${emp._id}`);
+      navigate(`/dashboard/chat?user=${emprendedorId}`);
     } else {
       navigate('/login?rol=cliente');
     }
@@ -120,9 +138,7 @@ const HomeContent = () => {
       {section === 'inicio' && (
         <>
 
-          {/* ====================================================== */}
-          {/* 🎯 PRODUCTOS DESTACADOS */}
-          {/* ====================================================== */}
+          {/* PRODUCTOS DESTACADOS */}
           <section className="py-10 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
               <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
@@ -174,9 +190,7 @@ const HomeContent = () => {
 
           <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-          {/* ====================================================== */}
-          {/* 🎯 EMPRENDIMIENTOS */}
-          {/* ====================================================== */}
+          {/* EMPRENDIMIENTOS */}
           <section
             className="py-16 px-4 text-gray-800"
             style={{
@@ -196,7 +210,7 @@ const HomeContent = () => {
                     <div
                       key={emp._id}
                       className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                      onClick={() => openPublicSite(emp)}   // ← ABRIR EN NUEVA PESTAÑA (SEGURA)
+                      onClick={() => openPublicSite(emp)}
                     >
                       <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
 
@@ -232,9 +246,7 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* ====================================================== */}
           {/* MODAL PRODUCTO */}
-          {/* ====================================================== */}
           {productoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -283,7 +295,11 @@ const HomeContent = () => {
                   onClick={() => {
                     if (usuarioId) {
                       const empr = productoSeleccionado.emprendimiento ?? {};
-                      navigate(`/dashboard/chat?emprendimientoId=${empr._id}&productoId=${productoSeleccionado._id}`);
+                      const emprendedorId = empr?.emprendedor?._id;
+                      if (!emprendedorId) return;
+                      navigate(
+                        `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(productoSeleccionado.nombre)}`
+                      );
                     } else {
                       navigate('/login?rol=cliente');
                     }
@@ -296,9 +312,7 @@ const HomeContent = () => {
             </div>
           )}
 
-          {/* ====================================================== */}
           {/* MODAL EMPRENDIMIENTO */}
-          {/* ====================================================== */}
           {emprendimientoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -377,6 +391,22 @@ const HomeContent = () => {
                     className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
                   >
                     Ir al sitio
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      // Contactar emprendedor desde modal de emprendimiento
+                      const emprendedorId = emprendimientoSeleccionado?.emprendedor?._id;
+                      if (!emprendedorId) return;
+                      if (usuarioId) {
+                        navigate(`/dashboard/chat?user=${emprendedorId}`);
+                      } else {
+                        navigate('/login?rol=cliente');
+                      }
+                    }}
+                    className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-white/90"
+                  >
+                    Contactar
                   </button>
                 </div>
               </div>
