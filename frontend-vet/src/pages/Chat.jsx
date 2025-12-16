@@ -5,34 +5,42 @@ import { useLocation } from "react-router-dom";
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
 
+  // Vista activa: "chat" o "quejas"
   const [vista, setVista] = useState("chat");
 
-  // Chat general
+  // Estados para Chat General
   const [conversacionId, setConversacionId] = useState(null);
   const [mensaje, setMensaje] = useState("");
   const [mensajes, setMensajes] = useState([]);
   const [conversaciones, setConversaciones] = useState([]);
 
-  // Quejas
+  // Estados para Quejas
   const [quejas, setQuejas] = useState([]);
   const [quejaSeleccionada, setQuejaSeleccionada] = useState(null);
   const [mensajeQueja, setMensajeQueja] = useState("");
   const [mensajesQueja, setMensajesQueja] = useState([]);
 
+  // Mensajes de info / error
   const [info, setInfo] = useState("");
+
+  // Ref para scroll automático
   const mensajesRef = useRef(null);
 
-  // URL params
+  // Para leer parámetros de la URL
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const chatUserId = params.get("user"); // id del emprendedor con quien chatear
-  const productoId = params.get("productoId");
+
+  // ID del emprendedor (user) que viene desde HomeContent
+  const chatUserIdParam = params.get("user"); // id del emprendedor con quien chatear
+  const productoIdParam = params.get("productoId");
   const productoNombreParam = params.get("productoNombre");
   const productoNombre = productoNombreParam ? decodeURIComponent(productoNombreParam) : null;
 
-  // -------------------------
-  // cargarConversaciones: ahora devuelve la lista además de setear el state
-  // -------------------------
+  // Estado local para mantener el id del target con el que queremos chatear
+  const [chatTargetId, setChatTargetId] = useState(null);
+
+  // --- Funciones Chat General ---
+
   const cargarConversaciones = async () => {
     if (!usuarioId) return [];
     try {
@@ -64,9 +72,17 @@ const Chat = () => {
     }
   };
 
+  /**
+   * handleEnviar: envía el mensaje usando el endpoint /api/chat/mensaje
+   * - receptorId: id del receptor (usuario)
+   * - receptorRol: rol del receptor (por ejemplo "Emprendedor")
+   * Devuelve true si envío OK, false si error.
+   */
   const handleEnviar = async (e, receptorId, receptorRol) => {
-    e.preventDefault();
-    if (!mensaje.trim() || !receptorId || !receptorRol) return;
+    // Nota: e puede ser undefined cuando llamamos desde programático, así que protegemos
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
+
+    if (!mensaje.trim() || !receptorId || !receptorRol) return false;
 
     try {
       const res = await fetch(
@@ -80,8 +96,8 @@ const Chat = () => {
             receptorId,
             receptorRol,
             contenido: mensaje.trim(),
-            // si tu backend admite metadatos (p. ej. productoId), puedes descomentarlo:
-            // productoId: productoId || null,
+            // si tu backend admite productoId, descomenta la siguiente línea:
+            // productoId: productoIdParam || null,
           }),
         }
       );
@@ -90,105 +106,21 @@ const Chat = () => {
       if (res.ok) {
         setMensaje("");
         setInfo("");
-        await obtenerMensajes();
-        // refrescar conversaciones
+        // refrescar mensajes y conversaciones
+        await obtenerMensajes(); // si ya existe conversacionId cargará
         await cargarConversaciones();
+        return true;
       } else {
-        setInfo("❌ Error: " + (data.mensaje || JSON.stringify(data) || "Error desconocido"));
+        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
+        return false;
       }
     } catch (error) {
       setInfo("❌ Error de red: " + error.message);
+      return false;
     }
   };
 
-  // ---- abrir o crear conversacion con chatUserId (usa exactamente tu endpoint)
-  const abrirConversacionConUsuario = async () => {
-    if (!chatUserId || !usuarioId) return;
-
-    try {
-      // 1) cargar conversaciones y usar la lista retornada (evita stale state)
-      const lista = await cargarConversaciones();
-
-      const convExistente = lista.find((conv) =>
-        conv.participantes.some((p) => p.id && p.id._id === chatUserId)
-      );
-
-      if (convExistente) {
-        setConversacionId(convExistente._id);
-        setVista("chat");
-
-        // prefill si viene productoNombre y input está vacío
-        if (productoNombre && !mensaje) {
-          setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
-        }
-        return;
-      }
-
-      // 2) si no existe, crear conversación con el endpoint que ya usas
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/chat/conversacion",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            participantes: [
-              { id: usuarioId, rol: emisorRol },
-              { id: chatUserId, rol: "Emprendedor" },
-            ],
-          }),
-        }
-      );
-
-      // si el servidor responde con 404 / 4xx / 5xx, leer body para debug
-      if (!res.ok) {
-        // intenta leer cuerpo de error para dar más contexto
-        let bodyText = "";
-        try {
-          bodyText = await res.text();
-        } catch (err) {
-          bodyText = res.statusText || "No body";
-        }
-        throw new Error(`Error creando conversación (status ${res.status}): ${bodyText}`);
-      }
-
-      const data = await res.json();
-
-      // 3) refrescar conversaciones y seleccionar la creada (más robusto que confiar solo en "data")
-      const nuevaLista = await cargarConversaciones();
-
-      // Preferir encontrar la conv por _id devuelto por el POST si viene
-      let nuevaConv = null;
-      if (data && data._id) {
-        nuevaConv = nuevaLista.find((c) => c._id === data._id) || null;
-      }
-      // Si no se encontró por _id, buscar por participante (chatUserId)
-      if (!nuevaConv) {
-        nuevaConv = nuevaLista.find((conv) =>
-          conv.participantes.some((p) => p.id && p.id._id === chatUserId)
-        );
-      }
-
-      // Si aún no encontramos nada, usar el _id que devolvió el endpoint (fallback)
-      if (nuevaConv) {
-        setConversacionId(nuevaConv._id);
-      } else if (data && data._id) {
-        setConversacionId(data._id);
-      }
-
-      setVista("chat");
-
-      // prefill si viene productoNombre
-      if (productoNombre && !mensaje) {
-        setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
-      }
-
-    } catch (error) {
-      console.error(error);
-      setInfo("❌ Error al abrir/crear conversación: " + (error.message || error));
-    }
-  };
-
-  // ---- Quejas (sin cambios funcionales)
+  // --- Quejas (sin cambios funcionales) ---
   const cargarQuejas = async () => {
     try {
       const res = await fetch(
@@ -274,7 +206,20 @@ const Chat = () => {
     }
   };
 
-  // Polling y efectos (muy similar a tu versión original)
+  // --- Efectos y polling ---
+  useEffect(() => {
+    // si la URL trae user, almacenarlo en chatTargetId y abrir vista chat
+    if (chatUserIdParam) {
+      setChatTargetId(chatUserIdParam);
+      setVista("chat");
+      // prefill si viene productoNombre
+      if (productoNombre && !mensaje) {
+        setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatUserIdParam, productoNombreParam]);
+
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -307,32 +252,62 @@ const Chat = () => {
     }
   }, [mensajes, mensajesQueja]);
 
-  useEffect(() => {
-    if (chatUserId && usuarioId) {
-      abrirConversacionConUsuario();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chatUserId, usuarioId]);
+  // --- handleEnviarMensaje: si no existe conversacion, enviar directamente al chatTargetId
+  const handleEnviarMensaje = async (e) => {
+    e.preventDefault();
 
-  // Render (idéntico a tu estructura, sólo pequeño ajuste en placeholder)
+    if (vista === "chat") {
+      // 1) Si ya hay conversacion seleccionada, enviar usando los participantes existentes
+      if (conversacionId) {
+        const conv = conversaciones.find((c) => c._id === conversacionId);
+        const receptor = conv?.participantes?.find((p) => p.id && p.id._id !== usuarioId);
+        if (receptor) {
+          const ok = await handleEnviar(e, receptor.id._id, receptor.rol);
+          if (ok) {
+            // refrescar mensajes ya lo hace handleEnviar; obtenerMensajes y cargarConversaciones se ejecutaron
+            // si no tenemos mensajes, intentar obtenerlos
+            await obtenerMensajes();
+          }
+        }
+        return;
+      }
+
+      // 2) Si no hay conversacion, pero sí tenemos chatTargetId (viene desde HomeContent)
+      if (chatTargetId) {
+        const ok = await handleEnviar(e, chatTargetId, "Emprendedor");
+        if (ok) {
+          // el backend crea la conversación con el primer mensaje. Ahora refrescamos conversaciones y seleccionamos la nueva.
+          const lista = await cargarConversaciones();
+          const nuevaConv = lista.find((conv) =>
+            conv.participantes.some((p) => p.id && p.id._id === chatTargetId)
+          );
+          if (nuevaConv) {
+            setConversacionId(nuevaConv._id);
+            // cargar mensajes de la nueva conversación
+            await obtenerMensajes();
+          }
+        }
+        return;
+      }
+
+      // 3) si no hay target ni conversacion -> nothing
+      setInfo("❌ Selecciona una conversación o usa el botón 'Contactar' desde un producto/emprendimiento.");
+      return;
+    }
+
+    // Quejas
+    if (vista === "quejas") {
+      enviarMensajeQueja(e);
+    }
+  };
+
+  // Render
   const chatActivo =
     vista === "chat"
       ? conversaciones.find((c) => c._id === conversacionId)
       : quejaSeleccionada;
 
   const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
-
-  const handleEnviarMensaje = (e) => {
-    if (vista === "chat") {
-      const conv = conversaciones.find((c) => c._id === conversacionId);
-      const receptor = conv?.participantes?.find((p) => p.id && p.id._id !== usuarioId);
-      if (receptor) {
-        handleEnviar(e, receptor.id._id, receptor.rol);
-      }
-    } else {
-      enviarMensajeQueja(e);
-    }
-  };
 
   return (
     <div
@@ -349,18 +324,22 @@ const Chat = () => {
             <button
               onClick={() => setVista("chat")}
               className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "chat" ? "bg-[#AA4A44] text-white" : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+                vista === "chat"
+                  ? "bg-[#AA4A44] text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
               }`}
             >
-              Chat General
+              💬 Chat General
             </button>
             <button
               onClick={() => setVista("quejas")}
               className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "quejas" ? "bg-[#AA4A44] text-white" : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+                vista === "quejas"
+                  ? "bg-[#AA4A44] text-white"
+                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
               }`}
             >
-              Quejas
+              📢 Quejas
             </button>
           </div>
         </div>
@@ -376,12 +355,18 @@ const Chat = () => {
                 return (
                   <button
                     key={conv._id}
-                    onClick={() => setConversacionId(conv._id)}
+                    onClick={() => {
+                      setConversacionId(conv._id);
+                      // si venimos por chatTarget, al seleccionar una conv limpiaremos chatTargetId
+                      setChatTargetId(null);
+                    }}
                     className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex justify-between items-center ${
                       isActive ? "bg-[#fceaea]" : ""
                     }`}
                   >
-                    <span>{otro ? `${otro.id?.nombre} ${otro.id?.apellido}` : "Participante desconocido"}</span>
+                    <span>
+                      {otro ? `${otro.id?.nombre} ${otro.id?.apellido}` : "Participante desconocido"}
+                    </span>
                   </button>
                 );
               })
@@ -389,7 +374,9 @@ const Chat = () => {
           ) : vista === "quejas" ? (
             quejas.length === 0 ? (
               <p className="p-4 text-center text-gray-500 flex-grow">
-                {(emisorRol === "Cliente" || emisorRol === "Emprendedor") ? "Manda una queja al administrador del sitio" : "No hay quejas registradas."}
+                {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
+                  ? "Manda una queja al administrador del sitio"
+                  : "No hay quejas registradas."}
               </p>
             ) : (
               quejas.map((q) => {
@@ -406,10 +393,18 @@ const Chat = () => {
                       isSelected ? "bg-[#fceaea]" : ""
                     }`}
                   >
-                    <p className="font-semibold text-[#AA4A44]">Emisor: {emprendedor?.nombre} {emprendedor?.apellido}</p>
-                    <p className="text-sm text-gray-600">Receptor: {admin?.nombre} {admin?.apellido}</p>
-                    <p className="mt-1 text-gray-800 text-sm line-clamp-2"><strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}</p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(q.updatedAt).toLocaleString()}</p>
+                    <p className="font-semibold text-[#AA4A44]">
+                      Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Receptor: {admin?.nombre} {admin?.apellido}
+                    </p>
+                    <p className="mt-1 text-gray-800 text-sm line-clamp-2">
+                      <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(q.updatedAt).toLocaleString()}
+                    </p>
                   </button>
                 );
               })
@@ -419,16 +414,26 @@ const Chat = () => {
       </aside>
 
       <section className="flex-1 flex flex-col">
-        <header className="py-4 px-6 font-bold text-lg" style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}>
+        <header
+          className="py-4 px-6 font-bold text-lg"
+          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
+        >
           {vista === "chat" ? (
             chatActivo ? (
-              `Chat con ${chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"}${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
+              `Chat con ${
+                chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
+              }${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
+            ) : chatTargetId ? (
+              // si no hay chatActivo pero sí target (llegó desde HomeContent), mostrar nombre genérico
+              `Chat con emprendedor (ID: ${chatTargetId})${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
             ) : (
               "Selecciona una conversación"
             )
           ) : vista === "quejas" ? (
             quejaSeleccionada ? (
-              `Chat Queja con ${quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"}`
+              `Chat Queja con ${
+                quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
+              }`
             ) : (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? (
               "Manda una queja al administrador del sitio"
             ) : (
@@ -439,7 +444,10 @@ const Chat = () => {
           )}
         </header>
 
-        <div ref={mensajesRef} className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4">
+        <div
+          ref={mensajesRef}
+          className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
+        >
           {chatActivo ? (
             mensajesActivos.length === 0 ? (
               <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
@@ -447,8 +455,16 @@ const Chat = () => {
               mensajesActivos.map((msg) => {
                 const esMio = msg.emisor === usuarioId;
                 return (
-                  <div key={msg._id || msg.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-xs px-4 py-2 rounded-lg shadow ${esMio ? "text-white" : "bg-white border border-gray-300"}`} style={esMio ? { backgroundColor: "#AA4A44" } : {}}>
+                  <div
+                    key={msg._id || msg.id}
+                    className={`flex ${esMio ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${
+                        esMio ? "text-white" : "bg-white border border-gray-300"
+                      }`}
+                      style={esMio ? { backgroundColor: "#AA4A44" } : {}}
+                    >
                       {msg.contenido}
                       <div className="text-xs text-gray-300 mt-1 text-right">{msg.emisorRol || ""}</div>
                     </div>
@@ -458,27 +474,39 @@ const Chat = () => {
             )
           ) : (
             <p className="text-center text-gray-500 mt-10">
-              {(emisorRol === "Cliente" || emisorRol === "Emprendedor") ? "Manda una queja al administrador del sitio" : "Selecciona una queja para comenzar"}
+              {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
+                ? "Manda una queja al administrador del sitio"
+                : "Selecciona una queja para comenzar"}
             </p>
           )}
         </div>
 
-        <form onSubmit={handleEnviarMensaje} className="flex p-4 border-t border-gray-300 bg-white">
+        <form
+          onSubmit={handleEnviarMensaje}
+          className="flex p-4 border-t border-gray-300 bg-white"
+        >
           <input
             type="text"
-            placeholder={vista === "chat" ? (productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje...") : "Escribe tu respuesta..."}
+            placeholder={
+              vista === "chat"
+                ? productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje..."
+                : "Escribe tu respuesta..."
+            }
             value={vista === "chat" ? mensaje : mensajeQueja}
-            onChange={(e) => (vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value))}
+            onChange={(e) =>
+              vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value)
+            }
             className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
             style={{ boxShadow: "0 0 0 2px transparent" }}
             onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
             onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            disabled={vista === "chat" ? !conversacionId : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
+            // habilitar input si hay conversación o si venimos desde HomeContent con user (chatTargetId)
+            disabled={vista === "chat" ? !(conversacionId || chatTargetId) : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
             autoComplete="off"
           />
           <button
             type="submit"
-            disabled={vista === "chat" ? !conversacionId : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
+            disabled={vista === "chat" ? !(conversacionId || chatTargetId) : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
             className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ backgroundColor: "#AA4A44" }}
             onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
