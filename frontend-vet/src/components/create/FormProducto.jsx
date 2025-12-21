@@ -489,31 +489,49 @@ export const FormProducto = () => {
       <div style={styles.listaContainer}>
         <h3 style={{ width: "100%", marginBottom: 12 }}>Tus Emprendimientos</h3>
         {loadingEmprendimientos ? (
-          <p>Cargando emprendimientos...</p>
+          <p style={styles.muted}>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
-          <p>No tienes emprendimientos aún.</p>
+          <p style={styles.muted}>No tienes emprendimientos aún.</p>
         ) : (
-          emprendimientos.map((emp) => (
-            <div key={emp._id} style={styles.productoCard}>
-              <div>
-                <strong style={{ fontSize: "1.1rem" }}>{emp.nombreComercial}</strong>
-                <p style={{ minHeight: 36, color: "#555" }}>{emp.descripcion}</p>
-                {emp.logo && (
-                  <img src={emp.logo} alt={emp.nombreComercial} style={{ ...styles.imagen, maxHeight: 120, objectFit: "contain" }} />
-                )}
-                <p style={{ marginTop: 6 }}>
-                  <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
-                </p>
-                <p>
-                  <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
-                </p>
+          <div style={styles.grid}>
+            {emprendimientos.map((emp) => (
+              <div key={emp._id} style={styles.card}>
+                <div style={styles.cardTop}>
+                  {/* Logo container con tamaño fijo */}
+                  <div style={styles.logoContainer}>
+                    {emp.logo ? (
+                      <img
+                        src={emp.logo}
+                        alt={emp.nombreComercial}
+                        style={styles.logoImage}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div style={styles.logoPlaceholder} aria-hidden="true">
+                        {emp.nombreComercial?.charAt(0) || "E"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={styles.cardInfo}>
+                    <strong style={styles.cardTitle}>{emp.nombreComercial}</strong>
+                    <p style={styles.cardDesc}>{emp.descripcion}</p>
+                    <p style={styles.small}>
+                      <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
+                    </p>
+                    <p style={styles.small}>
+                      <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={styles.cardActions}>
+                  <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
+                  <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
+                </div>
               </div>
-              <div style={styles.buttonsCard}>
-                <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
-                <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
 
@@ -597,153 +615,292 @@ export const FormProducto = () => {
 
       {/* LISTA PRODUCTOS */}
       <div style={styles.listaContainer}>
+        <h3 style={{ width: "100%", marginBottom: 12 }}>Tus Productos</h3>
         {loading ? (
-          <p>Cargando productos...</p>
+          <p style={styles.muted}>Cargando productos...</p>
         ) : productos.length === 0 ? (
-          <p>No tienes productos aún.</p>
+          <p style={styles.muted}>No tienes productos aún.</p>
         ) : (
-          productos.map((prod) => (
-            <div key={prod._id} style={styles.productoCard}>
-              <div>
-                <strong>{prod.nombre}</strong>
-                <p>{prod.descripcion}</p>
-                <p>
-                  Precio: <b>${Number(prod.precio).toFixed(2)}</b>
-                </p>
-                <p>Stock: {prod.stock}</p>
-                <p>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
-                {prod.imagen && <img src={prod.imagen} alt={prod.nombre} style={styles.imagen} />}
+          <div style={styles.grid}>
+            {productos.map((prod) => (
+              <div key={prod._id} style={styles.card}>
+                <div style={styles.productImageWrap}>
+                  {/* Contenedor fijo para imagen: todas las imágenes tendrán el mismo tamaño visual */}
+                  {prod.imagen ? (
+                    <img
+                      src={prod.imagen}
+                      alt={prod.nombre}
+                      style={styles.productImage}
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div style={styles.productPlaceholder}>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                        {prod.nombre?.charAt(0) || "P"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.cardBody}>
+                  <strong style={styles.cardTitle}>{prod.nombre}</strong>
+                  <p style={styles.cardDesc}>{prod.descripcion}</p>
+                  <p style={styles.price}>Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span></p>
+                  <p style={styles.small}>Stock: {prod.stock}</p>
+                  <p style={styles.small}>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
+                </div>
+
+                <div style={styles.cardActions}>
+                  <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
+                    Editar
+                  </button>
+                  <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
+                    Eliminar
+                  </button>
+                </div>
               </div>
-              <div style={styles.buttonsCard}>
-                <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
-                  Editar
-                </button>
-                <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </>
   );
 };
 
-// styles... (puedes reutilizar los tuyos)
+// styles mejorados (solo CSS-in-JS)
 const styles = {
+  // Form container
   formContainer: {
     background: "#fff",
     padding: "1.5rem",
-    borderRadius: "15px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+    borderRadius: "12px",
+    boxShadow: "0 8px 20px rgba(12,12,15,0.07)",
     width: "100%",
-    maxWidth: "750px",
-    margin: "auto",
-    fontFamily: "'Playfair Display', serif",
+    maxWidth: "920px",
+    margin: "24px auto",
+    fontFamily: "'Inter', system-ui, Aerial, sans-serif",
   },
   title: {
-    fontSize: "1.6rem",
-    fontWeight: "600",
-    color: "#3B2F2F",
-    marginBottom: "1rem",
-    textAlign: "center",
+    fontSize: "1.25rem",
+    fontWeight: 700,
+    color: "#1F2937",
+    marginBottom: "0.75rem",
+    textAlign: "left",
   },
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "0.8rem",
-    fontFamily: "'Arial', sans-serif",
-    color: "#333",
+    gap: "0.75rem",
+    color: "#111827",
   },
   input: {
-    padding: "0.5rem",
-    border: "1px solid #ccc",
-    borderRadius: "10px",
-    fontSize: "1rem",
+    padding: "10px 12px",
+    border: "1px solid #E5E7EB",
+    borderRadius: "8px",
+    fontSize: "0.98rem",
+    outline: "none",
+    transition: "box-shadow .12s ease, border-color .12s ease",
   },
+  inputFocus: {
+    boxShadow: "0 6px 18px rgba(79,70,229,0.06)",
+    borderColor: "#6366F1",
+  },
+
+  // Buttons
   buttonCreate: {
-    padding: "0.5rem 1.5rem",
-    backgroundColor: "#AA4A44",
+    padding: "10px 16px",
+    backgroundColor: "#0F766E",
     color: "white",
     border: "none",
-    borderRadius: "25px",
-    fontSize: "1rem",
+    borderRadius: "10px",
+    fontSize: "0.98rem",
     cursor: "pointer",
-    transition: "background-color 0.3s",
+    boxShadow: "0 6px 14px rgba(15,118,110,0.18)",
+    transition: "transform .12s ease, box-shadow .12s ease, opacity .12s ease",
   },
   buttonCancel: {
-    padding: "0.5rem 1.5rem",
-    backgroundColor: "#ccc",
-    color: "#333",
+    padding: "10px 16px",
+    backgroundColor: "#F3F4F6",
+    color: "#374151",
     border: "none",
-    borderRadius: "25px",
-    fontSize: "1rem",
+    borderRadius: "10px",
+    fontSize: "0.98rem",
     cursor: "pointer",
-    transition: "background-color 0.3s",
+    transition: "background-color .12s ease",
   },
   buttonRow: {
     display: "flex",
     justifyContent: "flex-end",
-    gap: "1rem",
-    marginTop: "1rem",
+    gap: "0.75rem",
+    marginTop: "0.75rem",
   },
+
+  // General containers
   listaContainer: {
-    maxWidth: 750,
+    maxWidth: 920,
     margin: "1.5rem auto 0 auto",
     padding: 15,
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 15,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    justifyContent: "space-between",
+    fontFamily: "'Inter', system-ui, Aerial, sans-serif",
   },
-  productoCard: {
-    flex: "1 1 calc(25% - 15px)",
-    boxSizing: "border-box",
+  muted: {
+    color: "#6B7280",
+    fontSize: "0.95rem",
+    textAlign: "center",
+    margin: "12px 0",
+  },
+
+  // Grid layout for lists
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "16px",
+    alignItems: "stretch",
+  },
+
+  // Card
+  card: {
     display: "flex",
     flexDirection: "column",
-    border: "1px solid #ddd",
-    borderRadius: 6,
-    padding: 15,
-    boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-    backgroundColor: "#fff",
-    maxWidth: "calc(25% - 15px)",
-    minWidth: "180px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #E6E9EE",
+    borderRadius: 12,
+    padding: 12,
+    boxShadow: "0 6px 18px rgba(14,18,35,0.04)",
+    minHeight: 220,
   },
-  imagen: {
-    maxWidth: "100%",
-    height: "auto",
-    borderRadius: 6,
-    marginTop: 10,
+  cardTop: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
   },
-  buttonsCard: {
+  cardInfo: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: "1.02rem",
+    color: "#0F172A",
+    marginBottom: 6,
+    display: "block",
+  },
+  cardDesc: {
+    color: "#4B5563",
+    fontSize: "0.92rem",
+    marginBottom: 8,
+    minHeight: 38,
+  },
+  small: {
+    fontSize: "0.85rem",
+    color: "#6B7280",
+    margin: 0,
+  },
+
+  // Logo / Image containers (fixed size for consistent UI)
+  logoContainer: {
+    width: 86,
+    height: 86,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#F8FAFC",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid #EEF2F7",
+    flexShrink: 0,
+  },
+  logoImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+  logoPlaceholder: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#9CA3AF",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 22,
+  },
+
+  // PRODUCTO: imagen superior
+  productImageWrap: {
+    width: "100%",
+    height: 160,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#F3F4F6",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    border: "1px solid #E6E9EE",
+    marginBottom: 10,
+  },
+  productImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+  productPlaceholder: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#334155",
+  },
+
+  // Card body for product text
+  cardBody: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
+
+  price: {
+    margin: 0,
+    fontSize: "0.95rem",
+    color: "#111827",
+  },
+  priceValue: {
+    color: "#0F766E",
+    fontWeight: 700,
+  },
+
+  // Actions area (aligned below content)
+  cardActions: {
     display: "flex",
     justifyContent: "flex-end",
-    gap: 10,
-    marginTop: "auto",
+    gap: 8,
+    marginTop: 12,
   },
   buttonEdit: {
-    backgroundColor: "#ffc107",
+    backgroundColor: "#F59E0B",
     border: "none",
     padding: "8px 12px",
-    borderRadius: 4,
+    borderRadius: 8,
     cursor: "pointer",
-    transition: "background-color 0.3s",
+    transition: "transform .12s ease",
   },
   buttonDelete: {
-    backgroundColor: "#dc3545",
+    backgroundColor: "#DC2626",
     color: "white",
     border: "none",
     padding: "8px 12px",
-    borderRadius: 4,
+    borderRadius: 8,
     cursor: "pointer",
-    transition: "background-color 0.3s",
+    transition: "transform .12s ease",
   },
+
+  // Utilities
   error: {
-    color: "red",
+    color: "#B91C1C",
     marginBottom: 8,
-    fontWeight: "600",
+    fontWeight: 700,
     textAlign: "center",
   },
 };
