@@ -132,8 +132,6 @@ export const FormProducto = () => {
       imagen: "",
       stock: "",
     });
-    // mantener selección de emprendimiento actual (opcional) o resetear:
-    // setSelectedEmprendimiento("");
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
@@ -438,7 +436,8 @@ export const FormProducto = () => {
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
-          <div style={{ display: "flex", gap: 8 }}>
+          {/* lat/lng row: ahora envolvente y responsiva */}
+          <div style={styles.latLngRow}>
             <input
               type="number"
               step="any"
@@ -678,6 +677,7 @@ const styles = {
     maxWidth: "920px",
     margin: "24px auto",
     fontFamily: "'Inter', system-ui, Aerial, sans-serif",
+    boxSizing: "border-box",
   },
   title: {
     fontSize: "1.25rem",
@@ -691,6 +691,8 @@ const styles = {
     flexDirection: "column",
     gap: "0.75rem",
     color: "#111827",
+    width: "100%",
+    boxSizing: "border-box",
   },
   input: {
     padding: "10px 12px",
@@ -699,6 +701,18 @@ const styles = {
     fontSize: "0.98rem",
     outline: "none",
     transition: "box-shadow .12s ease, border-color .12s ease",
+    width: "100%",       // importante para que ocupe todo el ancho del contenedor
+    minWidth: 0,         // evita overflow cuando está dentro de flex con flex:1
+    boxSizing: "border-box",
+  },
+
+  // fila lat/lng responsiva
+  latLngRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap", // permite que en pantallas pequeñas los inputs se apilen
+    width: "100%",
+    boxSizing: "border-box",
   },
 
   // Section title más notorio
@@ -901,3 +915,5 @@ const styles = {
     textAlign: "center",
   },
 };
+
+export default FormProducto;
