@@ -438,24 +438,26 @@ export const FormProducto = () => {
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
-          <input
-            type="number"
-            step="any"
-            name="lat"
-            placeholder="Latitud"
-            value={formEmprendimiento.ubicacion.lat}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <input
-            type="number"
-            step="any"
-            name="lng"
-            placeholder="Longitud"
-            value={formEmprendimiento.ubicacion.lng}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              step="any"
+              name="lat"
+              placeholder="Latitud (ej: -0.180653)"
+              value={formEmprendimiento.ubicacion.lat}
+              onChange={handleChangeEmprendimiento}
+              style={{ ...styles.input, flex: 1 }}
+            />
+            <input
+              type="number"
+              step="any"
+              name="lng"
+              placeholder="Longitud (ej: -78.467834)"
+              value={formEmprendimiento.ubicacion.lng}
+              onChange={handleChangeEmprendimiento}
+              style={{ ...styles.input, flex: 1 }}
+            />
+          </div>
           <input
             type="text"
             name="telefono"
@@ -487,7 +489,7 @@ export const FormProducto = () => {
 
       {/* LISTA EMPRENDIMIENTOS */}
       <div style={styles.listaContainer}>
-        <h3 style={{ width: "100%", marginBottom: 12 }}>Tus Emprendimientos</h3>
+        <h3 style={styles.sectionTitle}>Tus Emprendimientos</h3>
         {loadingEmprendimientos ? (
           <p style={styles.muted}>Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
@@ -496,33 +498,31 @@ export const FormProducto = () => {
           <div style={styles.grid}>
             {emprendimientos.map((emp) => (
               <div key={emp._id} style={styles.card}>
-                <div style={styles.cardTop}>
-                  {/* Logo container con tamaño fijo */}
-                  <div style={styles.logoContainer}>
-                    {emp.logo ? (
-                      <img
-                        src={emp.logo}
-                        alt={emp.nombreComercial}
-                        style={styles.logoImage}
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div style={styles.logoPlaceholder} aria-hidden="true">
+                {/* Imagen arriba — igual que productos */}
+                <div style={styles.productImageWrapSmall}>
+                  {emp.logo ? (
+                    <img src={emp.logo} alt={emp.nombreComercial} style={styles.productImage} loading="lazy" />
+                  ) : (
+                    <div style={styles.productPlaceholder}>
+                      <span style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>
                         {emp.nombreComercial?.charAt(0) || "E"}
-                      </div>
-                    )}
-                  </div>
+                      </span>
+                    </div>
+                  )}
+                </div>
 
-                  <div style={styles.cardInfo}>
-                    <strong style={styles.cardTitle}>{emp.nombreComercial}</strong>
-                    <p style={styles.cardDesc}>{emp.descripcion}</p>
-                    <p style={styles.small}>
-                      <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}, <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
-                    </p>
-                    <p style={styles.small}>
-                      <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
-                    </p>
-                  </div>
+                <div style={styles.cardBody}>
+                  <strong style={styles.cardTitle}>{emp.nombreComercial}</strong>
+                  <p style={styles.cardDescClamp}>{emp.descripcion}</p>
+                  <p style={styles.small}>
+                    <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}
+                  </p>
+                  <p style={styles.small}>
+                    <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
+                  </p>
+                  <p style={styles.small}>
+                    <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
+                  </p>
                 </div>
 
                 <div style={styles.cardActions}>
@@ -587,7 +587,7 @@ export const FormProducto = () => {
           />
 
           {/* SELECT DE EMPRENDIMIENTOS (propios del usuario) */}
-          <label style={{ fontSize: 14, marginTop: 6 }}>Selecciona el emprendimiento</label>
+          <label style={{ fontSize: 14, marginTop: 6, color: "#374151" }}>Selecciona el emprendimiento</label>
           <select
             value={selectedEmprendimiento}
             onChange={handleChangeEmprSeleccion}
@@ -615,7 +615,7 @@ export const FormProducto = () => {
 
       {/* LISTA PRODUCTOS */}
       <div style={styles.listaContainer}>
-        <h3 style={{ width: "100%", marginBottom: 12 }}>Tus Productos</h3>
+        <h3 style={styles.sectionTitle}>Tus Productos</h3>
         {loading ? (
           <p style={styles.muted}>Cargando productos...</p>
         ) : productos.length === 0 ? (
@@ -623,9 +623,8 @@ export const FormProducto = () => {
         ) : (
           <div style={styles.grid}>
             {productos.map((prod) => (
-              <div key={prod._id} style={styles.card}>
+              <div key={prod._1d || prod._id} style={styles.card}>
                 <div style={styles.productImageWrap}>
-                  {/* Contenedor fijo para imagen: todas las imágenes tendrán el mismo tamaño visual */}
                   {prod.imagen ? (
                     <img
                       src={prod.imagen}
@@ -644,7 +643,7 @@ export const FormProducto = () => {
 
                 <div style={styles.cardBody}>
                   <strong style={styles.cardTitle}>{prod.nombre}</strong>
-                  <p style={styles.cardDesc}>{prod.descripcion}</p>
+                  <p style={styles.cardDescClamp}>{prod.descripcion}</p>
                   <p style={styles.price}>Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span></p>
                   <p style={styles.small}>Stock: {prod.stock}</p>
                   <p style={styles.small}>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
@@ -667,7 +666,7 @@ export const FormProducto = () => {
   );
 };
 
-// styles mejorados (solo CSS-in-JS)
+// estilos (CSS-in-JS)
 const styles = {
   // Form container
   formContainer: {
@@ -701,9 +700,13 @@ const styles = {
     outline: "none",
     transition: "box-shadow .12s ease, border-color .12s ease",
   },
-  inputFocus: {
-    boxShadow: "0 6px 18px rgba(79,70,229,0.06)",
-    borderColor: "#6366F1",
+
+  // Section title más notorio
+  sectionTitle: {
+    fontSize: "1.5rem",
+    fontWeight: 800,
+    color: "#0F172A",
+    margin: "10px 0 16px 0",
   },
 
   // Buttons
@@ -749,7 +752,7 @@ const styles = {
     margin: "12px 0",
   },
 
-  // Grid layout for lists
+  // Grid layout for lists (responsivo)
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
@@ -757,7 +760,7 @@ const styles = {
     alignItems: "stretch",
   },
 
-  // Card
+  // tarjeta
   card: {
     display: "flex",
     flexDirection: "column",
@@ -766,66 +769,26 @@ const styles = {
     borderRadius: 12,
     padding: 12,
     boxShadow: "0 6px 18px rgba(14,18,35,0.04)",
-    minHeight: 220,
-  },
-  cardTop: {
-    display: "flex",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: "1.02rem",
-    color: "#0F172A",
-    marginBottom: 6,
-    display: "block",
-  },
-  cardDesc: {
-    color: "#4B5563",
-    fontSize: "0.92rem",
-    marginBottom: 8,
-    minHeight: 38,
-  },
-  small: {
-    fontSize: "0.85rem",
-    color: "#6B7280",
-    margin: 0,
+    minHeight: 280,
+    overflow: "hidden",
   },
 
-  // Logo / Image containers (fixed size for consistent UI)
-  logoContainer: {
-    width: 86,
-    height: 86,
+  // imagen logo pequeña (para emprendimientos)
+  productImageWrapSmall: {
+    width: "100%",
+    height: 140,
     borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F3F4F6",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    border: "1px solid #EEF2F7",
+    border: "1px solid #E6E9EE",
+    marginBottom: 10,
     flexShrink: 0,
   },
-  logoImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  },
-  logoPlaceholder: {
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#9CA3AF",
-    color: "#fff",
-    fontWeight: 700,
-    fontSize: 22,
-  },
 
-  // PRODUCTO: imagen superior
+  // imagen para producto (mayor altura)
   productImageWrap: {
     width: "100%",
     height: 160,
@@ -853,12 +816,46 @@ const styles = {
     backgroundColor: "#334155",
   },
 
-  // Card body for product text
+  // Card body for product/emprendimiento text
   cardBody: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
-    gap: 6,
+    gap: 8,
+  },
+
+  cardTitle: {
+    fontSize: "1.02rem",
+    color: "#0F172A",
+    marginBottom: 4,
+    display: "block",
+    wordBreak: "break-word",
+  },
+  cardDesc: {
+    color: "#4B5563",
+    fontSize: "0.92rem",
+    marginBottom: 8,
+    wordBreak: "break-word",
+  },
+
+  // clamp para descripciones (evita overflow de texto)
+  cardDescClamp: {
+    color: "#4B5563",
+    fontSize: "0.92rem",
+    marginBottom: 8,
+    wordBreak: "break-word",
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  },
+
+  small: {
+    fontSize: "0.85rem",
+    color: "#6B7280",
+    margin: 0,
+    wordBreak: "break-word",
   },
 
   price: {
@@ -871,7 +868,7 @@ const styles = {
     fontWeight: 700,
   },
 
-  // Actions area (aligned below content)
+  // Actions area
   cardActions: {
     display: "flex",
     justifyContent: "flex-end",
@@ -896,7 +893,7 @@ const styles = {
     transition: "transform .12s ease",
   },
 
-  // Utilities
+  // error
   error: {
     color: "#B91C1C",
     marginBottom: 8,
