@@ -43,6 +43,18 @@ export const FormProducto = () => {
   const [modoEdicionEmp, setModoEdicionEmp] = useState(false);
   const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
 
+  // --- Helper: resolver rutas relativas '/uploads/...' a URL completo ---
+  const resolveMediaUrl = (maybePath) => {
+    if (!maybePath) return null;
+    // si ya es URL absoluta no la toques
+    if (/^https?:\/\//i.test(maybePath)) return maybePath;
+    // si empieza por /uploads o uploads -> prefijar API_BASE
+    if (maybePath.startsWith("/uploads")) return `${API_BASE}${maybePath}`;
+    if (maybePath.startsWith("uploads")) return `${API_BASE}/${maybePath}`;
+    // si es algo más (ej: dataUrl) devolver tal cual
+    return maybePath;
+  };
+
   // --- CARGA INICIAL ---
   const cargarProductos = async () => {
     if (!emprendedorId) return;
@@ -89,8 +101,8 @@ export const FormProducto = () => {
     cargarEmprendimientos();
     // cleanup previews on unmount
     return () => {
-      if (logoPreview) URL.revokeObjectURL(logoPreview);
-      if (productImagePreview) URL.revokeObjectURL(productImagePreview);
+      if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+      if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) URL.revokeObjectURL(productImagePreview);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId]);
@@ -119,9 +131,8 @@ export const FormProducto = () => {
   // --- MANEJO ARCHIVOS Y PREVIEWS ---
   const handleLogoFileChange = (e) => {
     const file = e.target.files?.[0] || null;
-    if (logoPreview) {
+    if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
       URL.revokeObjectURL(logoPreview);
-      setLogoPreview(null);
     }
     setLogoFile(file);
     if (file) {
@@ -132,9 +143,8 @@ export const FormProducto = () => {
 
   const handleProductImageFileChange = (e) => {
     const file = e.target.files?.[0] || null;
-    if (productImagePreview) {
+    if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(productImagePreview);
-      setProductImagePreview(null);
     }
     setProductImageFile(file);
     if (file) {
@@ -146,10 +156,10 @@ export const FormProducto = () => {
   // --- RESET FORMULARIOS ---
   const resetFormProducto = () => {
     setForm({ nombre: "", descripcion: "", precio: "", imagen: "", stock: "" });
-    if (productImagePreview) {
+    if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(productImagePreview);
-      setProductImagePreview(null);
     }
+    setProductImagePreview(null);
     setProductImageFile(null);
     setModoEdicionProducto(false);
     setProductoEditId(null);
@@ -166,10 +176,10 @@ export const FormProducto = () => {
       categorias: [],
       estado: "Activo",
     });
-    if (logoPreview) {
+    if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
       URL.revokeObjectURL(logoPreview);
-      setLogoPreview(null);
     }
+    setLogoPreview(null);
     setLogoFile(null);
     setModoEdicionEmp(false);
     setEmprendimientoEditId(null);
@@ -340,13 +350,13 @@ export const FormProducto = () => {
       imagen: producto.imagen || "",
       stock: producto.stock || "",
     });
-    // preview si trae imagen URL
-    if (productImagePreview) {
+    // preview si trae imagen URL (resolver a URL completa)
+    if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(productImagePreview);
       setProductImagePreview(null);
     }
     if (producto.imagen) {
-      setProductImagePreview(producto.imagen);
+      setProductImagePreview(resolveMediaUrl(producto.imagen));
     }
     setProductImageFile(null);
     if (producto.emprendimiento) {
@@ -379,11 +389,11 @@ export const FormProducto = () => {
       categorias: emp.categorias || [],
       estado: emp.estado || "Activo",
     });
-    if (logoPreview) {
+    if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
       URL.revokeObjectURL(logoPreview);
       setLogoPreview(null);
     }
-    if (emp.logo) setLogoPreview(emp.logo);
+    if (emp.logo) setLogoPreview(resolveMediaUrl(emp.logo));
     setLogoFile(null);
     setError(null);
   };
@@ -436,7 +446,12 @@ export const FormProducto = () => {
           />
           {logoPreview && (
             <div style={{ maxWidth: 160, marginTop: 8 }}>
-              <img src={logoPreview} alt="preview logo" style={{ width: "100%", borderRadius: 8 }} />
+              <img
+                src={logoPreview}
+                alt="preview logo"
+                style={{ width: "100%", borderRadius: 8 }}
+                onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+              />
             </div>
           )}
 
@@ -518,7 +533,13 @@ export const FormProducto = () => {
               <div key={emp._id} style={styles.card}>
                 <div style={styles.productImageWrapSmall}>
                   {emp.logo ? (
-                    <img src={emp.logo} alt={emp.nombreComercial} style={styles.productImage} loading="lazy" />
+                    <img
+                      src={resolveMediaUrl(emp.logo)}
+                      alt={emp.nombreComercial}
+                      style={styles.productImage}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                    />
                   ) : (
                     <div style={styles.productPlaceholder}>
                       <span style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>
@@ -560,7 +581,12 @@ export const FormProducto = () => {
           <input type="file" accept="image/*" onChange={handleProductImageFileChange} style={styles.inputFile} />
           {productImagePreview && (
             <div style={{ maxWidth: 240, marginTop: 8 }}>
-              <img src={productImagePreview} alt="preview producto" style={{ width: "100%", borderRadius: 8 }} />
+              <img
+                src={productImagePreview}
+                alt="preview producto"
+                style={{ width: "100%", borderRadius: 8 }}
+                onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+              />
             </div>
           )}
 
@@ -588,7 +614,13 @@ export const FormProducto = () => {
               <div key={prod._id || prod._1d} style={styles.card}>
                 <div style={styles.productImageWrap}>
                   {prod.imagen ? (
-                    <img src={prod.imagen} alt={prod.nombre} style={styles.productImage} loading="lazy" />
+                    <img
+                      src={resolveMediaUrl(prod.imagen)}
+                      alt={prod.nombre}
+                      style={styles.productImage}
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                    />
                   ) : (
                     <div style={styles.productPlaceholder}>
                       <span style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{prod.nombre?.charAt(0) || "P"}</span>
@@ -617,7 +649,7 @@ export const FormProducto = () => {
   );
 };
 
-// estilos (CSS-in-JS)
+// estilos (mantengo los tuyos igual)
 const styles = {
   formContainer: {
     background: "#fff",
