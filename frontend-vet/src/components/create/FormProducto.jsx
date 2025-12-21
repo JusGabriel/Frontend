@@ -2,7 +2,10 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth";
 
-export const FormProducto = () => {
+// Componente responsive usando TailwindCSS
+// Requisitos: tener Tailwind configurado en el proyecto.
+
+export default function FormProducto() {
   const { token, id: emprendedorId } = storeAuth();
   const [productos, setProductos] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
@@ -18,7 +21,7 @@ export const FormProducto = () => {
     imagen: "",
     stock: "",
   });
-  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState(""); // <-- id seleccionado
+  const [selectedEmprendimiento, setSelectedEmprendimiento] = useState("");
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
@@ -44,7 +47,7 @@ export const FormProducto = () => {
       const res = await axios.get(
         `https://backend-production-bd1d.up.railway.app/api/productos/emprendedor/${emprendedorId}`
       );
-      setProductos(res.data);
+      setProductos(res.data || []);
     } catch (err) {
       console.error(err);
       setError("Error al cargar productos");
@@ -60,23 +63,18 @@ export const FormProducto = () => {
     try {
       const res = await axios.get(
         `https://backend-production-bd1d.up.railway.app/api/emprendimientos`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Filtrar solo los emprendimientos que pertenecen al usuario autenticado (el backend puede devolver 'emprendedor' poblado o solo el id)
       const data = res.data || [];
-      const soloMios = data.filter(emp => {
+      const soloMios = data.filter((emp) => {
         if (!emp) return false;
-        // emp.emprendedor puede venir como id o objeto
         const ownerId = emp.emprendedor && emp.emprendedor._id ? emp.emprendedor._id : emp.emprendedor;
         return ownerId && ownerId.toString() === emprendedorId?.toString();
       });
 
       setEmprendimientos(soloMios);
 
-      // si no hay selección y existe al menos un emprendimiento, seleccionar el primero por defecto
       if (soloMios.length > 0 && !selectedEmprendimiento) {
         setSelectedEmprendimiento(soloMios[0]._id);
       }
@@ -125,15 +123,7 @@ export const FormProducto = () => {
 
   // --- Reset formularios ---
   const resetFormProducto = () => {
-    setForm({
-      nombre: "",
-      descripcion: "",
-      precio: "",
-      imagen: "",
-      stock: "",
-    });
-    // mantener selección de emprendimiento actual (opcional) o resetear:
-    // setSelectedEmprendimiento("");
+    setForm({ nombre: "", descripcion: "", precio: "", imagen: "", stock: "" });
     setModoEdicionProducto(false);
     setProductoEditId(null);
     setError(null);
@@ -172,11 +162,9 @@ export const FormProducto = () => {
           categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
-          emprendimiento: selectedEmprendimiento
+          emprendimiento: selectedEmprendimiento,
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       cargarProductos();
       resetFormProducto();
@@ -198,9 +186,8 @@ export const FormProducto = () => {
       stock: producto.stock || "",
     });
 
-    // si el producto trae su emprendimiento, seleccionarlo en el select
     if (producto.emprendimiento) {
-      const empId = typeof producto.emprendimiento === 'object' ? producto.emprendimiento._id : producto.emprendimiento;
+      const empId = typeof producto.emprendimiento === "object" ? producto.emprendimiento._id : producto.emprendimiento;
       setSelectedEmprendimiento(empId);
     }
 
@@ -225,12 +212,8 @@ export const FormProducto = () => {
           categoria: null,
           precio: Number(form.precio),
           stock: Number(form.stock),
-          // NOTA: el backend actual no permite cambiar emprendimiento en update a menos que lo implementes;
-          // si permites cambiarlo, envía `emprendimiento: selectedEmprendimiento`
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       cargarProductos();
       resetFormProducto();
@@ -247,14 +230,8 @@ export const FormProducto = () => {
       return;
     }
     if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
-
     try {
-      await axios.delete(
-        `https://backend-production-bd1d.up.railway.app/api/productos/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.delete(`https://backend-production-bd1d.up.railway.app/api/productos/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       cargarProductos();
     } catch (err) {
       console.error(err);
@@ -275,13 +252,11 @@ export const FormProducto = () => {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+            lat: parseFloat(formEmprendimiento.ubicacion.lat) || 0,
+            lng: parseFloat(formEmprendimiento.ubicacion.lng) || 0,
           },
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       cargarEmprendimientos();
       alert("Emprendimiento creado con éxito");
@@ -332,13 +307,11 @@ export const FormProducto = () => {
           ...formEmprendimiento,
           ubicacion: {
             ...formEmprendimiento.ubicacion,
-            lat: parseFloat(formEmprendimiento.ubicacion.lat),
-            lng: parseFloat(formEmprendimiento.ubicacion.lng),
+            lat: parseFloat(formEmprendimiento.ubicacion.lat) || 0,
+            lng: parseFloat(formEmprendimiento.ubicacion.lng) || 0,
           },
         },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       cargarEmprendimientos();
       alert("Emprendimiento actualizado con éxito");
@@ -356,14 +329,8 @@ export const FormProducto = () => {
       return;
     }
     if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
-
     try {
-      await axios.delete(
-        `https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.delete(`https://backend-production-bd1d.up.railway.app/api/emprendimientos/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       cargarEmprendimientos();
     } catch (err) {
       console.error(err);
@@ -391,513 +358,153 @@ export const FormProducto = () => {
   };
 
   return (
-    <>
-      {/* FORMULARIO EMPRENDIMIENTO */}
-      <div style={{ ...styles.formContainer, marginBottom: "2rem" }}>
-        <h2 style={styles.title}>{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
-        {error && <p style={styles.error}>{error}</p>}
-        <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
-          <input
-            type="text"
-            name="nombreComercial"
-            placeholder="Nombre Comercial"
-            value={formEmprendimiento.nombreComercial}
-            onChange={handleChangeEmprendimiento}
-            required
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="descripcion"
-            placeholder="Descripción"
-            value={formEmprendimiento.descripcion}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="logo"
-            placeholder="URL Logo"
-            value={formEmprendimiento.logo}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="direccion"
-            placeholder="Dirección"
-            value={formEmprendimiento.ubicacion.direccion}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="ciudad"
-            placeholder="Ciudad"
-            value={formEmprendimiento.ubicacion.ciudad}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="number"
-              step="any"
-              name="lat"
-              placeholder="Latitud (ej: -0.180653)"
-              value={formEmprendimiento.ubicacion.lat}
-              onChange={handleChangeEmprendimiento}
-              style={{ ...styles.input, flex: 1 }}
-            />
-            <input
-              type="number"
-              step="any"
-              name="lng"
-              placeholder="Longitud (ej: -78.467834)"
-              value={formEmprendimiento.ubicacion.lng}
-              onChange={handleChangeEmprendimiento}
-              style={{ ...styles.input, flex: 1 }}
-            />
-          </div>
-          <input
-            type="text"
-            name="telefono"
-            placeholder="Teléfono"
-            value={formEmprendimiento.contacto.telefono}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formEmprendimiento.contacto.email}
-            onChange={handleChangeEmprendimiento}
-            style={styles.input}
-          />
-          <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
-              {modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}
-            </button>
-            {modoEdicionEmp && (
-              <button type="button" onClick={resetFormEmprendimiento} style={styles.buttonCancel}>
-                Cancelar
-              </button>
-            )}
+    <div className="max-w-6xl mx-auto p-4">
+      {/* Emprendimiento: formulario + lista */}
+      <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+        <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-3">{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
+        {error && <p className="text-red-600 font-semibold mb-3">{error}</p>}
+
+        <form onSubmit={handleSubmitEmprendimiento} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input name="nombreComercial" placeholder="Nombre Comercial" value={formEmprendimiento.nombreComercial} onChange={handleChangeEmprendimiento} required className="input-base col-span-1 md:col-span-2" />
+
+          <textarea name="descripcion" placeholder="Descripción" value={formEmprendimiento.descripcion} onChange={handleChangeEmprendimiento} rows={3} className="input-base col-span-1 md:col-span-2" />
+
+          <input name="logo" placeholder="URL Logo" value={formEmprendimiento.logo} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="direccion" placeholder="Dirección" value={formEmprendimiento.ubicacion.direccion} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="ciudad" placeholder="Ciudad" value={formEmprendimiento.ubicacion.ciudad} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="lat" type="number" step="any" placeholder="Latitud (ej: -0.180653)" value={formEmprendimiento.ubicacion.lat} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="lng" type="number" step="any" placeholder="Longitud (ej: -78.467834)" value={formEmprendimiento.ubicacion.lng} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="telefono" placeholder="Teléfono" value={formEmprendimiento.contacto.telefono} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <input name="email" type="email" placeholder="Email" value={formEmprendimiento.contacto.email} onChange={handleChangeEmprendimiento} className="input-base" />
+
+          <div className="flex gap-3 justify-end md:col-span-2">
+            <button type="submit" className="btn-primary">{modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}</button>
+            {modoEdicionEmp && <button type="button" onClick={resetFormEmprendimiento} className="btn-secondary">Cancelar</button>}
           </div>
         </form>
       </div>
 
-      {/* LISTA EMPRENDIMIENTOS */}
-      <div style={styles.listaContainer}>
-        <h3 style={styles.sectionTitle}>Tus Emprendimientos</h3>
+      <div className="mb-8">
+        <h3 className="text-2xl font-black text-slate-900 mb-4">Tus Emprendimientos</h3>
         {loadingEmprendimientos ? (
-          <p style={styles.muted}>Cargando emprendimientos...</p>
+          <p className="text-slate-500">Cargando emprendimientos...</p>
         ) : emprendimientos.length === 0 ? (
-          <p style={styles.muted}>No tienes emprendimientos aún.</p>
+          <p className="text-slate-500">No tienes emprendimientos aún.</p>
         ) : (
-          <div style={styles.grid}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {emprendimientos.map((emp) => (
-              <div key={emp._id} style={styles.card}>
-                {/* Imagen arriba — igual que productos */}
-                <div style={styles.productImageWrapSmall}>
+              <article key={emp._id} className="bg-white border border-slate-100 rounded-lg overflow-hidden shadow-sm flex flex-col">
+                <div className="h-36 w-full bg-slate-100 flex items-center justify-center overflow-hidden">
                   {emp.logo ? (
-                    <img src={emp.logo} alt={emp.nombreComercial} style={styles.productImage} loading="lazy" />
+                    <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-full object-cover" />
                   ) : (
-                    <div style={styles.productPlaceholder}>
-                      <span style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>
-                        {emp.nombreComercial?.charAt(0) || "E"}
-                      </span>
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white text-2xl font-bold">{emp.nombreComercial?.charAt(0) || 'E'}</div>
                   )}
                 </div>
-
-                <div style={styles.cardBody}>
-                  <strong style={styles.cardTitle}>{emp.nombreComercial}</strong>
-                  <p style={styles.cardDescClamp}>{emp.descripcion}</p>
-                  <p style={styles.small}>
-                    <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}
-                  </p>
-                  <p style={styles.small}>
-                    <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
-                  </p>
-                  <p style={styles.small}>
-                    <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
-                  </p>
+                <div className="p-3 flex-1 flex flex-col">
+                  <h4 className="font-semibold text-slate-900 mb-1 truncate">{emp.nombreComercial}</h4>
+                  <p className="text-slate-600 text-sm line-clamp-3 mb-2">{emp.descripcion}</p>
+                  <div className="text-sm text-slate-500 mt-auto">
+                    <p className="truncate"><strong>Dirección:</strong> {emp.ubicacion?.direccion || '-'}</p>
+                    <p className="truncate"><strong>Ciudad:</strong> {emp.ubicacion?.ciudad || '-'}</p>
+                    <p className="truncate"><strong>Contacto:</strong> {emp.contacto?.telefono || '-'} | {emp.contacto?.email || '-'}</p>
+                  </div>
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button onClick={() => editarEmprendimiento(emp)} className="btn-warning">Editar</button>
+                    <button onClick={() => eliminarEmprendimiento(emp._id)} className="btn-danger">Eliminar</button>
+                  </div>
                 </div>
-
-                <div style={styles.cardActions}>
-                  <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
-                </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </div>
 
       {/* FORMULARIO PRODUCTO */}
-      <div style={styles.formContainer}>
-        <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
-        {error && <p style={styles.error}>{error}</p>}
-        <form onSubmit={handleSubmitProducto} style={styles.form}>
-          <input
-            type="text"
-            name="nombre"
-            placeholder="Nombre"
-            value={form.nombre}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="descripcion"
-            placeholder="Descripción"
-            value={form.descripcion}
-            onChange={handleChange}
-            style={styles.input}
-          />
-          <input
-            type="number"
-            name="precio"
-            placeholder="Precio"
-            step="0.01"
-            value={form.precio}
-            onChange={handleChange}
-            required
-            min="0"
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="imagen"
-            placeholder="URL Imagen"
-            value={form.imagen}
-            onChange={handleChange}
-            style={styles.input}
-          />
-          <input
-            type="number"
-            name="stock"
-            placeholder="Stock"
-            value={form.stock}
-            onChange={handleChange}
-            min="0"
-            style={styles.input}
-          />
+      <div className="bg-white rounded-lg shadow-sm p-5 mb-6">
+        <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 mb-3">{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
+        {error && <p className="text-red-600 font-semibold mb-3">{error}</p>}
 
-          {/* SELECT DE EMPRENDIMIENTOS (propios del usuario) */}
-          <label style={{ fontSize: 14, marginTop: 6, color: "#374151" }}>Selecciona el emprendimiento</label>
-          <select
-            value={selectedEmprendimiento}
-            onChange={handleChangeEmprSeleccion}
-            style={{ ...styles.input, appearance: 'menulist' }}
-            required
-          >
-            <option value="">-- Selecciona el emprendimiento --</option>
-            {emprendimientos.map(emp => (
-              <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
-            ))}
-          </select>
+        <form onSubmit={handleSubmitProducto} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required className="input-base col-span-1 md:col-span-2" />
 
-          <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
-              {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
-            </button>
-            {modoEdicionProducto && (
-              <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>
-                Cancelar
-              </button>
-            )}
+          <textarea name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} rows={3} className="input-base col-span-1 md:col-span-2" />
+
+          <input name="precio" type="number" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" className="input-base" />
+
+          <input name="imagen" placeholder="URL Imagen" value={form.imagen} onChange={handleChange} className="input-base" />
+
+          <input name="stock" type="number" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" className="input-base" />
+
+          <div className="col-span-1 md:col-span-2">
+            <label className="block text-sm text-slate-700 mb-1">Selecciona el emprendimiento</label>
+            <select value={selectedEmprendimiento} onChange={handleChangeEmprSeleccion} className="input-base w-full" required>
+              <option value="">-- Selecciona el emprendimiento --</option>
+              {emprendimientos.map((emp) => (
+                <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-3 justify-end md:col-span-2">
+            <button type="submit" className="btn-primary">{modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}</button>
+            {modoEdicionProducto && <button type="button" onClick={resetFormProducto} className="btn-secondary">Cancelar</button>}
           </div>
         </form>
       </div>
 
       {/* LISTA PRODUCTOS */}
-      <div style={styles.listaContainer}>
-        <h3 style={styles.sectionTitle}>Tus Productos</h3>
+      <div>
+        <h3 className="text-2xl font-black text-slate-900 mb-4">Tus Productos</h3>
         {loading ? (
-          <p style={styles.muted}>Cargando productos...</p>
+          <p className="text-slate-500">Cargando productos...</p>
         ) : productos.length === 0 ? (
-          <p style={styles.muted}>No tienes productos aún.</p>
+          <p className="text-slate-500">No tienes productos aún.</p>
         ) : (
-          <div style={styles.grid}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {productos.map((prod) => (
-              <div key={prod._1d || prod._id} style={styles.card}>
-                <div style={styles.productImageWrap}>
+              <article key={prod._id} className="bg-white border border-slate-100 rounded-lg overflow-hidden shadow-sm flex flex-col">
+                <div className="h-40 w-full bg-slate-100 flex items-center justify-center overflow-hidden">
                   {prod.imagen ? (
-                    <img
-                      src={prod.imagen}
-                      alt={prod.nombre}
-                      style={styles.productImage}
-                      loading="lazy"
-                    />
+                    <img src={prod.imagen} alt={prod.nombre} className="w-full h-full object-cover" />
                   ) : (
-                    <div style={styles.productPlaceholder}>
-                      <span style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>
-                        {prod.nombre?.charAt(0) || "P"}
-                      </span>
-                    </div>
+                    <div className="w-full h-full flex items-center justify-center bg-slate-700 text-white text-2xl font-bold">{prod.nombre?.charAt(0) || 'P'}</div>
                   )}
                 </div>
+                <div className="p-3 flex-1 flex flex-col">
+                  <h4 className="font-semibold text-slate-900 mb-1 truncate">{prod.nombre}</h4>
+                  <p className="text-slate-600 text-sm line-clamp-3 mb-2">{prod.descripcion}</p>
+                  <p className="text-sm text-slate-700 mt-auto"><strong>Precio:</strong> <span className="text-emerald-700 font-bold">${Number(prod.precio).toFixed(2)}</span></p>
+                  <p className="text-sm text-slate-500">Stock: {prod.stock}</p>
+                  <p className="text-sm text-slate-500">Emprendimiento: {prod.emprendimiento?.nombreComercial || '-'}</p>
 
-                <div style={styles.cardBody}>
-                  <strong style={styles.cardTitle}>{prod.nombre}</strong>
-                  <p style={styles.cardDescClamp}>{prod.descripcion}</p>
-                  <p style={styles.price}>Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span></p>
-                  <p style={styles.small}>Stock: {prod.stock}</p>
-                  <p style={styles.small}>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button onClick={() => editarProducto(prod)} className="btn-warning">Editar</button>
+                    <button onClick={() => eliminarProducto(prod._id)} className="btn-danger">Eliminar</button>
+                  </div>
                 </div>
-
-                <div style={styles.cardActions}>
-                  <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
-                    Editar
-                  </button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
-                    Eliminar
-                  </button>
-                </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
       </div>
-    </>
+
+      {/* Tailwind helper classes injected as style fallback for projects that don't have every plugin */}
+      <style jsx>{`
+        /* Simple local style overrides for input/button base when Tailwind utilities are present or not. */
+        .input-base { @apply px-3 py-2 border rounded-md text-sm bg-white border-slate-200 outline-none focus:ring-2 focus:ring-emerald-200; }
+        .btn-primary { @apply px-4 py-2 rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700; }
+        .btn-secondary { @apply px-4 py-2 rounded-md bg-slate-100 text-slate-800 font-medium hover:bg-slate-200; }
+        .btn-warning { @apply px-3 py-1 rounded-md bg-amber-500 text-white text-sm; }
+        .btn-danger { @apply px-3 py-1 rounded-md bg-red-600 text-white text-sm; }
+        .btn-warning:hover, .btn-danger:hover { transform: translateY(-1px); }
+      `}</style>
+    </div>
   );
-};
-
-// estilos (CSS-in-JS)
-const styles = {
-  // Form container
-  formContainer: {
-    background: "#fff",
-    padding: "1.5rem",
-    borderRadius: "12px",
-    boxShadow: "0 8px 20px rgba(12,12,15,0.07)",
-    width: "100%",
-    maxWidth: "920px",
-    margin: "24px auto",
-    fontFamily: "'Inter', system-ui, Aerial, sans-serif",
-  },
-  title: {
-    fontSize: "1.25rem",
-    fontWeight: 700,
-    color: "#1F2937",
-    marginBottom: "0.75rem",
-    textAlign: "left",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.75rem",
-    color: "#111827",
-  },
-  input: {
-    padding: "10px 12px",
-    border: "1px solid #E5E7EB",
-    borderRadius: "8px",
-    fontSize: "0.98rem",
-    outline: "none",
-    transition: "box-shadow .12s ease, border-color .12s ease",
-  },
-
-  // Section title más notorio
-  sectionTitle: {
-    fontSize: "1.5rem",
-    fontWeight: 800,
-    color: "#0F172A",
-    margin: "10px 0 16px 0",
-  },
-
-  // Buttons
-  buttonCreate: {
-    padding: "10px 16px",
-    backgroundColor: "#0F766E",
-    color: "white",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "0.98rem",
-    cursor: "pointer",
-    boxShadow: "0 6px 14px rgba(15,118,110,0.18)",
-    transition: "transform .12s ease, box-shadow .12s ease, opacity .12s ease",
-  },
-  buttonCancel: {
-    padding: "10px 16px",
-    backgroundColor: "#F3F4F6",
-    color: "#374151",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "0.98rem",
-    cursor: "pointer",
-    transition: "background-color .12s ease",
-  },
-  buttonRow: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "0.75rem",
-    marginTop: "0.75rem",
-  },
-
-  // General containers
-  listaContainer: {
-    maxWidth: 920,
-    margin: "1.5rem auto 0 auto",
-    padding: 15,
-    fontFamily: "'Inter', system-ui, Aerial, sans-serif",
-  },
-  muted: {
-    color: "#6B7280",
-    fontSize: "0.95rem",
-    textAlign: "center",
-    margin: "12px 0",
-  },
-
-  // Grid layout for lists (responsivo)
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "16px",
-    alignItems: "stretch",
-  },
-
-  // tarjeta
-  card: {
-    display: "flex",
-    flexDirection: "column",
-    backgroundColor: "#ffffff",
-    border: "1px solid #E6E9EE",
-    borderRadius: 12,
-    padding: 12,
-    boxShadow: "0 6px 18px rgba(14,18,35,0.04)",
-    minHeight: 280,
-    overflow: "hidden",
-  },
-
-  // imagen logo pequeña (para emprendimientos)
-  productImageWrapSmall: {
-    width: "100%",
-    height: 140,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#F3F4F6",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1px solid #E6E9EE",
-    marginBottom: 10,
-    flexShrink: 0,
-  },
-
-  // imagen para producto (mayor altura)
-  productImageWrap: {
-    width: "100%",
-    height: 160,
-    borderRadius: 10,
-    overflow: "hidden",
-    backgroundColor: "#F3F4F6",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    border: "1px solid #E6E9EE",
-    marginBottom: 10,
-  },
-  productImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  },
-  productPlaceholder: {
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#334155",
-  },
-
-  // Card body for product/emprendimiento text
-  cardBody: {
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-  },
-
-  cardTitle: {
-    fontSize: "1.02rem",
-    color: "#0F172A",
-    marginBottom: 4,
-    display: "block",
-    wordBreak: "break-word",
-  },
-  cardDesc: {
-    color: "#4B5563",
-    fontSize: "0.92rem",
-    marginBottom: 8,
-    wordBreak: "break-word",
-  },
-
-  // clamp para descripciones (evita overflow de texto)
-  cardDescClamp: {
-    color: "#4B5563",
-    fontSize: "0.92rem",
-    marginBottom: 8,
-    wordBreak: "break-word",
-    display: "-webkit-box",
-    WebkitLineClamp: 3,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  },
-
-  small: {
-    fontSize: "0.85rem",
-    color: "#6B7280",
-    margin: 0,
-    wordBreak: "break-word",
-  },
-
-  price: {
-    margin: 0,
-    fontSize: "0.95rem",
-    color: "#111827",
-  },
-  priceValue: {
-    color: "#0F766E",
-    fontWeight: 700,
-  },
-
-  // Actions area
-  cardActions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 8,
-    marginTop: 12,
-  },
-  buttonEdit: {
-    backgroundColor: "#F59E0B",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 8,
-    cursor: "pointer",
-    transition: "transform .12s ease",
-  },
-  buttonDelete: {
-    backgroundColor: "#DC2626",
-    color: "white",
-    border: "none",
-    padding: "8px 12px",
-    borderRadius: 8,
-    cursor: "pointer",
-    transition: "transform .12s ease",
-  },
-
-  // error
-  error: {
-    color: "#B91C1C",
-    marginBottom: 8,
-    fontWeight: 700,
-    textAlign: "center",
-  },
-};
+}
