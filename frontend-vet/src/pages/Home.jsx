@@ -33,7 +33,43 @@ function resolveImageUrl(imgPath) {
   return DEFAULT_PLACEHOLDER;
 }
 
-// -------------------------- Componentes UI (sin cambios funcionales) --------------------------
+// -------------------------- Iconos nuevos / existentes --------------------------
+const IconUser = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M20 21a8 8 0 10-16 0" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const IconStore = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+    <path d="M3 9l1-3h16l1 3" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M5 9v8a2 2 0 002 2h10a2 2 0 002-2V9" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="#AA4A44" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// Corazón para favoritos (no persistente en esta versión)
+const IconHeart = ({ filled = false }) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill={filled ? '#AA4A44' : 'none'}
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden
+  >
+    <path
+      d="M12 21s-6.716-4.33-9.428-7.043C.86 12.245.86 9.487 2.572 7.774c1.713-1.713 4.47-1.713 6.183 0L12 10.02l3.245-3.246c1.713-1.713 4.47-1.713 6.183 0 1.713 1.713 1.713 4.47 0 6.183C18.716 16.67 12 21 12 21z"
+      stroke="#AA4A44"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+// -------------------------- Componentes UI --------------------------
 const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
@@ -58,21 +94,6 @@ const Footer = () => (
   <footer className="bg-[#F3E1CE] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#E0C7B6]">
     © 2025 QuitoEmprende. Todos los derechos reservados.
   </footer>
-);
-
-const IconUser = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-    <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M20 21a8 8 0 10-16 0" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
-);
-
-const IconStore = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-    <path d="M3 9l1-3h16l1 3" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M5 9v8a2 2 0 002 2h10a2 2 0 002-2V9" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="#AA4A44" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-  </svg>
 );
 
 const RoleCard = ({ title, subtitle, features = [], to, variant = 'primary', icon }) => {
@@ -161,6 +182,12 @@ export const Home = () => {
     const nombre = e.nombre ?? e.nombres ?? '';
     const apellido = e.apellido ?? e.apellidos ?? '';
     return `${nombre} ${apellido}`.trim() || '—';
+  };
+
+  // Acción "favorito" temporal: redirige a login como en Contactar
+  const handleAddFavoriteRedirect = (e) => {
+    e.stopPropagation();
+    navigate('/login?rol=cliente');
   };
 
   return (
@@ -260,10 +287,19 @@ export const Home = () => {
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
-                    <div className="mt-3">
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <button
+                        onClick={(e) => handleAddFavoriteRedirect(e)}
+                        className="flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
+                        aria-label={`Agregar ${producto.nombre} a favoritos`}
+                      >
+                        <IconHeart />
+                        <span>Me encanta</span>
+                      </button>
+
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
-                        className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                        className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
                         aria-label={`Contactar ${producto.nombre}`}
                       >
                         Contactar
@@ -305,15 +341,29 @@ export const Home = () => {
                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
                   <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEmprendimientoSeleccionado(emp);
-                    }}
-                    className="mt-3 bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                  >
-                    Ver detalles
-                  </button>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEmprendimientoSeleccionado(emp);
+                      }}
+                      className="bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                    >
+                      Ver detalles
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddFavoriteRedirect(e);
+                      }}
+                      className="flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] w-full py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
+                      aria-label={`Agregar ${emp.nombreComercial} a favoritos`}
+                    >
+                      <IconHeart />
+                      <span>Me encanta</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -352,7 +402,15 @@ export const Home = () => {
             <p className="text-sm text-gray-600 mt-2"><strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}</p>
             <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
-            <div className="mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-3">
+              <button
+                onClick={(e) => handleAddFavoriteRedirect(e)}
+                className="w-full flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
+              >
+                <IconHeart />
+                Agregar a favoritos
+              </button>
+
               <button
                 onClick={() => { navigate('/login?rol=cliente'); }}
                 className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
@@ -417,6 +475,19 @@ export const Home = () => {
                 className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834] transition-colors"
               >
                 Ir al sitio
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddFavoriteRedirect(e);
+                }}
+                className="border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-[#AA4A44]/10"
+              >
+                <div className="flex items-center gap-2">
+                  <IconHeart />
+                  <span>Me encanta</span>
+                </div>
               </button>
             </div>
           </div>
