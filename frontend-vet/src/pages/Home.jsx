@@ -8,6 +8,10 @@ import heroImage from '../assets/QuitoHome.jpg';
 // Placeholder externo (se usa si no hay imagen o falla la carga)
 const DEFAULT_PLACEHOLDER = 'https://via.placeholder.com/800x600?text=Sin+imagen';
 
+// ====== CONFIGURACIÓN PAGINACIÓN UX/UI (client-side) ======
+const PRODUCTS_PAGE_SIZE = 8;        // cantidad por bloque en Productos
+const EMPS_PAGE_SIZE = 8;            // cantidad por bloque en Emprendimientos
+
 // Obtener URL de API desde env (compatible Vite y CRA) y fallback
 const API_URL = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
@@ -31,14 +35,16 @@ function resolveImageUrl(imgPath) {
 
 // -------------------------- Iconos nuevos / existentes --------------------------
 const IconUser = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M20 21a8 8 0 10-16 0" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 
 const IconStore = () => (
-  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
     <path d="M3 9l1-3h16l1 3" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M5 9v8a2 2 0 002 2h10a2 2 0 002-2V9" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
     <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="#AA4A44" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
@@ -200,35 +206,48 @@ export const Home = () => {
   const [productos, setProductos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
+
+  // ====== Estados de UX/Paginación (client-side) ======
+  const [prodVisibleCount, setProdVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
+  const [empVisibleCount, setEmpVisibleCount] = useState(EMPS_PAGE_SIZE);
+
   const navigate = useNavigate();
 
   useEffect(() => {
+    const ac = new AbortController();
     const fetchEmprendimientos = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/emprendimientos/publicos`);
+        const res = await fetch(`${API_URL}/api/emprendimientos/publicos`, { signal: ac.signal });
         const data = await res.json();
         setEmprendimientos(Array.isArray(data) ? data : []);
+        // Reinicia conteo visible ante nueva carga
+        setEmpVisibleCount(EMPS_PAGE_SIZE);
       } catch (error) {
-        console.error('Error al cargar emprendimientos:', error);
+        if (error.name !== 'AbortError') console.error('Error al cargar emprendimientos:', error);
       }
     };
 
     fetchEmprendimientos();
+    return () => ac.abort();
   }, []);
 
   useEffect(() => {
+    const ac = new AbortController();
     const fetchProductos = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/productos/todos`);
+        const res = await fetch(`${API_URL}/api/productos/todos`, { signal: ac.signal });
         const data = await res.json();
         const productosArray = Array.isArray(data) ? data : (Array.isArray(data?.productos) ? data.productos : []);
         setProductos(productosArray);
+        // Reinicia conteo visible ante nueva carga
+        setProdVisibleCount(PRODUCTS_PAGE_SIZE);
       } catch (error) {
-        console.error('Error al cargar productos:', error);
+        if (error.name !== 'AbortError') console.error('Error al cargar productos:', error);
       }
     };
 
     fetchProductos();
+    return () => ac.abort();
   }, []);
 
   const buildPublicUrl = (emp) => {
@@ -249,6 +268,13 @@ export const Home = () => {
     e?.stopPropagation?.();
     navigate('/login?rol=cliente');
   };
+
+  // ====== Derivados visibles (client-side) ======
+  const productosVisibles = productos.slice(0, prodVisibleCount);
+  const emprVisibles     = emprendimientos.slice(0, empVisibleCount);
+
+  // Formateador de precio (UX local Ecuador - USD)
+  const fmtUSD = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 
   return (
     <>
@@ -304,7 +330,12 @@ export const Home = () => {
           </div>
 
           <div className="flex-1 flex justify-center md:justify-end">
-            <img src={heroImage} alt="Hero" className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]" />
+            <img
+              src={heroImage}
+              alt="Hero"
+              className="w-full max-w-xl rounded-[15px] shadow-xl object-cover border-2 border-[#AA4A44]"
+              loading="lazy"
+            />
           </div>
         </div>
       </main>
@@ -312,65 +343,103 @@ export const Home = () => {
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
       {/* PRODUCTOS */}
-      <section className="py-10 px-6 bg-white text-gray-800">
+      <section className="py-10 px-6 bg-white text-gray-800" aria-labelledby="productos-title">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
-          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
+          <h2 id="productos-title" className="text-3xl font-bold text-[#AA4A44] text-center mb-2">Productos Destacados</h2>
+
+          {/* Estado/contador UX */}
+          <p className="text-sm text-gray-600 mb-6">
+            Mostrando <strong>{Math.min(prodVisibleCount, productos.length)}</strong> de <strong>{productos.length}</strong> productos
+          </p>
 
           {productos.length === 0 ? (
             <p className="text-gray-600">Cargando productos...</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
-              {productos.map((producto) => {
-                const empr = producto.emprendimiento ?? {};
-                const dueño = empr?.emprendedor ?? null;
-                const imgSrc = resolveImageUrl(producto.imagen);
+            <>
+              <div
+                id="grid-productos"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full"
+                aria-live="polite"
+              >
+                {productosVisibles.map((producto) => {
+                  const empr = producto.emprendimiento ?? {};
+                  const dueño = empr?.emprendedor ?? null;
+                  const imgSrc = resolveImageUrl(producto.imagen);
 
-                return (
-                  <article
-                    key={producto._id}
-                    className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
-                    onClick={() => setProductoSeleccionado(producto)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <img
-                      src={imgSrc}
-                      alt={producto.nombre}
-                      className="w-full h-48 object-cover rounded-lg mb-4"
-                      onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
-                    />
+                  return (
+                    <article
+                      key={producto._id}
+                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
+                      onClick={() => setProductoSeleccionado(producto)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setProductoSeleccionado(producto);
+                        }
+                      }}
+                    >
+                      <img
+                        src={imgSrc}
+                        alt={producto.nombre}
+                        className="w-full h-48 object-cover rounded-lg mb-4"
+                        loading="lazy"
+                        onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
+                      />
 
-                    <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
-                    <p className="mt-3 text-lg font-bold text-[#28a745]">${producto.precio}</p>
-                    <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
-                    <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
-                    <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
+                      <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
+                      <p className="mt-3 text-lg font-bold text-[#28a745]">{fmtUSD.format(Number(producto.precio ?? 0))}</p>
+                      <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
+                      <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
+                      <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* En mobile cada botón ocupa 100%; en desktop aparecen lado a lado */}
-                      <div className="w-full">
-                        <HeartButton
-                          filled={false}
-                          onClick={(e) => handleAddFavoriteRedirect(e)}
-                          label="Me encanta"
-                          ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                          className="w-full justify-center"
-                        />
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Feedback opcional: si quieres ver el toggle visual en invitado, usa toggleable */}
+                        <div className="w-full">
+                          <HeartButton
+                            filled={false}
+                            onClick={(e) => handleAddFavoriteRedirect(e)}
+                            label="Me encanta"
+                            ariaLabel={`Agregar ${producto.nombre} a favoritos`}
+                            className="w-full justify-center"
+                          />
+                        </div>
+
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
+                          className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
+                          aria-label={`Contactar ${producto.nombre}`}
+                        >
+                          Contactar
+                        </button>
                       </div>
+                    </article>
+                  );
+                })}
+              </div>
 
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
-                        className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
-                        aria-label={`Contactar ${producto.nombre}`}
-                      >
-                        Contactar
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+              {/* Botón "Mostrar más" (progresivo, evita scroll infinito) */}
+              <div className="w-full mt-8 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProdVisibleCount((c) => Math.min(c + PRODUCTS_PAGE_SIZE, productos.length))
+                  }
+                  disabled={prodVisibleCount >= productos.length}
+                  className={`px-5 py-2 rounded-md text-sm font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${
+                    prodVisibleCount >= productos.length
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300'
+                      : 'bg-white text-[#AA4A44] border-[#AA4A44] hover:bg-white/90'
+                  }`}
+                  aria-controls="grid-productos"
+                  aria-label="Mostrar más productos"
+                >
+                  {prodVisibleCount >= productos.length ? 'No hay más productos' : 'Mostrar más productos'}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </section>
@@ -378,23 +447,45 @@ export const Home = () => {
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
       {/* EMPRENDIMIENTOS */}
-      <section className="py-16 px-4 text-gray-800" style={{ backgroundImage: `url(${fondoblanco})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+      <section
+        className="py-16 px-4 text-gray-800"
+        style={{ backgroundImage: `url(${fondoblanco})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+        aria-labelledby="empr-title"
+      >
         <div className="max-w-7xl mx-auto flex flex-col items-center">
-          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Explora Emprendimientos</h2>
+          <h2 id="empr-title" className="text-3xl font-bold text-[#AA4A44] text-center mb-2">Explora Emprendimientos</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
-            {emprendimientos.map((emp) => {
+          {/* Estado/contador UX */}
+          <p className="text-sm text-gray-600 mb-6">
+            Mostrando <strong>{Math.min(empVisibleCount, emprendimientos.length)}</strong> de <strong>{emprendimientos.length}</strong> emprendimientos
+          </p>
+
+          <div
+            id="grid-empr"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full"
+            aria-live="polite"
+          >
+            {emprVisibles.map((emp) => {
               const logoSrc = resolveImageUrl(emp.logo);
               return (
                 <div
                   key={emp._id}
                   className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer flex flex-col"
                   onClick={() => navigate(buildPublicUrl(emp))}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(buildPublicUrl(emp));
+                    }
+                  }}
                 >
                   <img
                     src={logoSrc}
                     alt={emp.nombreComercial}
                     className="w-full h-40 object-cover rounded-lg mb-3"
+                    loading="lazy"
                     onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
                   />
 
@@ -433,6 +524,26 @@ export const Home = () => {
               );
             })}
           </div>
+
+          {/* Botón "Mostrar más" (progresivo, evita scroll infinito) */}
+          <div className="w-full mt-8 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setEmpVisibleCount((c) => Math.min(c + EMPS_PAGE_SIZE, emprendimientos.length))
+              }
+              disabled={empVisibleCount >= emprendimientos.length}
+              className={`px-5 py-2 rounded-md text-sm font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${
+                empVisibleCount >= emprendimientos.length
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300'
+                  : 'bg-white text-[#AA4A44] border-[#AA4A44] hover:bg-white/90'
+              }`}
+              aria-controls="grid-empr"
+              aria-label="Mostrar más emprendimientos"
+            >
+              {empVisibleCount >= emprendimientos.length ? 'No hay más emprendimientos' : 'Mostrar más emprendimientos'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -440,7 +551,13 @@ export const Home = () => {
       {productoSeleccionado && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="producto-modal-title"
           onClick={() => setProductoSeleccionado(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setProductoSeleccionado(null);
+          }}
         >
           <div
             className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
@@ -458,12 +575,13 @@ export const Home = () => {
               src={resolveImageUrl(productoSeleccionado.imagen)}
               alt={productoSeleccionado.nombre}
               className="w-full h-48 object-cover rounded-md mb-4"
+              loading="lazy"
               onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
             />
 
-            <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
+            <h2 id="producto-modal-title" className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
             <p className="text-gray-600 mt-2">{productoSeleccionado.descripcion}</p>
-            <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
+            <p className="font-bold text-[#28a745] mt-3 text-lg">{fmtUSD.format(Number(productoSeleccionado.precio ?? 0))}</p>
             <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock ?? '—'}</p>
             <p className="text-sm text-gray-600 mt-2"><strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}</p>
             <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
@@ -492,7 +610,13 @@ export const Home = () => {
       {emprendimientoSeleccionado && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="empr-modal-title"
           onClick={() => setEmprendimientoSeleccionado(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setEmprendimientoSeleccionado(null);
+          }}
         >
           <div
             className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl relative"
@@ -510,10 +634,11 @@ export const Home = () => {
               src={resolveImageUrl(emprendimientoSeleccionado.logo)}
               alt={emprendimientoSeleccionado.nombreComercial}
               className="w-full h-48 object-cover rounded-md mb-4"
+              loading="lazy"
               onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
             />
 
-            <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
+            <h2 id="empr-modal-title" className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
 
             <p className="text-gray-800 font-bold text-sm mt-1">Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}</p>
 
@@ -523,15 +648,15 @@ export const Home = () => {
 
             <div className="flex gap-3 mt-4 flex-wrap text-sm">
               {emprendimientoSeleccionado.contacto?.sitioWeb && (
-                <a href={emprendimientoSeleccionado.contacto.sitioWeb} target="_blank" rel="noreferrer" className="text-[#007bff] hover:underline">Sitio web</a>
+                <a href={emprendimientoSeleccionado.contacto.sitioWeb} target="_blank" rel="noreferrer noopener" className="text-[#007bff] hover:underline">Sitio web</a>
               )}
 
               {emprendimientoSeleccionado.contacto?.facebook && (
-                <a href={emprendimientoSeleccionado.contacto.facebook} target="_blank" rel="noreferrer" className="text-[#3b5998] hover:underline">Facebook</a>
+                <a href={emprendimientoSeleccionado.contacto.facebook} target="_blank" rel="noreferrer noopener" className="text-[#3b5998] hover:underline">Facebook</a>
               )}
 
               {emprendimientoSeleccionado.contacto?.instagram && (
-                <a href={emprendimientoSeleccionado.contacto.instagram} target="_blank" rel="noreferrer" className="text-[#C13584] hover:underline">Instagram</a>
+                <a href={emprendimientoSeleccionado.contacto.instagram} target="_blank" rel="noreferrer noopener" className="text-[#C13584] hover:underline">Instagram</a>
               )}
 
               <button
