@@ -49,25 +49,62 @@ const IconStore = () => (
   </svg>
 );
 
-// Corazón para favoritos (no persistente en esta versión)
-const IconHeart = ({ filled = false }) => (
+// Nuevo SVG para corazón dentro de un badge circular
+const IconHeartSvg = ({ filled = false, size = 18 }) => (
   <svg
-    width="18"
-    height="18"
+    width={size}
+    height={size}
     viewBox="0 0 24 24"
-    fill={filled ? '#AA4A44' : 'none'}
+    fill={filled ? 'currentColor' : 'none'}
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden
+    focusable="false"
   >
     <path
       d="M12 21s-6.716-4.33-9.428-7.043C.86 12.245.86 9.487 2.572 7.774c1.713-1.713 4.47-1.713 6.183 0L12 10.02l3.245-3.246c1.713-1.713 4.47-1.713 6.183 0 1.713 1.713 1.713 4.47 0 6.183C18.716 16.67 12 21 12 21z"
-      stroke="#AA4A44"
-      strokeWidth="1.3"
+      stroke="white"
+      strokeWidth="1.1"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
   </svg>
 );
+
+/**
+ * HeartButton - botón reutilizable para "Me encanta"
+ *
+ * Props:
+ * - filled: boolean (si está activo/llenado)
+ * - onClick: function
+ * - label: string (texto visible)
+ * - ariaLabel: string
+ * - className: string (clases tailwind adicionales)
+ */
+const HeartButton = ({ filled = false, onClick = () => {}, label = 'Me encanta', ariaLabel, className = '' }) => {
+  const colorBg = filled ? 'bg-[#AA4A44]' : 'bg-white';
+  const ring = filled ? 'ring-2 ring-offset-2 ring-[#AA4A44] ring-opacity-30' : 'ring-1 ring-[#E8D9D1]';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={filled}
+      aria-label={ariaLabel || label}
+      title={label}
+      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${ring} ${className}`}
+    >
+      {/* badge circular */}
+      <span className={`inline-flex items-center justify-center rounded-full flex-none ${filled ? 'bg-[#933834] text-white' : 'bg-[#FFF] text-[#AA4A44] border border-[#EADBD3]'} w-8 h-8 sm:w-9 sm:h-9`}>
+        <IconHeartSvg filled={filled} size={16} />
+      </span>
+
+      {/* texto: responsive */}
+      <span className="text-xs sm:text-sm md:text-sm font-medium text-[#AA4A44] leading-none">
+        {label}
+      </span>
+    </button>
+  );
+};
 
 // -------------------------- Componentes UI --------------------------
 const Header = () => {
@@ -186,7 +223,7 @@ export const Home = () => {
 
   // Acción "favorito" temporal: redirige a login como en Contactar
   const handleAddFavoriteRedirect = (e) => {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     navigate('/login?rol=cliente');
   };
 
@@ -287,19 +324,21 @@ export const Home = () => {
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
-                    <div className="mt-3 grid grid-cols-2 gap-3">
-                      <button
-                        onClick={(e) => handleAddFavoriteRedirect(e)}
-                        className="flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
-                        aria-label={`Agregar ${producto.nombre} a favoritos`}
-                      >
-                        <IconHeart />
-                        <span>Me encanta</span>
-                      </button>
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* En mobile cada botón ocupa 100%; en desktop aparecen lado a lado */}
+                      <div className="w-full">
+                        <HeartButton
+                          filled={false}
+                          onClick={(e) => handleAddFavoriteRedirect(e)}
+                          label="Me encanta"
+                          ariaLabel={`Agregar ${producto.nombre} a favoritos`}
+                          className="w-full justify-center"
+                        />
+                      </div>
 
                       <button
                         onClick={(e) => { e.stopPropagation(); navigate('/login?rol=cliente'); }}
-                        className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                        className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
                         aria-label={`Contactar ${producto.nombre}`}
                       >
                         Contactar
@@ -326,7 +365,7 @@ export const Home = () => {
               return (
                 <div
                   key={emp._id}
-                  className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                  className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer flex flex-col"
                   onClick={() => navigate(buildPublicUrl(emp))}
                 >
                   <img
@@ -336,33 +375,36 @@ export const Home = () => {
                     onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
                   />
 
-                  <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
-                  <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
-                  <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
+                    <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
+                    <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                  </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setEmprendimientoSeleccionado(emp);
                       }}
-                      className="bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                      className="bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
                     >
                       Ver detalles
                     </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleAddFavoriteRedirect(e);
-                      }}
-                      className="flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] w-full py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
-                      aria-label={`Agregar ${emp.nombreComercial} a favoritos`}
-                    >
-                      <IconHeart />
-                      <span>Me encanta</span>
-                    </button>
+                    <div className="w-full">
+                      <HeartButton
+                        filled={false}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddFavoriteRedirect(e);
+                        }}
+                        label="Me encanta"
+                        ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
+                        className="w-full justify-center"
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -384,6 +426,7 @@ export const Home = () => {
             <button
               onClick={() => setProductoSeleccionado(null)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              aria-label="Cerrar"
             >
               ✕
             </button>
@@ -403,17 +446,17 @@ export const Home = () => {
             <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
             <div className="mt-4 grid grid-cols-1 gap-3">
-              <button
+              <HeartButton
+                filled={false}
                 onClick={(e) => handleAddFavoriteRedirect(e)}
-                className="w-full flex items-center justify-center gap-2 border border-[#AA4A44] text-[#AA4A44] py-2 rounded-md text-sm hover:bg-[#AA4A44]/10 transition-colors"
-              >
-                <IconHeart />
-                Agregar a favoritos
-              </button>
+                label="Agregar a favoritos"
+                ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
+                className="w-full justify-center"
+              />
 
               <button
                 onClick={() => { navigate('/login?rol=cliente'); }}
-                className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
               >
                 Contactar (iniciar sesión)
               </button>
@@ -435,6 +478,7 @@ export const Home = () => {
             <button
               onClick={() => setEmprendimientoSeleccionado(null)}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              aria-label="Cerrar"
             >
               ✕
             </button>
@@ -477,18 +521,16 @@ export const Home = () => {
                 Ir al sitio
               </button>
 
-              <button
+              <HeartButton
+                filled={false}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleAddFavoriteRedirect(e);
                 }}
-                className="border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-[#AA4A44]/10"
-              >
-                <div className="flex items-center gap-2">
-                  <IconHeart />
-                  <span>Me encanta</span>
-                </div>
-              </button>
+                label="Me encanta"
+                ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
+                className="ml-2"
+              />
             </div>
           </div>
         </div>
