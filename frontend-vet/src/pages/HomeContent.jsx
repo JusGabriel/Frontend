@@ -28,6 +28,9 @@ const IconHeartSvg = ({ filled = false, size = 18 }) => (
 
 /* ======================================================
    BOTÓN ME ENCANTA – UX/UI PROFESIONAL
+   - altura fija (h-11) para que no rompa layout en desktop
+   - texto oculto en xs, visible desde sm
+   - badge circular y texto alineado
 ====================================================== */
 const HeartButton = ({
   filled = false,
@@ -36,36 +39,44 @@ const HeartButton = ({
   ariaLabel,
   className = '',
 }) => {
+  const handleClick = (e) => {
+    e.stopPropagation();
+    try {
+      onClick?.(e, !filled);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.(e);
-      }}
+      onClick={handleClick}
       aria-pressed={filled}
       aria-label={ariaLabel || label}
+      title={label}
       className={`
         flex items-center justify-center gap-2
-        h-11 px-3
+        h-11 min-h-[44px] px-3
         rounded-lg
         border
         transition-all
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-        ${
-          filled
-            ? 'bg-[#AA4A44] text-white border-[#AA4A44] hover:brightness-110'
-            : 'bg-white text-[#AA4A44] border-[#E5CFCB] hover:bg-[#F8EFED]'
+        text-sm
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]
+        ${filled
+          ? 'bg-[#AA4A44] text-white border-[#AA4A44] hover:brightness-110'
+          : 'bg-white text-[#AA4A44] border-[#E5CFCB] hover:bg-[#F8EFED]'
         }
         ${className}
       `}
     >
-      <span className="flex items-center justify-center w-8 h-8">
+      {/* Icono dentro de badge circular (no escala) */}
+      <span className="flex items-center justify-center w-8 h-8 flex-none">
         <IconHeartSvg filled={filled} />
       </span>
 
-      {/* Texto solo desde sm */}
-      <span className="hidden sm:inline text-sm font-medium whitespace-nowrap">
+      {/* Texto: oculto en pantallas extra pequeñas, visible desde sm */}
+      <span className="hidden sm:inline font-medium leading-none whitespace-nowrap">
         {label}
       </span>
     </button>
@@ -73,7 +84,7 @@ const HeartButton = ({
 };
 
 /* ======================================================
-   HOME CONTENT
+   HomeContent (componente principal)
 ====================================================== */
 const HomeContent = () => {
   const navigate = useNavigate();
@@ -90,13 +101,15 @@ const HomeContent = () => {
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/productos/todos`)
       .then((r) => r.json())
-      .then((d) => setProductos(Array.isArray(d) ? d : d.productos || []));
+      .then((d) => setProductos(Array.isArray(d) ? d : d.productos || []))
+      .catch((err) => console.error('Error fetch productos:', err));
   }, []);
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/emprendimientos/publicos`)
       .then((r) => r.json())
-      .then((d) => setEmprendimientos(Array.isArray(d) ? d : []));
+      .then((d) => setEmprendimientos(Array.isArray(d) ? d : []))
+      .catch((err) => console.error('Error fetch emprendimientos:', err));
   }, []);
 
   /* ================= FAVORITOS ================= */
@@ -119,6 +132,8 @@ const HomeContent = () => {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ tipo, id }),
+    }).catch((err) => {
+      console.error('Error togglear favorito:', err);
     });
   };
 
@@ -147,6 +162,7 @@ const HomeContent = () => {
                     src={getImageUrl(p.imagen)}
                     alt={p.nombre}
                     className="h-44 w-full object-cover rounded-t-xl"
+                    onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE; }}
                   />
 
                   <div className="flex flex-col flex-1 p-4">
@@ -162,26 +178,25 @@ const HomeContent = () => {
                       ${p.precio}
                     </p>
 
-                    {/* ACCIONES */}
-                    <div className="mt-auto pt-4 grid grid-cols-2 gap-3">
+                    {/* ACCIONES: grid consistente para mobile y desktop */}
+                    <div className="mt-auto pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <HeartButton
                         filled={fav}
-                        onClick={(e) =>
-                          toggleFavorite(e, 'producto', p._id)
-                        }
+                        onClick={(e) => toggleFavorite(e, 'producto', p._id)}
                         className="w-full"
+                        label="Me encanta"
+                        ariaLabel={`Agregar ${p.nombre} a favoritos`}
                       />
 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           usuarioId
-                            ? navigate(
-                                `/dashboard/chat?productoId=${p._id}`
-                              )
+                            ? navigate(`/dashboard/chat?productoId=${p._id}`)
                             : navigate('/login?rol=cliente');
                         }}
                         className="h-11 w-full rounded-lg bg-[#AA4A44] text-white text-sm font-medium hover:brightness-110 transition"
+                        aria-label={`Contactar ${p.nombre}`}
                       >
                         Contactar
                       </button>
@@ -220,6 +235,7 @@ const HomeContent = () => {
                     src={getImageUrl(e.logo)}
                     alt={e.nombreComercial}
                     className="h-40 w-full object-cover rounded-t-xl"
+                    onError={(ev) => { ev.currentTarget.src = DEFAULT_IMAGE; }}
                   />
 
                   <div className="flex flex-col flex-1 p-4">
@@ -231,9 +247,9 @@ const HomeContent = () => {
                       {e.descripcion}
                     </p>
 
-                    <div className="mt-auto pt-4 grid grid-cols-3 gap-2">
+                    <div className="mt-auto pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
-                        className="col-span-2 h-11 rounded-lg bg-[#AA4A44] text-white text-sm hover:brightness-110"
+                        className="h-11 w-full rounded-lg bg-[#AA4A44] text-white text-sm hover:brightness-110 transition"
                         onClick={(ev) => {
                           ev.stopPropagation();
                           window.open(
@@ -241,15 +257,17 @@ const HomeContent = () => {
                             '_blank'
                           );
                         }}
+                        aria-label={`Ver sitio de ${e.nombreComercial}`}
                       >
                         Ver sitio
                       </button>
 
                       <HeartButton
                         filled={fav}
-                        onClick={(ev) =>
-                          toggleFavorite(ev, 'emprendimiento', e._id)
-                        }
+                        onClick={(ev) => toggleFavorite(ev, 'emprendimiento', e._id)}
+                        className="w-full"
+                        label="Me encanta"
+                        ariaLabel={`Agregar ${e.nombreComercial} a favoritos`}
                       />
                     </div>
                   </div>
