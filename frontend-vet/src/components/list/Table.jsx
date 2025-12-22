@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
+/* ===========================
+   CONFIGURACIÓN API
+=========================== */
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
   emprendedor: "https://backend-production-bd1d.up.railway.app/api/emprendedores",
@@ -8,16 +11,36 @@ const BASE_URLS = {
 const API_PRODUCTOS = "https://backend-production-bd1d.up.railway.app/api/productos";
 const API_EMPRENDIMIENTOS = "https://backend-production-bd1d.up.railway.app/api/emprendimientos";
 
-const emptyForm = {
-  nombre: "",
-  apellido: "",
-  email: "",
-  password: "",
-  telefono: "",
+/* ===========================
+   HELPERS
+=========================== */
+const emptyForm = { nombre: "", apellido: "", email: "", password: "", telefono: "" };
+const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
+const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
+
+/* Paleta de estados (para badges) */
+const ESTADO_COLORS = {
+  Activo: "#28a745",
+  Inactivo: "#6c757d",
+  Suspendido: "#dc3545",
+  Advertencia1: "#ffc107",
+  Advertencia2: "#fd7e14",
+  Advertencia3: "#dc3545",
 };
 
+/* Estados permitidos (editable si quieres acotarlos) */
+const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
+const ESTADOS_CLIENTE = ["Activo", "Inactivo", "Suspendido", "Advertencia1", "Advertencia2", "Advertencia3"];
+
+/* ===========================
+   COMPONENTE
+=========================== */
 const Table = () => {
-  const [tipo, setTipo] = useState("cliente");
+  /* --------- Contexto Auth --------- */
+  const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
+
+  /* --------- Estado principal --------- */
+  const [tipo, setTipo] = useState("cliente"); // 'cliente' | 'emprendedor'
   const [lista, setLista] = useState([]);
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
@@ -25,35 +48,26 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   const [expandido, setExpandido] = useState(null);
 
-  // Modal chat y chatUser (receptor)
+  /* --------- Chat --------- */
   const [modalChatVisible, setModalChatVisible] = useState(false);
   const [chatUser, setChatUser] = useState(null);
-
-  // Mensajes y estado de input en el chat
   const [mensajes, setMensajes] = useState([]);
   const [mensajeChat, setMensajeChat] = useState("");
   const mensajesRef = useRef(null);
 
-  // Filtros por fecha (por emprendedor expandido)
+  /* --------- Sub-filtros por fecha para Emprendedor --------- */
   const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
-
-  // Datos anidados por emprendedor
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({}); // {emprendedorId: array}
   const [mapEmpProductos, setMapEmpProductos] = useState({});             // {emprendedorId: array}
   const [loadingNested, setLoadingNested] = useState(false);
 
-  // Catálogos generales (fallback para filtro local)
+  /* --------- Catálogos generales (fallback) --------- */
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  // Obtener emisor del storeAuth (usuario logueado)
-  const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
-
-  const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
-
-  const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
-
-  /* ===================== FETCH BASICO (LISTAS) ===================== */
+  /* ===========================
+     CARGA DE LISTAS
+  ============================ */
   const fetchLista = async () => {
     setError("");
     setMensaje("");
@@ -69,7 +83,7 @@ const Table = () => {
     }
   };
 
-  // Catálogos generales para fallback (productos y emprendimientos)
+  // Catálogos para fallback en filtros por fecha (emprendimientos/productos)
   const fetchCatalogosGenerales = async () => {
     try {
       const [resProd, resEmpr] = await Promise.all([
@@ -78,12 +92,14 @@ const Table = () => {
       ]);
       const dataProd = await resProd.json();
       const dataEmpr = await resEmpr.json();
+
       const productosArray = Array.isArray(dataProd)
         ? dataProd
         : Array.isArray(dataProd?.productos)
         ? dataProd.productos
         : [];
       const emprArray = Array.isArray(dataEmpr) ? dataEmpr : [];
+
       setCatalogoProductos(productosArray);
       setCatalogoEmprendimientos(emprArray);
     } catch (e) {
@@ -101,7 +117,9 @@ const Table = () => {
     setMensaje("");
   }, [tipo]);
 
-  /* ===================== CRUD ===================== */
+  /* ===========================
+     CRUD BÁSICO: CREAR/EDITAR/ELIMINAR
+  ============================ */
   const handleCrear = async (e) => {
     e.preventDefault();
     setError("");
@@ -186,7 +204,92 @@ const Table = () => {
     }
   };
 
-  /* ===================== EXPANDIR FILA Y CARGAR ANIDADOS ===================== */
+  /* ===========================
+     ESTADO (Cliente/Emprendedor)
+  ============================ */
+  const getEstado = (item) =>
+    tipo === "emprendedor"
+      ? item.estado_Emprendedor || "Activo"
+      : item.estado_Cliente ?? item.estado ?? "Activo";
+
+  const getEstadosPermitidos = () =>
+    tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
+
+  const updateEstado = async (item, nuevoEstado) => {
+    try {
+      setMensaje("");
+      setError("");
+
+      // 1) Si tienes endpoint dedicado de estado, úsalo:
+      //   - Emprendedor: PUT /api/emprendedores/estado/:id  { estado_Emprendedor: nuevoEstado }
+      //   - Cliente:     PUT /api/clientes/estado/:id        { estado_Cliente: nuevoEstado }
+      // 2) Fallback: reusa actualizar/:id enviando el campo del estado.
+      const urlEstado =
+        tipo === "emprendedor"
+          ? `${BASE_URLS[tipo]}/estado/${item._id}`
+          : `${BASE_URLS[tipo]}/estado/${item._id}`;
+
+      const bodyPayload =
+        tipo === "emprendedor"
+          ? { estado_Emprendedor: nuevoEstado }
+          : { estado_Cliente: nuevoEstado, estado: nuevoEstado };
+
+      // Intento #1: endpoint dedicado
+      let res = await fetch(urlEstado, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      // Si no existe, intento Fallback actualizar/:id
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS[tipo]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(bodyPayload),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "Error actualizando estado");
+      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      fetchLista();
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "No se pudo actualizar el estado");
+    }
+  };
+
+  const renderAdvertenciaBadge = (item) => {
+    const estado = getEstado(item);
+    const bg = ESTADO_COLORS[estado] || "#6c757d";
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          marginLeft: 8,
+          padding: "2px 8px",
+          borderRadius: 12,
+          fontSize: 12,
+          color: "white",
+          backgroundColor: bg,
+        }}
+        title={`Estado/Advertencia: ${estado}`}
+      >
+        {estado}
+      </span>
+    );
+  };
+
+  /* ===========================
+     ANIDADOS (Emprendedor)
+  ============================ */
   const toggleExpandido = async (id, item) => {
     const nuevo = expandido === id ? null : id;
     setExpandido(nuevo);
@@ -195,7 +298,7 @@ const Table = () => {
     }
   };
 
-  // Intenta endpoints específicos; si no existen, filtra local con catálogos generales
+  // Intenta endpoints específicos; si no, filtra catálogos locales por owner + rango de fechas
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
     setLoadingNested(true);
@@ -211,49 +314,43 @@ const Table = () => {
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
-      } catch (e) {
+      } catch {
         return null; // fallback
       }
     };
 
-    // 1) Emprendimientos por emprendedor (endpoint sugerido)
+    // Emprendimientos por emprendedor
     const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
     let emps = await tryFetch(urlEmps);
-
-    // Fallback: filtra catálogo general
     if (!Array.isArray(emps)) {
       emps = catalogoEmprendimientos.filter((e) => {
-        const matchOwner =
-          String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
-        const created = e?.createdAt ? new Date(e.createdAt).getTime() : null;
+        const owner = String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
+        const ts = e?.createdAt ? new Date(e.createdAt).getTime() : null;
         const inRange =
           !from && !to
             ? true
-            : (!!created &&
-               (!from || created >= new Date(from).getTime()) &&
-               (!to || created <= new Date(to).getTime()));
-        return matchOwner && inRange;
+            : (!!ts &&
+               (!from || ts >= new Date(from).getTime()) &&
+               (!to || ts <= new Date(to).getTime()));
+        return owner && inRange;
       });
     }
 
-    // 2) Productos por emprendedor (endpoint sugerido vía productos)
-    // Nota: productos tienen emprendimiento -> emprendedor
+    // Productos por emprendedor
     const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
     let prods = await tryFetch(urlProds);
-
-    // Fallback: filtra catálogo general por relación emprendimiento.emprendedor
     if (!Array.isArray(prods)) {
       prods = catalogoProductos.filter((p) => {
         const owner =
           String(p?.emprendimiento?.emprendedor?._id || p?.emprendimiento?.emprendedorId || "") ===
           String(emprendedor._id);
-        const created = p?.createdAt ? new Date(p.createdAt).getTime() : null;
+        const ts = p?.createdAt ? new Date(p.createdAt).getTime() : null;
         const inRange =
           !from && !to
             ? true
-            : (!!created &&
-               (!from || created >= new Date(from).getTime()) &&
-               (!to || created <= new Date(to).getTime()));
+            : (!!ts &&
+               (!from || ts >= new Date(from).getTime()) &&
+               (!to || ts <= new Date(to).getTime()));
         return owner && inRange;
       });
     }
@@ -263,7 +360,6 @@ const Table = () => {
     setLoadingNested(false);
   };
 
-  // Refiltra datos anidados cuando cambian las fechas (si hay fila abierta)
   useEffect(() => {
     if (expandido && tipo === "emprendedor") {
       const emp = lista.find((x) => x._id === expandido);
@@ -272,8 +368,9 @@ const Table = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangoFechas]);
 
-  /* ===================== EXPORTS ===================== */
-  // CSV (Excel friendly)
+  /* ===========================
+     EXPORTS
+  ============================ */
   const exportCSV = (rows, filename) => {
     if (!Array.isArray(rows) || rows.length === 0) {
       alert("No hay datos para exportar");
@@ -304,7 +401,6 @@ const Table = () => {
     URL.revokeObjectURL(url);
   };
 
-  // PDF (simple: ventana imprimible)
   const exportPDF = (htmlTitle, rows, mapper) => {
     const win = window.open("", "_blank");
     const now = new Date().toLocaleString();
@@ -329,23 +425,42 @@ const Table = () => {
     win.document.close();
     win.focus();
     win.print();
-    // win.close(); // si prefieres cerrar luego de imprimir
   };
 
-  /* ===================== CHAT ===================== */
+  const mapperEmprendimientos = (r) =>
+    r?.header
+      ? ["Nombre Comercial", "Ciudad", "Creado"]
+      : [
+          r.nombreComercial || "",
+          r.ubicacion?.ciudad || "",
+          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+        ];
+
+  const mapperProductos = (r) =>
+    r?.header
+      ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
+      : [
+          r.nombre || "",
+          typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
+          r.stock ?? "",
+          r.empNombreComercial || r.emprendimiento?.nombreComercial || "",
+          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+        ];
+
+  /* ===========================
+     CHAT (igual que tu versión)
+  ============================ */
   const abrirChat = (item) => {
     setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
     setModalChatVisible(true);
     cargarMensajes(item._id);
   };
-
   const cerrarChat = () => {
     setModalChatVisible(false);
     setChatUser(null);
     setMensajes([]);
     setMensajeChat("");
   };
-
   const cargarMensajes = async (receptorId) => {
     if (!receptorId) return;
     try {
@@ -373,11 +488,9 @@ const Table = () => {
       setError("Error cargando mensajes");
     }
   };
-
   const enviarMensaje = async (e) => {
     e.preventDefault();
     if (!mensajeChat.trim() || !chatUser || !emisorId || !emisorRol) return;
-
     try {
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
@@ -393,9 +506,7 @@ const Table = () => {
           }),
         }
       );
-
       const data = await res.json();
-
       if (res.ok) {
         setMensajeChat("");
         cargarMensajes(chatUser.id);
@@ -406,105 +517,60 @@ const Table = () => {
       setError("Error de red: " + error.message);
     }
   };
-
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes]);
-
   useEffect(() => {
     if (!modalChatVisible || !chatUser) return;
-    const intervalo = setInterval(() => {
-      cargarMensajes(chatUser.id);
-    }, 3000);
+    const intervalo = setInterval(() => cargarMensajes(chatUser.id), 3000);
     return () => clearInterval(intervalo);
   }, [modalChatVisible, chatUser]);
 
-  /* ===================== RENDER ===================== */
-  const renderAdvertenciaBadge = (item) => {
-    // Emprendedor: usa estado_Emprendedor; Cliente: intenta estado o estado_Cliente si existe
-    const estado =
-      tipo === "emprendedor"
-        ? item.estado_Emprendedor
-        : (item.estado_Cliente || item.estado || null);
-
-    if (!estado) return null;
-
-    const palette = {
-      Activo: "#28a745",
-      Inactivo: "#6c757d",
-      Suspendido: "#dc3545",
-      Advertencia1: "#ffc107",
-      Advertencia2: "#fd7e14",
-      Advertencia3: "#dc3545",
-    };
-    const bg = palette[estado] || "#6c757d";
-
-    return (
-      <span
-        style={{
-          display: "inline-block",
-          marginLeft: 8,
-          padding: "2px 8px",
-          borderRadius: 12,
-          fontSize: 12,
-          color: "white",
-          backgroundColor: bg,
-        }}
-        title={`Estado: ${estado}`}
-      >
-        {estado}
-      </span>
-    );
-  };
-
-  // helpers export mappers
-  const mapperEmprendimientos = (r) =>
-    r?.header
-      ? ["Nombre Comercial", "Ciudad", "Creado"]
-      : [
-          r.nombreComercial || "",
-          r.ubicacion?.ciudad || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-        ];
-
-  const mapperProductos = (r) =>
-    r?.header
-      ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
-      : [
-          r.nombre || "",
-          typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
-          r.stock ?? "",
-          r.empNombreComercial || r.emprendimiento?.nombreComercial || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-        ];
-
+  /* ===========================
+     RENDER
+  ============================ */
   return (
     <div style={styles.container}>
-      <h1 style={{ textAlign: "center" }}>Gestión {capitalize(tipo)}s</h1>
 
-      <div style={styles.toggleContainer}>
+      {/* ====== TITULO + GUÍA RÁPIDA ====== */}
+      <header style={{ marginBottom: 16 }}>
+        <h1 style={{ textAlign: "center", margin: 0 }}>Panel de Administración</h1>
+        <p style={{ textAlign: "center", color: "#555", marginTop: 6 }}>
+          <strong>Guía rápida:</strong> 1) Selecciona arriba <em>Clientes</em> o <em>Emprendedores</em>. 2) Crea/edita/elimina desde los formularios. 3) Haz clic en una fila para ver detalles. En Emprendedores podrás filtrar sus <em>Emprendimientos</em> y <em>Productos</em> por fecha y exportar.
+        </p>
+      </header>
+
+      {/* ====== TOGGLE CLIENTES / EMPRENDEDORES ====== */}
+      <div style={styles.toggleContainer} aria-label="Seleccionar tipo de usuario">
         <button
           style={tipo === "cliente" ? styles.toggleActive : styles.toggle}
           onClick={() => setTipo("cliente")}
+          title="Ver Clientes"
         >
           Clientes
         </button>
         <button
           style={tipo === "emprendedor" ? styles.toggleActive : styles.toggle}
           onClick={() => setTipo("emprendedor")}
+          title="Ver Emprendedores"
         >
           Emprendedores
         </button>
       </div>
 
+      {/* ====== ESTADOS DE ALERTA ====== */}
       {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
       {mensaje && <p style={{ color: "green", textAlign: "center" }}>{mensaje}</p>}
 
-      {/* Form Crear */}
-      <form onSubmit={handleCrear} style={styles.form}>
-        <h2>Crear {capitalize(tipo)}</h2>
+      {/* ====== FORM: CREAR ====== */}
+      <section style={styles.form} aria-label="Crear usuario">
+        <h2 style={{ marginTop: 0 }}>Crear {capitalize(tipo)}</h2>
+        <p style={{ marginTop: -6, color: "#666" }}>
+          Completa los campos y presiona <strong>Crear</strong>. El correo debe ser único.
+        </p>
+
         {/* Inputs */}
         <>
           <input
@@ -535,7 +601,7 @@ const Table = () => {
             placeholder="Password"
             value={formCrear.password}
             onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })}
-            required={true}
+            required
           />
           <input
             style={styles.input}
@@ -544,15 +610,19 @@ const Table = () => {
             onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
           />
         </>
-        <button style={styles.btnCrear} type="submit">
+        <button style={styles.btnCrear} type="submit" onClick={handleCrear}>
           Crear
         </button>
-      </form>
+      </section>
 
-      {/* Form Editar */}
+      {/* ====== FORM: EDITAR ====== */}
       {formEditar.id && (
-        <form onSubmit={handleActualizar} style={styles.form}>
-          <h2>Editar {capitalize(tipo)}</h2>
+        <section style={styles.form} aria-label="Editar usuario">
+          <h2 style={{ marginTop: 0 }}>Editar {capitalize(tipo)}</h2>
+          <p style={{ marginTop: -6, color: "#666" }}>
+            Modifica solo los campos necesarios. Para cambiar <strong>estado/advertencia</strong>, usa el selector de la tabla.
+          </p>
+
           <>
             <input
               style={styles.input}
@@ -582,7 +652,6 @@ const Table = () => {
               placeholder="Password (opcional)"
               value={formEditar.password}
               onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
-              required={false}
             />
             <input
               style={styles.input}
@@ -591,321 +660,374 @@ const Table = () => {
               onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
             />
           </>
-          <button style={styles.btnActualizar} type="submit">
-            Actualizar
-          </button>
-          <button
-            style={styles.btnCancelar}
-            type="button"
-            onClick={() => setFormEditar({ id: null, ...emptyForm })}
-          >
-            Cancelar
-          </button>
-        </form>
+          <div>
+            <button style={styles.btnActualizar} type="submit" onClick={handleActualizar}>
+              Actualizar
+            </button>
+            <button
+              style={styles.btnCancelar}
+              type="button"
+              onClick={() => setFormEditar({ id: null, ...emptyForm })}
+            >
+              Cancelar
+            </button>
+          </div>
+        </section>
       )}
 
-      {/* Tabla */}
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={styles.th}>#</th>
-            <th style={styles.th}>Nombre</th>
-            <th style={styles.th}>Apellido</th>
-            <th style={styles.th}>Email</th>
-            <th style={styles.th}>Teléfono</th>
-            <th style={styles.th}>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {lista.length === 0 && (
+      {/* ====== TABLA PRINCIPAL ====== */}
+      <section aria-label="Listado principal">
+        <h2 style={{ margin: "12px 0" }}>Listado de {capitalize(tipo)}s</h2>
+        <p style={{ marginTop: -6, color: "#666" }}>
+          <strong>Tip:</strong> Haz clic sobre una fila para mostrar los detalles. En <em>Emprendedores</em> verás además sus Emprendimientos y Productos filtrables por fecha y exportables.
+        </p>
+
+        <table style={styles.table}>
+          <thead>
             <tr>
-              <td colSpan="6" style={{ textAlign: "center", padding: 20 }}>
-                No hay {capitalize(tipo)}s
-              </td>
+              <th style={styles.th}>#</th>
+              <th style={styles.th}>Nombre</th>
+              <th style={styles.th}>Apellido</th>
+              <th style={styles.th}>Email</th>
+              <th style={styles.th}>Teléfono</th>
+              <th style={styles.th}>Estado</th>
+              <th style={styles.th}>Acciones</th>
             </tr>
-          )}
-          {lista.map((item, i) => (
-            <React.Fragment key={item._id}>
-              <tr
-                style={{
-                  backgroundColor: expandido === item._id ? "#f0f8ff" : "white",
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleExpandido(item._id, item)}
-              >
-                <td style={styles.td}>{i + 1}</td>
-                <td style={styles.td}>
-                  {item.nombre}
-                  {renderAdvertenciaBadge(item)}
-                </td>
-                <td style={styles.td}>{item.apellido}</td>
-                <td style={styles.td}>{item.email}</td>
-                <td style={styles.td}>{item.telefono || "N/A"}</td>
-                <td style={styles.td}>
-                  <button
-                    style={styles.btnSmall}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      prepararEditar(item);
-                    }}
-                  >
-                    Editar
-                  </button>{" "}
-                  <button
-                    style={styles.btnSmallDelete}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEliminar(item._id);
-                    }}
-                  >
-                    Eliminar
-                  </button>{" "}
-                  <button
-                    style={{
-                      ...styles.btnSmall,
-                      backgroundColor: "#28a745",
-                      padding: "7px 14px",
-                      fontWeight: "600",
-                      borderRadius: 5,
-                      boxShadow: "0 2px 6px rgba(40,167,69,0.4)",
-                      transition: "background-color 0.3s ease",
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      abrirChat(item);
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor = "#218838")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = "#28a745")
-                    }
-                  >
-                    Chatear
-                  </button>
+          </thead>
+          <tbody>
+            {lista.length === 0 && (
+              <tr>
+                <td colSpan="7" style={{ textAlign: "center", padding: 20 }}>
+                  No hay {capitalize(tipo)}s
                 </td>
               </tr>
+            )}
 
-              {/* Detalles básicos */}
-              {expandido === item._id && (
-                <>
-                  <tr style={{ backgroundColor: "#eef6ff" }}>
-                    <td colSpan="6" style={{ padding: 10 }}>
-                      <strong>Detalles:</strong>
-                      <div>Nombre completo: {item.nombre} {item.apellido}</div>
-                      <div>Email: {item.email}</div>
-                      <div>Teléfono: {item.telefono || "N/A"}</div>
-                      <div>Creado: {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
-                      <div>Actualizado: {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
-                    </td>
-                  </tr>
+            {lista.map((item, i) => (
+              <React.Fragment key={item._id}>
+                <tr
+                  style={{
+                    backgroundColor: expandido === item._id ? "#f0f8ff" : "white",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => toggleExpandido(item._id, item)}
+                  title="Clic para ver detalles"
+                >
+                  <td style={styles.td}>{i + 1}</td>
+                  <td style={styles.td}>
+                    {item.nombre}
+                    {renderAdvertenciaBadge(item)}
+                  </td>
+                  <td style={styles.td}>{item.apellido}</td>
+                  <td style={styles.td}>{item.email}</td>
+                  <td style={styles.td}>{item.telefono || "N/A"}</td>
 
-                  {/* Panel filtros y anidados SOLO para emprendedores */}
-                  {tipo === "emprendedor" && (
-                    <tr>
-                      <td colSpan="6" style={{ padding: 10, backgroundColor: "#f9fbff" }}>
-                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
-                          <strong>Rango de fechas:</strong>
-                          <label>
-                            Desde{" "}
-                            <input
-                              type="date"
-                              value={rangoFechas.from}
-                              onChange={(e) =>
-                                setRangoFechas((s) => ({ ...s, from: e.target.value }))
-                              }
-                            />
-                          </label>
-                          <label>
-                            Hasta{" "}
-                            <input
-                              type="date"
-                              value={rangoFechas.to}
-                              onChange={(e) =>
-                                setRangoFechas((s) => ({ ...s, to: e.target.value }))
-                              }
-                            />
-                          </label>
-                          <button
-                            style={styles.btnSmall}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              cargarNestedParaEmprendedor(item);
-                            }}
-                          >
-                            Aplicar filtro
-                          </button>
-                          <button
-                            style={styles.btnSmall}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRangoFechas({ from: "", to: "" });
-                            }}
-                          >
-                            Limpiar
-                          </button>
-                        </div>
+                  {/* ESTADO editable inline */}
+                  <td style={styles.td}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <select
+                        aria-label="Cambiar estado/advertencia"
+                        title="Cambiar estado/advertencia"
+                        value={getEstado(item)}
+                        onChange={(e) => updateEstado(item, e.target.value)}
+                        style={{
+                          padding: "6px 8px",
+                          borderRadius: 6,
+                          border: "1px solid #ccc",
+                          backgroundColor: "#fff",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {getEstadosPermitidos().map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      {/* Badge actual */}
+                      {renderAdvertenciaBadge(item)}
+                    </div>
+                  </td>
 
-                        {/* Emprendimientos */}
-                        <div style={{ marginBottom: 18 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <h4 style={{ margin: 0, color: "#007bff" }}>
-                              Emprendimientos del emprendedor
-                            </h4>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <button
-                                style={styles.btnSmall}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const emps = mapEmpEmprendimientos[item._id] || [];
-                                  exportCSV(
-                                    emps.map((e) => ({
-                                      nombreComercial: e.nombreComercial || "",
-                                      ciudad: e?.ubicacion?.ciudad || "",
-                                      creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
-                                    })),
-                                    `emprendimientos_${item.nombre}_${item.apellido}`
-                                  );
-                                }}
-                              >
-                                Exportar CSV
-                              </button>
-                              <button
-                                style={styles.btnSmall}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const emps = mapEmpEmprendimientos[item._id] || [];
-                                  exportPDF(
-                                    `Emprendimientos de ${item.nombre} ${item.apellido}`,
-                                    emps,
-                                    mapperEmprendimientos
-                                  );
-                                }}
-                              >
-                                Exportar PDF
-                              </button>
-                            </div>
-                          </div>
+                  {/* ACCIONES */}
+                  <td style={styles.td}>
+                    <button
+                      style={styles.btnSmall}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        prepararEditar(item);
+                      }}
+                      title={`Editar ${capitalize(tipo)}`}
+                    >
+                      Editar
+                    </button>{" "}
+                    <button
+                      style={styles.btnSmallDelete}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEliminar(item._id);
+                      }}
+                      title={`Eliminar ${capitalize(tipo)}`}
+                    >
+                      Eliminar
+                    </button>{" "}
+                    <button
+                      style={{
+                        ...styles.btnSmall,
+                        backgroundColor: "#28a745",
+                        padding: "7px 14px",
+                        fontWeight: "600",
+                        borderRadius: 5,
+                        boxShadow: "0 2px 6px rgba(40,167,69,0.4)",
+                        transition: "background-color 0.3s ease",
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        abrirChat(item);
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#218838")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#28a745")
+                      }
+                      title={`Chatear con ${item.nombre}`}
+                    >
+                      Chatear
+                    </button>
+                  </td>
+                </tr>
 
-                          {loadingNested ? (
-                            <p style={{ color: "#666" }}>Cargando emprendimientos…</p>
-                          ) : (
-                            <table style={{ ...styles.table, marginTop: 8 }}>
-                              <thead>
-                                <tr>
-                                  <th style={styles.th}>Nombre Comercial</th>
-                                  <th style={styles.th}>Ciudad</th>
-                                  <th style={styles.th}>Creado</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
-                                  <tr><td colSpan="3" style={{ padding: 10, textAlign: "center", color: "#666" }}>Sin emprendimientos en el rango</td></tr>
-                                ) : (
-                                  (mapEmpEmprendimientos[item._id] || []).map((e) => (
-                                    <tr key={e._id}>
-                                      <td style={styles.td}>{e.nombreComercial}</td>
-                                      <td style={styles.td}>{e?.ubicacion?.ciudad || "—"}</td>
-                                      <td style={styles.td}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}</td>
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-
-                        {/* Productos */}
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <h4 style={{ margin: 0, color: "#007bff" }}>
-                              Productos del emprendedor
-                            </h4>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <button
-                                style={styles.btnSmall}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const prods = mapEmpProductos[item._id] || [];
-                                  exportCSV(
-                                    prods.map((p) => ({
-                                      producto: p.nombre || "",
-                                      precio: typeof p.precio === "number" ? p.precio : "",
-                                      stock: p.stock ?? "",
-                                      emprendimiento: p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
-                                      creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
-                                    })),
-                                    `productos_${item.nombre}_${item.apellido}`
-                                  );
-                                }}
-                              >
-                                Exportar CSV
-                              </button>
-                              <button
-                                style={styles.btnSmall}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const prods = mapEmpProductos[item._id] || [];
-                                  exportPDF(
-                                    `Productos de ${item.nombre} ${item.apellido}`,
-                                    prods,
-                                    mapperProductos
-                                  );
-                                }}
-                              >
-                                Exportar PDF
-                              </button>
-                            </div>
-                          </div>
-
-                          {loadingNested ? (
-                            <p style={{ color: "#666" }}>Cargando productos…</p>
-                          ) : (
-                            <table style={{ ...styles.table, marginTop: 8 }}>
-                              <thead>
-                                <tr>
-                                  <th style={styles.th}>Producto</th>
-                                  <th style={styles.th}>Precio</th>
-                                  <th style={styles.th}>Stock</th>
-                                  <th style={styles.th}>Emprendimiento</th>
-                                  <th style={styles.th}>Creado</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(mapEmpProductos[item._id] || []).length === 0 ? (
-                                  <tr><td colSpan="5" style={{ padding: 10, textAlign: "center", color: "#666" }}>Sin productos en el rango</td></tr>
-                                ) : (
-                                  (mapEmpProductos[item._id] || []).map((p) => (
-                                    <tr key={p._id}>
-                                      <td style={styles.td}>{p.nombre}</td>
-                                      <td style={styles.td}>
-                                        {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
-                                      </td>
-                                      <td style={styles.td}>{p.stock ?? "—"}</td>
-                                      <td style={styles.td}>
-                                        {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
-                                      </td>
-                                      <td style={styles.td}>
-                                        {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
-                                      </td>
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
+                {/* DETALLES BÁSICOS */}
+                {expandido === item._id && (
+                  <>
+                    <tr style={{ backgroundColor: "#eef6ff" }}>
+                      <td colSpan="7" style={{ padding: 10 }}>
+                        <strong>Detalles:</strong>{" "}
+                        <span style={{ color: "#666" }}>
+                          Para cerrar, haz clic otra vez sobre la fila.
+                        </span>
+                        <div>Nombre completo: {item.nombre} {item.apellido}</div>
+                        <div>Email: {item.email}</div>
+                        <div>Teléfono: {item.telefono || "N/A"}</div>
+                        <div>Creado: {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                        <div>Actualizado: {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
                       </td>
                     </tr>
-                  )}
-                </>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
 
-      {/* MODAL CHAT */}
+                    {/* PANEL ANIDADO SOLO para EMPRENDEDORES */}
+                    {tipo === "emprendedor" && (
+                      <tr>
+                        <td colSpan="7" style={{ padding: 12, backgroundColor: "#f9fbff" }}>
+                          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+                            <strong>Filtrar por fecha:</strong>
+                            <label>
+                              Desde{" "}
+                              <input
+                                type="date"
+                                value={rangoFechas.from}
+                                onChange={(e) =>
+                                  setRangoFechas((s) => ({ ...s, from: e.target.value }))
+                                }
+                                title="Fecha inicial"
+                              />
+                            </label>
+                            <label>
+                              Hasta{" "}
+                              <input
+                                type="date"
+                                value={rangoFechas.to}
+                                onChange={(e) =>
+                                  setRangoFechas((s) => ({ ...s, to: e.target.value }))
+                                }
+                                title="Fecha final"
+                              />
+                            </label>
+                            <button
+                              style={styles.btnSmall}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                cargarNestedParaEmprendedor(item);
+                              }}
+                              title="Aplicar filtro de fechas"
+                            >
+                              Aplicar filtro
+                            </button>
+                            <button
+                              style={styles.btnSmall}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRangoFechas({ from: "", to: "" });
+                              }}
+                              title="Limpiar filtro"
+                            >
+                              Limpiar
+                            </button>
+                          </div>
+
+                          {/* Emprendimientos */}
+                          <div style={{ marginBottom: 18 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <h4 style={{ margin: 0, color: "#007bff" }}>
+                                Emprendimientos del emprendedor
+                              </h4>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  style={styles.btnSmall}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const emps = mapEmpEmprendimientos[item._id] || [];
+                                    exportCSV(
+                                      emps.map((e) => ({
+                                        nombreComercial: e.nombreComercial || "",
+                                        ciudad: e?.ubicacion?.ciudad || "",
+                                        creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
+                                      })),
+                                      `emprendimientos_${item.nombre}_${item.apellido}`
+                                    );
+                                  }}
+                                  title="Exportar emprendimientos a CSV"
+                                >
+                                  Exportar CSV
+                                </button>
+                                <button
+                                  style={styles.btnSmall}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const emps = mapEmpEmprendimientos[item._id] || [];
+                                    exportPDF(
+                                      `Emprendimientos de ${item.nombre} ${item.apellido}`,
+                                      emps,
+                                      mapperEmprendimientos
+                                    );
+                                  }}
+                                  title="Exportar emprendimientos a PDF"
+                                >
+                                  Exportar PDF
+                                </button>
+                              </div>
+                            </div>
+
+                            {loadingNested ? (
+                              <p style={{ color: "#666" }}>Cargando emprendimientos…</p>
+                            ) : (
+                              <table style={{ ...styles.table, marginTop: 8 }}>
+                                <thead>
+                                  <tr>
+                                    <th style={styles.th}>Nombre Comercial</th>
+                                    <th style={styles.th}>Ciudad</th>
+                                    <th style={styles.th}>Creado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
+                                    <tr><td colSpan="3" style={{ padding: 10, textAlign: "center", color: "#666" }}>Sin emprendimientos en el rango</td></tr>
+                                  ) : (
+                                    (mapEmpEmprendimientos[item._id] || []).map((e) => (
+                                      <tr key={e._id}>
+                                        <td style={styles.td}>{e.nombreComercial}</td>
+                                        <td style={styles.td}>{e?.ubicacion?.ciudad || "—"}</td>
+                                        <td style={styles.td}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}</td>
+                                      </tr>
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+
+                          {/* Productos */}
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <h4 style={{ margin: 0, color: "#007bff" }}>
+                                Productos del emprendedor
+                              </h4>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button
+                                  style={styles.btnSmall}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const prods = mapEmpProductos[item._id] || [];
+                                    exportCSV(
+                                      prods.map((p) => ({
+                                        producto: p.nombre || "",
+                                        precio: typeof p.precio === "number" ? p.precio : "",
+                                        stock: p.stock ?? "",
+                                        emprendimiento: p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
+                                        creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
+                                      })),
+                                      `productos_${item.nombre}_${item.apellido}`
+                                    );
+                                  }}
+                                  title="Exportar productos a CSV"
+                                >
+                                  Exportar CSV
+                                </button>
+                                <button
+                                  style={styles.btnSmall}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const prods = mapEmpProductos[item._id] || [];
+                                    exportPDF(
+                                      `Productos de ${item.nombre} ${item.apellido}`,
+                                      prods,
+                                      mapperProductos
+                                    );
+                                  }}
+                                  title="Exportar productos a PDF"
+                                >
+                                  Exportar PDF
+                                </button>
+                              </div>
+                            </div>
+
+                            {loadingNested ? (
+                              <p style={{ color: "#666" }}>Cargando productos…</p>
+                            ) : (
+                              <table style={{ ...styles.table, marginTop: 8 }}>
+                                <thead>
+                                  <tr>
+                                    <th style={styles.th}>Producto</th>
+                                    <th style={styles.th}>Precio</th>
+                                    <th style={styles.th}>Stock</th>
+                                    <th style={styles.th}>Emprendimiento</th>
+                                    <th style={styles.th}>Creado</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(mapEmpProductos[item._id] || []).length === 0 ? (
+                                    <tr><td colSpan="5" style={{ padding: 10, textAlign: "center", color: "#666" }}>Sin productos en el rango</td></tr>
+                                  ) : (
+                                    (mapEmpProductos[item._id] || []).map((p) => (
+                                      <tr key={p._id}>
+                                        <td style={styles.td}>{p.nombre}</td>
+                                        <td style={styles.td}>
+                                          {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
+                                        </td>
+                                        <td style={styles.td}>{p.stock ?? "—"}</td>
+                                        <td style={styles.td}>
+                                          {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
+                                        </td>
+                                        <td style={styles.td}>
+                                          {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
+                                        </td>
+                                      </tr>
+                                    ))
+                                  )}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      {/* ====== MODAL CHAT ====== */}
       {modalChatVisible && chatUser && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -936,7 +1058,7 @@ const Table = () => {
                     <span
                       style={{
                         display: "inline-block",
-                        backgroundColor: esElEmisor(esEmisor),
+                        backgroundColor: esEmisor ? "#007bff" : "#e4e6eb",
                         color: esEmisor ? "white" : "black",
                         padding: "8px 12px",
                         borderRadius: 15,
@@ -992,14 +1114,12 @@ const Table = () => {
   );
 };
 
-// Helper para color de burbuja de chat
-function esElEmisor(isSender) {
-  return isSender ? "#007bff" : "#e4e6eb";
-}
-
+/* ===========================
+   ESTILOS INLINE
+=========================== */
 const styles = {
   container: {
-    maxWidth: 1000,
+    maxWidth: 1080,
     margin: "auto",
     padding: 20,
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
@@ -1007,7 +1127,7 @@ const styles = {
   toggleContainer: {
     display: "flex",
     justifyContent: "center",
-    marginBottom: 15,
+    marginBottom: 12,
     gap: 8,
   },
   toggle: {
@@ -1030,7 +1150,7 @@ const styles = {
     transition: "background-color 0.3s",
   },
   form: {
-    marginBottom: 30,
+    marginBottom: 20,
     padding: 15,
     border: "1px solid #ccc",
     borderRadius: 5,
