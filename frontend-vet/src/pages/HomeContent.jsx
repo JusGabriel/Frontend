@@ -5,13 +5,7 @@ import storeAuth from '../context/storeAuth';
 
 /* -------------------- Icon / HeartButton -------------------- */
 const IconHeartSvg = ({ filled = false, size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
     <path
       d="M12 21s-6.716-4.33-9.428-7.043C.86 12.245.86 9.487 2.572 7.774c1.713-1.713 4.47-1.713 6.183 0L12 10.02l3.245-3.246c1.713-1.713 4.47-1.713 6.183 0 1.713 1.713 1.713 4.47 0 6.183C18.716 16.67 12 21 12 21z"
       fill={filled ? 'currentColor' : 'none'}
@@ -25,13 +19,6 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 
 /**
  * HeartButton - botón "Me encanta" responsivo y accesible
- * Props:
- * - filled: controlado externamente (boolean)
- * - toggleable: permite alternar estado interno si no está controlado
- * - fullWidth: true => w-full en móvil (por defecto true)
- * - size: "sm" | "md" | "lg" (alto del botón / del icono)
- * - showLabelOnMobile: muestra texto en móvil (por defecto false)
- * - variant: "solid" | "outline" para estilo del círculo del icono
  */
 const HeartButton = ({
   filled: controlledFilled,
@@ -47,7 +34,6 @@ const HeartButton = ({
 }) => {
   const isControlled = typeof controlledFilled === 'boolean';
   const [localFilled, setLocalFilled] = useState(Boolean(controlledFilled));
-
   useEffect(() => {
     if (isControlled) setLocalFilled(Boolean(controlledFilled));
   }, [controlledFilled, isControlled]);
@@ -64,17 +50,13 @@ const HeartButton = ({
     }
   };
 
-  // tamaños coherentes (mínimo 44px de alto)
   const heightClass = size === 'sm' ? 'h-11' : size === 'lg' ? 'h-14' : 'h-12';
-  const circleSize =
-    size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-10 h-10' : 'w-9 h-9';
+  const circleSize = size === 'sm' ? 'w-8 h-8' : size === 'lg' ? 'w-10 h-10' : 'w-9 h-9';
   const iconSize = size === 'sm' ? 14 : size === 'lg' ? 18 : 16;
-
   const circleStyles =
     filled || variant === 'solid'
       ? 'bg-[#AA4A44] text-white'
       : 'bg-white text-[#AA4A44] border border-[#EADBD3]';
-
   const textColor = filled ? 'text-white' : 'text-[#AA4A44]';
 
   return (
@@ -94,8 +76,6 @@ const HeartButton = ({
       >
         <IconHeartSvg filled={filled} size={iconSize} />
       </span>
-
-      {/* Texto: oculto en móvil por defecto para ahorrar espacio */}
       <span
         className={`text-xs sm:text-sm font-medium leading-none ${textColor} ${
           showLabelOnMobile ? 'inline' : 'hidden sm:inline'
@@ -117,8 +97,7 @@ const HomeContent = () => {
   const [productos, setProductos] = useState([]);
 
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] =
-    useState(null);
+  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
   const API_BASE = 'https://backend-production-bd1d.up.railway.app';
 
@@ -259,9 +238,7 @@ const HomeContent = () => {
           {/* PRODUCTOS DESTACADOS */}
           <section className="py-10 px-6 bg-white text-gray-800">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-                Productos Destacados
-              </h2>
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
 
               {productos.length === 0 ? (
                 <p className="text-center mt-6 text-gray-600">Cargando productos...</p>
@@ -284,21 +261,13 @@ const HomeContent = () => {
                         />
 
                         <div className="flex-1 min-w-0 mb-4">
-                          <h3 className="font-semibold text-lg text-[#AA4A44] truncate mb-2">
-                            {producto.nombre}
-                          </h3>
+                          <h3 className="font-semibold text-lg text-[#AA4A44] truncate mb-2">{producto.nombre}</h3>
 
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-                            {producto.descripcion}
-                          </p>
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">{producto.descripcion}</p>
 
-                          <p className="text-lg font-bold text-[#28a745] mb-2">
-                            ${producto.precio}
-                          </p>
+                          <p className="text-lg font-bold text-[#28a745] mb-2">${producto.precio}</p>
 
-                          <p className="text-sm font-semibold text-gray-700 mb-1">
-                            Stock: {producto.stock ?? '—'}
-                          </p>
+                          <p className="text-sm font-semibold text-gray-700 mb-1">Stock: {producto.stock ?? '—'}</p>
 
                           <p className="text-sm text-gray-600 mb-1">
                             <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
@@ -310,15 +279,14 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* BOTONES PRODUCTOS: Responsivos y consistentes */}
-                        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                        {/* BOTONES PRODUCTOS: dentro de la card */}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 mt-auto">
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
                             className="w-full h-11 bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
                           >
                             Contactar
                           </button>
-
                           <HeartButton
                             toggleable={!!usuarioId}
                             onClick={(e) => handleFavoriteProducto(e, producto)}
@@ -349,15 +317,11 @@ const HomeContent = () => {
             }}
           >
             <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-                Explora Emprendimientos
-              </h2>
+              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Explora Emprendimientos</h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
                 {emprendimientos.length === 0 ? (
-                  <p className="text-center w-full text-gray-600 col-span-full">
-                    Cargando emprendimientos...
-                  </p>
+                  <p className="text-center w-full text-gray-600 col-span-full">Cargando emprendimientos...</p>
                 ) : (
                   emprendimientos.map((emp) => (
                     <div
@@ -371,26 +335,21 @@ const HomeContent = () => {
                         className="w-full h-40 object-cover rounded-xl mb-4 flex-shrink-0"
                       />
 
-                      <div className="flex-1 min-w-0 mb-6">
-                        <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">
-                          {emp.nombreComercial}
-                        </h3>
+                      {/* Contenido principal */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">{emp.nombreComercial}</h3>
 
-                        <p className="text-base font-semibold text-gray-800 mb-2">
-                          {nombreCompletoEmprendedor(emp)}
-                        </p>
+                        <p className="text-base font-semibold text-gray-800 mb-2">{nombreCompletoEmprendedor(emp)}</p>
 
-                        <p className="text-sm text-gray-700 line-clamp-3 mb-3">
-                          {emp.descripcion}
-                        </p>
+                        <p className="text-sm text-gray-700 line-clamp-3 mb-3">{emp.descripcion}</p>
 
                         <p className="text-xs font-medium text-gray-600 bg-gray-100/50 px-2 py-1 rounded-full inline-block">
                           {emp.ubicacion?.ciudad}, {emp.ubicacion?.direccion}
                         </p>
                       </div>
 
-                      {/* BOTONES EMPRENDIMIENTOS: Responsivos y consistentes */}
-                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2">
+                      {/* BOTONES EMPRENDIMIENTOS: SIEMPRE DENTRO DE LA CARD */}
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 mt-6">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -449,25 +408,17 @@ const HomeContent = () => {
                     alt={productoSeleccionado.nombre}
                     className="w-48 h-48 object-cover rounded-2xl mx-auto mb-6 shadow-lg"
                   />
-                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">
-                    {productoSeleccionado.nombre}
-                  </h2>
-                  <p className="text-3xl font-black text-[#28a745] mb-4">
-                    ${productoSeleccionado.precio}
-                  </p>
+                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{productoSeleccionado.nombre}</h2>
+                  <p className="text-3xl font-black text-[#28a745] mb-4">${productoSeleccionado.precio}</p>
                 </div>
 
                 <div className="space-y-3 mb-8">
-                  <p className="text-gray-700 text-lg leading-relaxed">
-                    {productoSeleccionado.descripcion}
-                  </p>
+                  <p className="text-gray-700 text-lg leading-relaxed">{productoSeleccionado.descripcion}</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Stock</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {productoSeleccionado.stock ?? '—'}
-                      </p>
+                      <p className="text-2xl font-bold text-gray-900">{productoSeleccionado.stock ?? '—'}</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Emprendimiento</p>
@@ -549,31 +500,21 @@ const HomeContent = () => {
                     alt={emprendimientoSeleccionado.nombreComercial}
                     className="w-32 h-32 object-cover rounded-2xl mx-auto mb-6 shadow-lg border-4 border-white"
                   />
-                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">
-                    {emprendimientoSeleccionado.nombreComercial}
-                  </h2>
-                  <p className="text-lg font-semibold text-gray-800">
-                    {nombreCompletoEmprendedor(emprendimientoSeleccionado)}
-                  </p>
+                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{emprendimientoSeleccionado.nombreComercial}</h2>
+                  <p className="text-lg font-semibold text-gray-800">{nombreCompletoEmprendedor(emprendimientoSeleccionado)}</p>
                 </div>
 
                 <div className="space-y-4 mb-8">
-                  <p className="text-gray-700 text-lg leading-relaxed">
-                    {emprendimientoSeleccionado.descripcion}
-                  </p>
+                  <p className="text-gray-700 text-lg leading-relaxed">{emprendimientoSeleccionado.descripcion}</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Ubicación</p>
-                      <p className="font-semibold text-gray-900">
-                        {emprendimientoSeleccionado.ubicacion?.ciudad}
-                      </p>
+                      <p className="font-semibold text-gray-900">{emprendimientoSeleccionado.ubicacion?.ciudad}</p>
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Dirección</p>
-                      <p className="text-sm text-gray-700">
-                        {emprendimientoSeleccionado.ubicacion?.direccion}
-                      </p>
+                      <p className="text-sm text-gray-700">{emprendimientoSeleccionado.ubicacion?.direccion}</p>
                     </div>
                   </div>
 
@@ -624,9 +565,7 @@ const HomeContent = () => {
                 <div className="flex justify-center">
                   <HeartButton
                     toggleable={!!usuarioId}
-                    onClick={(e) =>
-                      handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)
-                    }
+                    onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
                     ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
                     className="h-14 px-8 shadow-lg hover:shadow-xl"
                     size="lg"
