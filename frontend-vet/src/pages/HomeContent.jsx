@@ -67,7 +67,8 @@ const HeartButton = ({
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${className}`}
+      // aseguramos tamaño mínimo, no crece, y buena accesibilidad visual
+      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap flex-none min-w-[44px] ${className}`}
     >
       <span
         className={`inline-flex items-center justify-center rounded-full flex-none ${
@@ -275,11 +276,11 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* ----- BOTONES: grid para evitar mezcla ----- */}
-                        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                        {/* ----- BOTONES: uso de flex para evitar overlap y mantener proporciones ----- */}
+                        <div className="mt-4 flex items-center gap-2">
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
-                            className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                            className="flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                           >
                             Contactar
                           </button>
@@ -337,15 +338,15 @@ const HomeContent = () => {
                         </p>
                       </div>
 
-                      {/* ----- BOTONES EMPRENDIMIENTO: grid para evitar mezcla ----- */}
-                      <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* ----- BOTONES EMPRENDIMIENTO: grupo de 2 + corazón ----- */}
+                      <div className="mt-4 flex items-center gap-2">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setEmprendimientoSeleccionado(emp);
                             }}
-                            className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834]"
+                            className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                           >
                             Ver detalles
                           </button>
@@ -415,8 +416,8 @@ const HomeContent = () => {
                     : '—'}
                 </p>
 
-                {/* Modal botones: igual patrón grid */}
-                <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                {/* Modal botones: patrón flex */}
+                <div className="mt-4 flex items-center gap-2">
                   <button
                     onClick={() => {
                       if (usuarioId) {
@@ -432,7 +433,7 @@ const HomeContent = () => {
                         navigate('/login?rol=cliente');
                       }
                     }}
-                    className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                    className="flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                   >
                     Contactar
                   </button>
@@ -484,8 +485,8 @@ const HomeContent = () => {
                   {emprendimientoSeleccionado.ubicacion?.ciudad} – {emprendimientoSeleccionado.ubicacion?.direccion}
                 </p>
 
-                <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {emprendimientoSeleccionado.contacto?.sitioWeb && (
                       <a
                         href={emprendimientoSeleccionado.contacto.sitioWeb}
