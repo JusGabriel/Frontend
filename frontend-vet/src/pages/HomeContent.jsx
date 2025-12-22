@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+// src/components/HomeContent.jsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
@@ -18,7 +19,7 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 );
 
 /**
- * HeartButton - botón "Me encanta" responsivo y accesible
+ * HeartButton - botón "Me encanta"
  */
 const HeartButton = ({
   filled: controlledFilled,
@@ -26,10 +27,9 @@ const HeartButton = ({
   label = 'Me encanta',
   ariaLabel,
   className = '',
-  toggleable = false,
-  fullWidth = true,
   size = 'md',
-  showLabelOnMobile = true, // ← mostramos texto en móvil para mejor claridad en columna
+  fullWidth = true,
+  showLabelOnMobile = true,
   variant = 'outline',
 }) => {
   const isControlled = typeof controlledFilled === 'boolean';
@@ -42,12 +42,9 @@ const HeartButton = ({
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (!isControlled && toggleable) setLocalFilled((s) => !s);
-    try {
-      onClick(e, !filled);
-    } catch (err) {
-      console.error(err);
-    }
+    // If uncontrolled, toggle locally
+    if (!isControlled) setLocalFilled((s) => !s);
+    onClick(e, !filled);
   };
 
   const heightClass = size === 'sm' ? 'h-11' : size === 'lg' ? 'h-14' : 'h-12';
@@ -90,8 +87,7 @@ const HeartButton = ({
 /* -------------------- HomeContent -------------------- */
 const HomeContent = () => {
   const navigate = useNavigate();
-  const { id: usuarioId } = storeAuth();
-
+  const { id: usuarioId, token } = storeAuth() || {};
   const [section] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -99,7 +95,12 @@ const HomeContent = () => {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
+  // favoritos
+  const [favoritesSet, setFavoritesSet] = useState(new Set()); // set de itemId
+  const [favoriteDocsByItem, setFavoriteDocsByItem] = useState({}); // map itemId -> favorito doc
+
   const API_BASE = 'https://backend-production-bd1d.up.railway.app';
+  const FRONTEND_BASE = window.location.origin;
 
   // helpers
   const generarSlug = (texto) =>
@@ -118,7 +119,7 @@ const HomeContent = () => {
 
   const buildPublicUrl = (emp) => {
     const slug = emp?.slug || generarSlug(emp?.nombreComercial) || emp?._id;
-    return `https://frontend-production-480a.up.railway.app/${slug}`;
+    return `${FRONTEND_BASE}/${slug}`;
   };
 
   const openPublicSite = (emp, { closeModal = false } = {}) => {
@@ -138,7 +139,7 @@ const HomeContent = () => {
     }
   };
 
-  // fetch data
+  // Fetch data: emprendimientos y productos (sin auth)
   useEffect(() => {
     fetch(`${API_BASE}/api/emprendimientos/publicos`)
       .then((res) => res.json())
@@ -160,13 +161,163 @@ const HomeContent = () => {
       .catch((err) => console.error('Error productos:', err));
   }, []);
 
-  const nombreCompletoEmprendedor = (emp) => {
-    const e = emp?.emprendedor;
-    if (!e) return '—';
-    return `${e.nombre ?? e.nombres ?? ''} ${e.apellido ?? e.apellidos ?? ''}`.trim() || '—';
+  // Cargar favoritos del usuario (si está autenticado)
+  const fetchMyFavorites = useCallback(async () => {
+    if (!token) {
+      setFavoritesSet(new Set());
+      setFavoriteDocsByItem({});
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/favoritos/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        console.warn('No se pudo obtener favoritos:', await res.text());
+        return;
+      }
+      const data = await res.json();
+      const setIds = new Set();
+      const mapDocs = {};
+      if (Array.isArray(data)) {
+        data.forEach((f) => {
+          if (f?.item) {
+            setIds.add(String(f.item));
+            mapDocs[String(f.item)] = f;
+          }
+        });
+      }
+      setFavoritesSet(setIds);
+      setFavoriteDocsByItem(mapDocs);
+    } catch (err) {
+      console.error('Error fetchMyFavorites:', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchMyFavorites();
+  }, [fetchMyFavorites]);
+
+  // Construir meta mínimo para producto/emprendimiento
+  const buildMetaFromProduct = (producto) => ({
+    nombre: producto.nombre,
+    descripcion: producto.descripcion,
+    precio: producto.precio,
+    imagen: producto.imagen,
+    slug: producto.slug || generarSlug(producto.nombre),
+    emprendimiento: {
+      _id: producto.emprendimiento?._id ?? producto.emprendimientoId ?? null,
+      nombreComercial: producto.emprendimiento?.nombreComercial ?? null,
+    },
+  });
+
+  const buildMetaFromEmprendimiento = (emp) => ({
+    nombre: emp.nombreComercial,
+    descripcion: emp.descripcion,
+    imagen: emp.logo,
+    slug: emp.slug || generarSlug(emp.nombreComercial),
+  });
+
+  // toggle favorito (unifica producto y emprendimiento)
+  const toggleFavorite = async ({ itemId, itemModel, meta, optimistic = true }) => {
+    if (!token) {
+      navigate('/login?rol=cliente');
+      return;
+    }
+
+    const idStr = String(itemId);
+
+    // optimista: aplicar cambio localmente
+    const wasFavorite = favoritesSet.has(idStr);
+    const newSet = new Set(favoritesSet);
+    const newDocs = { ...favoriteDocsByItem };
+    if (wasFavorite) {
+      newSet.delete(idStr);
+      delete newDocs[idStr];
+    } else {
+      newSet.add(idStr);
+      // placeholder doc until server returns
+      newDocs[idStr] = { item: itemId, itemModel, meta, activo: true };
+    }
+    if (optimistic) {
+      setFavoritesSet(newSet);
+      setFavoriteDocsByItem(newDocs);
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/favoritos/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ itemId, itemModel, meta }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Error al alternar favorito');
+      }
+
+      const result = await res.json();
+      // result.action: 'created'|'removed'|'reactivated' and favorito
+      if (result?.favorito) {
+        const f = result.favorito;
+        const map = { ...favoriteDocsByItem };
+        if (result.action === 'removed') {
+          // remove
+          const s = new Set(favoritesSet);
+          s.delete(String(itemId));
+          setFavoritesSet(s);
+          delete map[String(itemId)];
+          setFavoriteDocsByItem(map);
+        } else {
+          // created or reactivated
+          const s = new Set(favoritesSet);
+          s.add(String(itemId));
+          setFavoritesSet(s);
+          map[String(itemId)] = f;
+          setFavoriteDocsByItem(map);
+        }
+      } else {
+        // en caso de respuesta inesperada, recargar la lista desde servidor
+        fetchMyFavorites();
+      }
+    } catch (err) {
+      console.error('Error toggleFavorite:', err);
+      // revertir optimista
+      fetchMyFavorites();
+    }
   };
 
-  // navigation / actions
+  // wrappers específicos
+  const handleFavoriteProducto = (e, producto) => {
+    e?.stopPropagation?.();
+    if (!usuarioId) {
+      navigate('/login?rol=cliente');
+      return;
+    }
+    toggleFavorite({
+      itemId: producto._id,
+      itemModel: 'Producto',
+      meta: buildMetaFromProduct(producto),
+    });
+  };
+
+  const handleFavoriteEmprendimiento = (e, emp) => {
+    e?.stopPropagation?.();
+    if (!usuarioId) {
+      navigate('/login?rol=cliente');
+      return;
+    }
+    toggleFavorite({
+      itemId: emp._id,
+      itemModel: 'Emprendimiento',
+      meta: buildMetaFromEmprendimiento(emp),
+    });
+  };
+
+  // navegación / acciones (igual que antes)
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
@@ -196,41 +347,6 @@ const HomeContent = () => {
     }
   };
 
-  // favoritos (optimista)
-  const handleFavoriteProducto = (e, producto) => {
-    e?.stopPropagation?.();
-    if (!usuarioId) {
-      navigate('/login?rol=cliente');
-      return;
-    }
-    try {
-      fetch(`${API_BASE}/api/favoritos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: 'producto', itemId: producto._id }),
-      }).catch((err) => console.warn('No se pudo guardar favorito (optimista):', err));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleFavoriteEmprendimiento = (e, emp) => {
-    e?.stopPropagation?.();
-    if (!usuarioId) {
-      navigate('/login?rol=cliente');
-      return;
-    }
-    try {
-      fetch(`${API_BASE}/api/favoritos`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: 'emprendimiento', itemId: emp._id }),
-      }).catch((err) => console.warn('No se pudo guardar favorito (optimista):', err));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   return (
     <>
       {section === 'inicio' && (
@@ -247,6 +363,7 @@ const HomeContent = () => {
                   {productos.map((producto) => {
                     const empr = producto.emprendimiento ?? {};
                     const dueño = empr?.emprendedor ?? null;
+                    const isFav = favoritesSet.has(String(producto._id));
 
                     return (
                       <article
@@ -288,7 +405,7 @@ const HomeContent = () => {
                             Contactar
                           </button>
                           <HeartButton
-                            toggleable={!!usuarioId}
+                            filled={isFav}
                             onClick={(e) => handleFavoriteProducto(e, producto)}
                             ariaLabel={`Agregar ${producto.nombre} a favoritos`}
                             className="px-3 shadow-sm hover:shadow-md"
@@ -323,68 +440,75 @@ const HomeContent = () => {
                 {emprendimientos.length === 0 ? (
                   <p className="text-center w-full text-gray-600 col-span-full">Cargando emprendimientos...</p>
                 ) : (
-                  emprendimientos.map((emp) => (
-                    <div
-                      key={emp._id}
-                      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-[#E0C7B6]/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden hover:-translate-y-1"
-                      onClick={() => openPublicSite(emp)}
-                    >
-                      <img
-                        src={emp.logo}
-                        alt={emp.nombreComercial}
-                        className="w-full h-40 object-cover rounded-xl mb-4 flex-shrink-0"
-                      />
-
-                      {/* Contenido principal */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">{emp.nombreComercial}</h3>
-
-                        <p className="text-base font-semibold text-gray-800 mb-2">{nombreCompletoEmprendedor(emp)}</p>
-
-                        <p className="text-sm text-gray-700 line-clamp-3 mb-3">{emp.descripcion}</p>
-
-                        <p className="text-xs font-medium text-gray-600 bg-gray-100/50 px-2 py-1 rounded-full inline-block">
-                          {emp.ubicacion?.ciudad}, {emp.ubicacion?.direccion}
-                        </p>
-                      </div>
-
-                      {/* BOTONES EMPRENDIMIENTOS: columna 100%, SIEMPRE dentro de la card */}
-                      <div className="mt-6 grid grid-cols-1 gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEmprendimientoSeleccionado(emp);
-                          }}
-                          className="h-11 w-full bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
-                        >
-                          Detalles
-                        </button>
-
-                        <button
-                          onClick={(e) => handleContactarEmprendimiento(e, emp)}
-                          className="h-11 w-full bg-white border-2 border-[#AA4A44] text-[#AA4A44] rounded-lg text-sm font-semibold hover:bg-[#AA4A44] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
-                        >
-                          Contactar
-                        </button>
-
-                        <HeartButton
-                          toggleable={!!usuarioId}
-                          onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
-                          ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                          className="px-3 shadow-sm hover:shadow-md"
-                          size="sm"
-                          fullWidth
-                          showLabelOnMobile
+                  emprendimientos.map((emp) => {
+                    const isFav = favoritesSet.has(String(emp._id));
+                    return (
+                      <div
+                        key={emp._id}
+                        className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-[#E0C7B6]/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden hover:-translate-y-1"
+                        onClick={() => openPublicSite(emp)}
+                      >
+                        <img
+                          src={emp.logo}
+                          alt={emp.nombreComercial}
+                          className="w-full h-40 object-cover rounded-xl mb-4 flex-shrink-0"
                         />
+
+                        {/* Contenido principal */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">{emp.nombreComercial}</h3>
+
+                          <p className="text-base font-semibold text-gray-800 mb-2">{/* Nombre emprendedor */}
+                            {emp.emprendedor?.nombre
+                              ? `${emp.emprendedor?.nombre} ${emp.emprendedor?.apellido ?? ''}`.trim()
+                              : '—'}
+                          </p>
+
+                          <p className="text-sm text-gray-700 line-clamp-3 mb-3">{emp.descripcion}</p>
+
+                          <p className="text-xs font-medium text-gray-600 bg-gray-100/50 px-2 py-1 rounded-full inline-block">
+                            {emp.ubicacion?.ciudad}, {emp.ubicacion?.direccion}
+                          </p>
+                        </div>
+
+                        {/* BOTONES EMPRENDIMIENTOS: columna 100%, SIEMPRE dentro de la card */}
+                        <div className="mt-6 grid grid-cols-1 gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEmprendimientoSeleccionado(emp);
+                            }}
+                            className="h-11 w-full bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
+                          >
+                            Detalles
+                          </button>
+
+                          <button
+                            onClick={(e) => handleContactarEmprendimiento(e, emp)}
+                            className="h-11 w-full bg-white border-2 border-[#AA4A44] text-[#AA4A44] rounded-lg text-sm font-semibold hover:bg-[#AA4A44] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
+                          >
+                            Contactar
+                          </button>
+
+                          <HeartButton
+                            filled={isFav}
+                            onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
+                            ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
+                            className="px-3 shadow-sm hover:shadow-md"
+                            size="sm"
+                            fullWidth
+                            showLabelOnMobile
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
           </section>
 
-          {/* MODAL PRODUCTO */}
+          {/* MODALES (sin cambios funcionales) */}
           {productoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -462,7 +586,7 @@ const HomeContent = () => {
                   </button>
 
                   <HeartButton
-                    toggleable={!!usuarioId}
+                    filled={favoritesSet.has(String(productoSeleccionado._id))}
                     onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
                     ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
                     className="h-14 px-6 shadow-lg hover:shadow-xl"
@@ -476,7 +600,6 @@ const HomeContent = () => {
             </div>
           )}
 
-          {/* MODAL EMPRENDIMIENTO */}
           {emprendimientoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -501,7 +624,7 @@ const HomeContent = () => {
                     className="w-32 h-32 object-cover rounded-2xl mx-auto mb-6 shadow-lg border-4 border-white"
                   />
                   <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{emprendimientoSeleccionado.nombreComercial}</h2>
-                  <p className="text-lg font-semibold text-gray-800">{nombreCompletoEmprendedor(emprendimientoSeleccionado)}</p>
+                  <p className="text-lg font-semibold text-gray-800">{/* emprendedor */}</p>
                 </div>
 
                 <div className="space-y-4 mb-8">
@@ -564,7 +687,7 @@ const HomeContent = () => {
 
                 <div className="flex justify-center">
                   <HeartButton
-                    toggleable={!!usuarioId}
+                    filled={favoritesSet.has(String(emprendimientoSeleccionado._id))}
                     onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
                     ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
                     className="h-14 px-8 shadow-lg hover:shadow-xl"
