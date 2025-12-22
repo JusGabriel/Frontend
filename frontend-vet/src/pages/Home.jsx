@@ -1,9 +1,11 @@
+// src/components/Home.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 // IMÁGENES (usa tus assets existentes)
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
+import politicasPdf from '../assets/Politicas_QuitoEmprende.pdf'; // ✅ NUEVO IMPORT
 
 // Placeholder externo (se usa si no hay imagen o falla la carga)
 const DEFAULT_PLACEHOLDER = 'https://via.placeholder.com/800x600?text=Sin+imagen';
@@ -17,7 +19,7 @@ const API_URL = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
   process.env.REACT_APP_API_URL ||
   'https://backend-production-bd1d.up.railway.app'
-).replace(/\/+$/,'');
+).replace(/\/+$/, '');
 
 // Helper: resuelve la URL final de la imagen
 function resolveImageUrl(imgPath) {
@@ -156,9 +158,18 @@ const Header = () => {
   );
 };
 
+/* ===================== Footer clickeable al PDF (UX limpio, sin subrayado) ===================== */
 const Footer = () => (
   <footer className="bg-[#F3E1CE] py-6 text-center text-sm text-gray-700 mt-10 border-t border-[#E0C7B6]">
-    © 2025 QuitoEmprende. Todos los derechos reservados.
+    <a
+      href={politicasPdf}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-gray-700 no-underline hover:text-[#AA4A44] transition-colors cursor-pointer"
+      aria-label="Ver políticas y derechos de QuitoEmprende en PDF"
+    >
+      © 2025 QuitoEmprende. Todos los derechos reservados.
+    </a>
   </footer>
 );
 
