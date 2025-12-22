@@ -1,5 +1,5 @@
 // src/components/Register.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import axios from 'axios';
@@ -8,16 +8,12 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import panecillo from "../pages/Imagenes/panecillo.jpg";
 import fondo from "../assets/fondoblanco.jpg";
-import politicasPdf from "../assets/Politicas_QuitoEmprende.pdf"; // ✅ NUEVO IMPORT
+import politicasPdf from "../assets/Politicas_QuitoEmprende.pdf"; // ✅ PDF
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const { register, handleSubmit, formState: { errors }, watch } = useForm();
-
-  // ✅ Versión (opcional) para auditar aceptación en backend
   const POLICIES_VERSION = '2025-12-22';
-
-  // ⛔ Se eliminaron URLs y botones de Google
 
   const registro = async (data) => {
     try {
@@ -31,7 +27,6 @@ export const Register = () => {
         return;
       }
 
-      // ✅ Enviar campos de aceptación al backend (auditoría mínima)
       const payload = {
         nombre: data.nombre,
         apellido: data.apellido,
@@ -50,25 +45,62 @@ export const Register = () => {
     }
   };
 
-  // ✅ Deshabilita el submit si no se aceptan términos
   const accepted = watch('accepted', false);
+
+  // ====== CSS responsivo inyectado (para clases jp-*) ======
+  useEffect(() => {
+    // Crea un <style> si no hay stylesheet disponible
+    let sheet = document.styleSheets && document.styleSheets[0];
+    if (!sheet) {
+      const styleEl = document.createElement('style');
+      styleEl.type = 'text/css';
+      document.head.appendChild(styleEl);
+      sheet = styleEl.sheet;
+    }
+
+    const rules = [
+      // Ocultar panel de imagen y ajustar espacios en pantallas pequeñas
+      `@media (max-width: 768px) {
+        .jp-left-panel { display: none !important; }
+        .jp-card { width: 95vw !important; height: auto !important; max-height: none !important; border-radius: 20px !important; }
+        .jp-form { padding: 1rem !important; }
+        .jp-title { position: sticky; top: 0; background: #fff; padding: .5rem 0; z-index: 3; border-bottom: 1px solid #eee; }
+      }`,
+      // Evitar que los errores “empujen” el layout en exceso
+      `.jp-error { word-wrap: break-word; white-space: normal; line-height: 1.2; }`,
+      // Asegurar que inputs ocupen ancho completo
+      `.jp-input, .jp-select { box-sizing: border-box; width: 100%; }`
+    ];
+
+    // Inserta reglas si no existen
+    if (sheet) {
+      const existing = Array.from(sheet.cssRules || []).map(r => r.cssText);
+      rules.forEach(rule => {
+        if (!existing.includes(rule)) {
+          sheet.insertRule(rule, sheet.cssRules.length);
+        }
+      });
+    }
+  }, []);
 
   return (
     <div style={containerStyle}>
       <ToastContainer />
       <div style={backgroundStyle} />
       <Bubbles />
-      <div style={cardStyle}>
-        {/* Imagen panecillo */}
-        <div style={leftPanelStyle}></div>
+
+      <div style={cardStyle} className="jp-card">
+        {/* Panel de imagen (se oculta en móviles) */}
+        <div style={leftPanelStyle} className="jp-left-panel" />
 
         {/* Formulario */}
-        <div style={formContainerStyle}>
+        <div style={formContainerStyle} className="jp-form">
           <form onSubmit={handleSubmit(registro)} style={formStyle}>
-            <h1 style={formTitle}>Bienvenido(a)</h1>
+            <h1 style={formTitle} className="jp-title">Bienvenido(a)</h1>
             <p style={formSubtitle}>Por favor ingresa tus datos</p>
 
             <input
+              className="jp-input"
               placeholder="Nombre"
               {...register("nombre", {
                 required: "El nombre es obligatorio",
@@ -77,9 +109,10 @@ export const Register = () => {
               })}
               style={inputStyle}
             />
-            {errors.nombre && <p style={errorText}>{errors.nombre.message}</p>}
+            {errors.nombre && <p style={errorText} className="jp-error">{errors.nombre.message}</p>}
 
             <input
+              className="jp-input"
               placeholder="Apellido"
               {...register("apellido", {
                 required: "El apellido es obligatorio",
@@ -88,9 +121,10 @@ export const Register = () => {
               })}
               style={inputStyle}
             />
-            {errors.apellido && <p style={errorText}>{errors.apellido.message}</p>}
+            {errors.apellido && <p style={errorText} className="jp-error">{errors.apellido.message}</p>}
 
             <input
+              className="jp-input"
               placeholder="Celular"
               type="text"
               {...register("celular", {
@@ -99,9 +133,10 @@ export const Register = () => {
               })}
               style={inputStyle}
             />
-            {errors.celular && <p style={errorText}>{errors.celular.message}</p>}
+            {errors.celular && <p style={errorText} className="jp-error">{errors.celular.message}</p>}
 
             <input
+              className="jp-input"
               placeholder="Correo electrónico"
               type="email"
               {...register("email", {
@@ -113,9 +148,10 @@ export const Register = () => {
               })}
               style={inputStyle}
             />
-            {errors.email && <p style={errorText}>{errors.email.message}</p>}
+            {errors.email && <p style={errorText} className="jp-error">{errors.email.message}</p>}
 
             <input
+              className="jp-input"
               type={showPassword ? "text" : "password"}
               placeholder="Contraseña"
               {...register("password", {
@@ -135,16 +171,20 @@ export const Register = () => {
             >
               {showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
             </button>
-            {errors.password && <p style={errorText}>{errors.password.message}</p>}
+            {errors.password && <p style={errorText} className="jp-error">{errors.password.message}</p>}
 
-            <select {...register("role", { required: "El rol es obligatorio" })} style={selectStyle}>
+            <select
+              className="jp-select"
+              {...register("role", { required: "El rol es obligatorio" })}
+              style={selectStyle}
+            >
               <option value="">Selecciona un rol</option>
               <option value="editor">Emprendedor</option>
               <option value="user">Cliente</option>
             </select>
-            {errors.role && <p style={errorText}>{errors.role.message}</p>}
+            {errors.role && <p style={errorText} className="jp-error">{errors.role.message}</p>}
 
-            {/* ✅ Aceptación de Términos + Política (obligatoria) */}
+            {/* Aceptación de Términos + Política */}
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', marginTop: '1rem' }}>
               <input
                 type="checkbox"
@@ -157,16 +197,16 @@ export const Register = () => {
                   href={politicasPdf}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: '#AA4A44', textDecoration: 'none' }} // ✅ sin subrayado
+                  style={{ color: '#AA4A44', textDecoration: 'none' }}
                   aria-label="Abrir políticas de QuitoEmprende en PDF"
                 >
                   Términos y la Política de Privacidad de QuitoEmprende
                 </a>.
               </span>
             </label>
-            {errors.accepted && <p style={errorText}>{errors.accepted.message}</p>}
+            {errors.accepted && <p style={errorText} className="jp-error">{errors.accepted.message}</p>}
 
-            {/* ✅ Botón de registro (deshabilitado si no se acepta) */}
+            {/* Botón de registro */}
             <button
               type="submit"
               disabled={!accepted}
@@ -179,13 +219,7 @@ export const Register = () => {
               Registrarse
             </button>
 
-            {/* ⛔ Se eliminaron los botones de Google */}
-            {/* 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-              ... (ELIMINADO)
-            </div>
-            */}
-
+            {/* Login existente */}
             <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem' }}>
               ¿Ya posees una cuenta?{' '}
               <Link to="/login" style={{ color: '#AA4A44', textDecoration: 'underline' }}>
@@ -218,14 +252,16 @@ const Bubbles = () => {
   );
 };
 
+/* ===================== Estilos ===================== */
 const containerStyle = {
   position: 'relative',
-  height: '100vh',
+  minHeight: '100vh',
   width: '100vw',
-  overflow: 'hidden',
+  overflow: 'auto',            // ✅ permite scroll si los errores crecen
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  padding: '2rem 1rem',        // ✅ margen interior en móviles
 };
 
 const backgroundStyle = {
@@ -264,29 +300,32 @@ const bubble = {
   opacity: 0.7,
 };
 
-const styleSheet = document.styleSheets[0];
+const styleSheet = document.styleSheets && document.styleSheets[0];
 const keyframes =
 `@keyframes rise {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: translateY(-110vh) scale(1.3);
-    opacity: 0;
-  }
+  0% { transform: translateY(0) scale(1); opacity: 0.7; }
+  100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
 }`;
 if (styleSheet) {
-  const rules = Array.from(styleSheet.cssRules).map(r => r.cssText);
+  const rules = Array.from(styleSheet.cssRules || []).map(r => r.cssText);
   if (!rules.includes(keyframes)) {
     styleSheet.insertRule(keyframes, styleSheet.cssRules.length);
   }
+} else {
+  // Fallback si no existe styleSheet
+  const styleEl = document.createElement('style');
+  styleEl.type = 'text/css';
+  styleEl.appendChild(document.createTextNode(keyframes));
+  document.head.appendChild(styleEl);
 }
 
 const cardStyle = {
   display: 'flex',
-  width: '850px',
-  height: '750px',
+  width: '100%',
+  maxWidth: '950px',           // ✅ se adapta a viewport
+  minHeight: '560px',
+  height: 'auto',              // ✅ evita romper layout
+  maxHeight: '90vh',           // ✅ evita desbordes
   borderRadius: '25px',
   overflow: 'hidden',
   boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
@@ -311,10 +350,12 @@ const formContainerStyle = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
+  overflowY: 'auto',           // ✅ scrollea este panel si hay muchos errores
+  maxHeight: '90vh',
 };
 
 const formStyle = {
-  maxWidth: '380px',
+  maxWidth: '420px',
   width: '100%',
   margin: '0 auto',
 };
@@ -330,7 +371,7 @@ const formTitle = {
 
 const formSubtitle = {
   textAlign: 'center',
-  marginBottom: '1.5rem',
+  marginBottom: '1.2rem',
   fontSize: '0.95rem',
   color: '#555',
 };
@@ -342,6 +383,7 @@ const inputStyle = {
   border: '1px solid #ccc',
   borderRadius: '8px',
   fontSize: '1rem',
+  boxSizing: 'border-box',
 };
 
 const selectStyle = {
@@ -351,8 +393,8 @@ const selectStyle = {
 
 const buttonStyle = {
   width: '100%',
-  padding: '0.5rem',
-  marginTop: '1.5rem',
+  padding: '0.7rem',
+  marginTop: '1.2rem',
   backgroundColor: '#AA4A44',
   color: 'white',
   border: 'none',
@@ -366,6 +408,7 @@ const errorText = {
   color: 'red',
   fontSize: '0.85rem',
   marginTop: '0.3rem',
+  lineHeight: 1.2,
 };
 
 export default Register;
