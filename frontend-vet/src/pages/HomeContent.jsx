@@ -1,8 +1,11 @@
-// src/components/HomeContent.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
+
+/* -------------------- Config UX: Mostrar más (client-side) -------------------- */
+const PRODUCTS_PAGE_SIZE = 8; // cantidad a mostrar por bloque en Productos
+const EMPS_PAGE_SIZE = 8;     // cantidad a mostrar por bloque en Emprendimientos
 
 /* -------------------- Icon / HeartButton -------------------- */
 const IconHeartSvg = ({ filled = false, size = 16 }) => (
@@ -102,6 +105,10 @@ const HomeContent = () => {
   const API_BASE = 'https://backend-production-bd1d.up.railway.app';
   const FRONTEND_BASE = window.location.origin;
 
+  // ====== Estados de UX/Paginación (client-side) ======
+  const [prodVisibleCount, setProdVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
+  const [empVisibleCount, setEmpVisibleCount] = useState(EMPS_PAGE_SIZE);
+
   // helpers
   const generarSlug = (texto) =>
     texto
@@ -143,7 +150,10 @@ const HomeContent = () => {
   useEffect(() => {
     fetch(`${API_BASE}/api/emprendimientos/publicos`)
       .then((res) => res.json())
-      .then((data) => setEmprendimientos(Array.isArray(data) ? data : []))
+      .then((data) => {
+        setEmprendimientos(Array.isArray(data) ? data : []);
+        setEmpVisibleCount(EMPS_PAGE_SIZE); // reinicia visible ante nueva carga
+      })
       .catch((err) => console.error('Error emprendimientos:', err));
   }, []);
 
@@ -157,6 +167,7 @@ const HomeContent = () => {
           ? data.productos
           : [];
         setProductos(productosArray);
+        setProdVisibleCount(PRODUCTS_PAGE_SIZE); // reinicia visible ante nueva carga
       })
       .catch((err) => console.error('Error productos:', err));
   }, []);
@@ -347,77 +358,136 @@ const HomeContent = () => {
     }
   };
 
+  // ====== Derivados visibles (client-side) ======
+  const productosVisibles = productos.slice(0, prodVisibleCount);
+  const emprVisibles = emprendimientos.slice(0, empVisibleCount);
+
+  // Contadores “del 1 al X de Y”
+  const prodStart = 1;
+  const prodEnd = Math.min(prodVisibleCount, productos.length);
+  const empStart = 1;
+  const empEnd = Math.min(empVisibleCount, emprendimientos.length);
+
   return (
     <>
       {section === 'inicio' && (
         <>
           {/* PRODUCTOS DESTACADOS */}
-          <section className="py-10 px-6 bg-white text-gray-800">
+          <section className="py-10 px-6 bg-white text-gray-800" aria-labelledby="productos-title">
             <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
+              <h2 id="productos-title" className="text-3xl font-bold text-[#AA4A44] text-center mb-2">
+                Productos Destacados
+              </h2>
+
+              {/* Contador UX */}
+              <p className="text-sm text-gray-600 mb-6">
+                Mostrando del <strong>{prodStart}</strong> al <strong>{prodEnd}</strong> de{' '}
+                <strong>{productos.length}</strong> productos
+              </p>
 
               {productos.length === 0 ? (
                 <p className="text-center mt-6 text-gray-600">Cargando productos...</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
-                  {productos.map((producto) => {
-                    const empr = producto.emprendimiento ?? {};
-                    const dueño = empr?.emprendedor ?? null;
-                    const isFav = favoritesSet.has(String(producto._id));
+                <>
+                  <div
+                    id="grid-productos"
+                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full"
+                    aria-live="polite"
+                  >
+                    {productosVisibles.map((producto) => {
+                      const empr = producto.emprendimiento ?? {};
+                      const dueño = empr?.emprendedor ?? null;
+                      const isFav = favoritesSet.has(String(producto._id));
 
-                    return (
-                      <article
-                        key={producto._id}
-                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer flex flex-col h-full overflow-hidden"
-                        onClick={() => setProductoSeleccionado(producto)}
-                      >
-                        <img
-                          src={producto.imagen}
-                          alt={producto.nombre}
-                          className="w-full h-48 object-cover rounded-lg mb-4 flex-shrink-0"
-                        />
-
-                        <div className="flex-1 min-w-0 mb-4">
-                          <h3 className="font-semibold text-lg text-[#AA4A44] truncate mb-2">{producto.nombre}</h3>
-
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">{producto.descripcion}</p>
-
-                          <p className="text-lg font-bold text-[#28a745] mb-2">${producto.precio}</p>
-
-                          <p className="text-sm font-semibold text-gray-700 mb-1">Stock: {producto.stock ?? '—'}</p>
-
-                          <p className="text-sm text-gray-600 mb-1">
-                            <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
-                          </p>
-
-                          <p className="text-sm text-gray-600">
-                            <strong>Emprendedor:</strong>{' '}
-                            {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
-                          </p>
-                        </div>
-
-                        {/* BOTONES PRODUCTOS: columna, dentro de la card */}
-                        <div className="mt-auto grid grid-cols-1 gap-2">
-                          <button
-                            onClick={(e) => handleContactarProducto(e, producto)}
-                            className="w-full h-11 bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
-                          >
-                            Contactar
-                          </button>
-                          <HeartButton
-                            filled={isFav}
-                            onClick={(e) => handleFavoriteProducto(e, producto)}
-                            ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                            className="px-3 shadow-sm hover:shadow-md"
-                            size="sm"
-                            fullWidth
-                            showLabelOnMobile
+                      return (
+                        <article
+                          key={producto._id}
+                          className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer flex flex-col h-full overflow-hidden"
+                          onClick={() => setProductoSeleccionado(producto)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setProductoSeleccionado(producto);
+                            }
+                          }}
+                        >
+                          <img
+                            src={producto.imagen}
+                            alt={producto.nombre}
+                            className="w-full h-48 object-cover rounded-lg mb-4 flex-shrink-0"
+                            loading="lazy"
                           />
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
+
+                          <div className="flex-1 min-w-0 mb-4">
+                            <h3 className="font-semibold text-lg text-[#AA4A44] truncate mb-2">
+                              {producto.nombre}
+                            </h3>
+
+                            <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                              {producto.descripcion}
+                            </p>
+
+                            <p className="text-lg font-bold text-[#28a745] mb-2">${producto.precio}</p>
+
+                            <p className="text-sm font-semibold text-gray-700 mb-1">
+                              Stock: {producto.stock ?? '—'}
+                            </p>
+
+                            <p className="text-sm text-gray-600 mb-1">
+                              <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
+                            </p>
+
+                            <p className="text-sm text-gray-600">
+                              <strong>Emprendedor:</strong>{' '}
+                              {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
+                            </p>
+                          </div>
+
+                          {/* BOTONES PRODUCTOS: columna, dentro de la card */}
+                          <div className="mt-auto grid grid-cols-1 gap-2">
+                            <button
+                              onClick={(e) => handleContactarProducto(e, producto)}
+                              className="w-full h-11 bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
+                            >
+                              Contactar
+                            </button>
+                            <HeartButton
+                              filled={isFav}
+                              onClick={(e) => handleFavoriteProducto(e, producto)}
+                              ariaLabel={`Agregar ${producto.nombre} a favoritos`}
+                              className="px-3 shadow-sm hover:shadow-md"
+                              size="sm"
+                              fullWidth
+                              showLabelOnMobile
+                            />
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  {/* Botón "Mostrar más" (progresivo) */}
+                  <div className="w-full mt-8 flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProdVisibleCount((c) => Math.min(c + PRODUCTS_PAGE_SIZE, productos.length))
+                      }
+                      disabled={prodVisibleCount >= productos.length}
+                      className={`px-5 py-2 rounded-md text-sm font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${
+                        prodVisibleCount >= productos.length
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300'
+                          : 'bg-white text-[#AA4A44] border-[#AA4A44] hover:bg-white/90'
+                      }`}
+                      aria-controls="grid-productos"
+                      aria-label="Mostrar más productos"
+                    >
+                      {prodVisibleCount >= productos.length ? 'No hay más productos' : 'Mostrar más productos'}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </section>
@@ -432,33 +502,58 @@ const HomeContent = () => {
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
+            aria-labelledby="empr-title"
           >
             <div className="max-w-7xl mx-auto flex flex-col items-center">
-              <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Explora Emprendimientos</h2>
+              <h2 id="empr-title" className="text-3xl font-bold text-[#AA4A44] text-center mb-2">
+                Explora Emprendimientos
+              </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full">
+              {/* Contador UX */}
+              <p className="text-sm text-gray-600 mb-6">
+                Mostrando del <strong>{empStart}</strong> al <strong>{empEnd}</strong> de{' '}
+                <strong>{emprendimientos.length}</strong> emprendimientos
+              </p>
+
+              <div
+                id="grid-empr"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 w-full"
+                aria-live="polite"
+              >
                 {emprendimientos.length === 0 ? (
                   <p className="text-center w-full text-gray-600 col-span-full">Cargando emprendimientos...</p>
                 ) : (
-                  emprendimientos.map((emp) => {
+                  emprVisibles.map((emp) => {
                     const isFav = favoritesSet.has(String(emp._id));
                     return (
                       <div
                         key={emp._id}
                         className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-[#E0C7B6]/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden hover:-translate-y-1"
                         onClick={() => openPublicSite(emp)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openPublicSite(emp);
+                          }
+                        }}
                       >
                         <img
                           src={emp.logo}
                           alt={emp.nombreComercial}
                           className="w-full h-40 object-cover rounded-xl mb-4 flex-shrink-0"
+                          loading="lazy"
                         />
 
                         {/* Contenido principal */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">{emp.nombreComercial}</h3>
+                          <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">
+                            {emp.nombreComercial}
+                          </h3>
 
-                          <p className="text-base font-semibold text-gray-800 mb-2">{/* Nombre emprendedor */}
+                          <p className="text-base font-semibold text-gray-800 mb-2">
+                            {/* Nombre emprendedor */}
                             {emp.emprendedor?.nombre
                               ? `${emp.emprendedor?.nombre} ${emp.emprendedor?.apellido ?? ''}`.trim()
                               : '—'}
@@ -505,6 +600,28 @@ const HomeContent = () => {
                   })
                 )}
               </div>
+
+              {/* Botón "Mostrar más" (progresivo) */}
+              <div className="w-full mt-8 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEmpVisibleCount((c) => Math.min(c + EMPS_PAGE_SIZE, emprendimientos.length))
+                  }
+                  disabled={empVisibleCount >= emprendimientos.length}
+                  className={`px-5 py-2 rounded-md text-sm font-semibold border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${
+                    empVisibleCount >= emprendimientos.length
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed border-gray-300'
+                      : 'bg-white text-[#AA4A44] border-[#AA4A44] hover:bg-white/90'
+                  }`}
+                  aria-controls="grid-empr"
+                  aria-label="Mostrar más emprendimientos"
+                >
+                  {empVisibleCount >= emprendimientos.length
+                    ? 'No hay más emprendimientos'
+                    : 'Mostrar más emprendimientos'}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -531,6 +648,7 @@ const HomeContent = () => {
                     src={productoSeleccionado.imagen}
                     alt={productoSeleccionado.nombre}
                     className="w-48 h-48 object-cover rounded-2xl mx-auto mb-6 shadow-lg"
+                    loading="lazy"
                   />
                   <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{productoSeleccionado.nombre}</h2>
                   <p className="text-3xl font-black text-[#28a745] mb-4">${productoSeleccionado.precio}</p>
@@ -622,8 +740,11 @@ const HomeContent = () => {
                     src={emprendimientoSeleccionado.logo}
                     alt={emprendimientoSeleccionado.nombreComercial}
                     className="w-32 h-32 object-cover rounded-2xl mx-auto mb-6 shadow-lg border-4 border-white"
+                    loading="lazy"
                   />
-                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{emprendimientoSeleccionado.nombreComercial}</h2>
+                  <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">
+                    {emprendimientoSeleccionado.nombreComercial}
+                  </h2>
                   <p className="text-lg font-semibold text-gray-800">{/* emprendedor */}</p>
                 </div>
 
