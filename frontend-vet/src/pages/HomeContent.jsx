@@ -29,7 +29,7 @@ const HeartButton = ({
   toggleable = false,
   fullWidth = true,
   size = 'md',
-  showLabelOnMobile = false,
+  showLabelOnMobile = true, // ← mostramos texto en móvil para mejor claridad en columna
   variant = 'outline',
 }) => {
   const isControlled = typeof controlledFilled === 'boolean';
@@ -67,7 +67,7 @@ const HeartButton = ({
       aria-label={ariaLabel || label}
       title={label}
       className={`inline-flex items-center ${fullWidth ? 'w-full' : 'w-auto'} ${heightClass}
-        justify-center sm:justify-start gap-2 rounded-lg shadow-sm transition
+        justify-start gap-2 rounded-lg shadow-sm transition
         hover:scale-[1.01] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]
         ${className}`}
     >
@@ -251,7 +251,7 @@ const HomeContent = () => {
                     return (
                       <article
                         key={producto._id}
-                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer flex flex-col h-full"
+                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer flex flex-col h-full overflow-hidden"
                         onClick={() => setProductoSeleccionado(producto)}
                       >
                         <img
@@ -279,8 +279,8 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* BOTONES PRODUCTOS: dentro de la card */}
-                        <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 mt-auto">
+                        {/* BOTONES PRODUCTOS: columna, dentro de la card */}
+                        <div className="mt-auto grid grid-cols-1 gap-2">
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
                             className="w-full h-11 bg-[#AA4A44] text-white rounded-lg text-sm font-semibold hover:bg-[#933834] transition-all duration-200 shadow-sm hover:shadow-md"
@@ -294,7 +294,7 @@ const HomeContent = () => {
                             className="px-3 shadow-sm hover:shadow-md"
                             size="sm"
                             fullWidth
-                            showLabelOnMobile={false}
+                            showLabelOnMobile
                           />
                         </div>
                       </article>
@@ -326,7 +326,7 @@ const HomeContent = () => {
                   emprendimientos.map((emp) => (
                     <div
                       key={emp._id}
-                      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-[#E0C7B6]/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full hover:-translate-y-1"
+                      className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg border border-[#E0C7B6]/50 p-6 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col h-full overflow-hidden hover:-translate-y-1"
                       onClick={() => openPublicSite(emp)}
                     >
                       <img
@@ -348,8 +348,8 @@ const HomeContent = () => {
                         </p>
                       </div>
 
-                      {/* BOTONES EMPRENDIMIENTOS: SIEMPRE DENTRO DE LA CARD */}
-                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 mt-6">
+                      {/* BOTONES EMPRENDIMIENTOS: columna 100%, SIEMPRE dentro de la card */}
+                      <div className="mt-6 grid grid-cols-1 gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -362,7 +362,7 @@ const HomeContent = () => {
 
                         <button
                           onClick={(e) => handleContactarEmprendimiento(e, emp)}
-                          className="h-11 w-full sm:w-auto bg-white border-2 border-[#AA4A44] text-[#AA4A44] rounded-lg text-sm font-semibold hover:bg-[#AA4A44] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
+                          className="h-11 w-full bg-white border-2 border-[#AA4A44] text-[#AA4A44] rounded-lg text-sm font-semibold hover:bg-[#AA4A44] hover:text-white transition-all duration-200 shadow-sm hover:shadow-md"
                         >
                           Contactar
                         </button>
@@ -374,7 +374,7 @@ const HomeContent = () => {
                           className="px-3 shadow-sm hover:shadow-md"
                           size="sm"
                           fullWidth
-                          showLabelOnMobile={false}
+                          showLabelOnMobile
                         />
                       </div>
                     </div>
