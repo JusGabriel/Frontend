@@ -1,6 +1,8 @@
+// src/components/Dashboard.jsx
 import { Link, Outlet, useLocation } from 'react-router';
 import storeAuth from '../context/storeAuth';
 import storeProfile from '../context/storeProfile';
+import politicasPdf from '../assets/Politicas_QuitoEmprende.pdf'; // ✅ NUEVO IMPORT
 
 const Dashboard = () => {
   const location = useLocation();
@@ -20,7 +22,6 @@ const Dashboard = () => {
       { to: '/dashboard/crear', label: 'Crear' },
       { to: '/dashboard/chat', label: 'Chat' },
       { to: '/dashboard', label: 'Perfil' },
-
     ],
     Cliente: [
       { to: '/dashboard/inicio', label: 'Inicio' },
@@ -88,15 +89,20 @@ const Dashboard = () => {
         <Outlet />
       </main>
 
-      {/* Footer */}
+      {/* Footer (clickeable al PDF, sin subrayado) */}
       <footer className="bg-[#F3E1CE] border-t border-[#E0C7B6] py-6 text-center text-sm text-gray-700">
-        © 2025 QuitoEmprende. Todos los derechos reservados.
+        <a
+          href={politicasPdf}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-700 no-underline hover:text-[#AA4A44] transition-colors cursor-pointer"
+          aria-label="Ver políticas y derechos de QuitoEmprende en PDF"
+        >
+          © 2025 QuitoEmprende. Todos los derechos reservados.
+        </a>
       </footer>
     </div>
   );
 };
 
 export default Dashboard;
-
-
-
