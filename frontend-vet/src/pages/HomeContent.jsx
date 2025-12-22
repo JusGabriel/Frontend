@@ -1,19 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
-import Servicios from './pgPrueba/Servicios';
 import storeAuth from '../context/storeAuth';
 
 /* -------------------- Icon / HeartButton -------------------- */
 const IconHeartSvg = ({ filled = false, size = 16 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    xmlns="http://www.w3.org/2000/svg"
-    aria-hidden
-    focusable="false"
-  >
+  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
     <path
       d="M12 21s-6.716-4.33-9.428-7.043C.86 12.245.86 9.487 2.572 7.774c1.713-1.713 4.47-1.713 6.183 0L12 10.02l3.245-3.246c1.713-1.713 4.47-1.713 6.183 0 1.713 1.713 1.713 4.47 0 6.183C18.716 16.67 12 21 12 21z"
       fill={filled ? 'currentColor' : 'none'}
@@ -26,10 +18,9 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 );
 
 /**
- * HeartButton - botón reutilizable para "Me encanta".
- * - en móvil suele ocupar ancho completo (w-full) si se pasa esa clase,
- * - en desktop queda compacto (sm:w-auto) y muestra texto si hay espacio.
- * - accesible: aria-pressed, aria-label
+ * HeartButton - botón "Me encanta"
+ * - móvil: icono centrado (ancho completo si se pasa w-full)
+ * - sm+: muestra texto y ancho auto (NO forzamos sm:w-10)
  */
 const HeartButton = ({
   filled: controlledFilled,
@@ -66,7 +57,7 @@ const HeartButton = ({
       aria-label={ariaLabel || label}
       title={label}
       className={`inline-flex items-center justify-center sm:justify-start gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02]
-        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap ${className}`}
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${className}`}
     >
       <span
         className={`inline-flex items-center justify-center rounded-full ${
@@ -76,10 +67,8 @@ const HeartButton = ({
         <IconHeartSvg filled={filled} size={16} />
       </span>
 
-      {/* Texto solo en sm+ para ahorrar espacio en móviles */}
-      <span
-        className={`text-xs sm:text-sm font-medium leading-none ${filled ? 'text-white' : 'text-[#AA4A44]'} hidden sm:inline`}
-      >
+      {/* Texto solo en sm+ para ahorrar espacio en móvil */}
+      <span className={`text-xs sm:text-sm font-medium leading-none ${filled ? 'text-white' : 'text-[#AA4A44]'} hidden sm:inline`}>
         {label}
       </span>
     </button>
@@ -181,7 +170,7 @@ const HomeContent = () => {
 
   const handleContactarEmprendimiento = (e, emp) => {
     e.stopPropagation();
-    const emprendedorId = emp?.emprendedor?._id ?? emp?.emprendedorId;
+    const emprendedorId = emp?.emprendedor?._1 ?? emp?.emprendedor?._id ?? emp?.emprendedorId;
     if (!emprendedorId) return console.warn('Emprendimiento sin emprendedor:', emp);
 
     if (usuarioId) {
@@ -255,8 +244,8 @@ const HomeContent = () => {
                           className="w-full h-48 object-cover rounded-lg mb-4"
                         />
 
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg text-[#AA4A44] truncate">{producto.nombre}</h3>
 
                           <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
 
@@ -274,21 +263,23 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* ----- BOTONES: en móvil vertical, en desktop en fila ----- */}
+                        {/* ----- BOTONES: móvil apilado, desktop inline ----- */}
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          {/* Contactar ocupa todo el ancho en móvil y el espacio restante en desktop */}
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
-                            className="w-full sm:flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                            className="w-full sm:flex-1 min-w-0 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                           >
                             Contactar
                           </button>
 
+                          {/* Heart: en móvil full width (icono centrado), en desktop ancho auto y sin forzar sm:w-10 */}
                           <div className="w-full sm:w-auto">
                             <HeartButton
                               toggleable={!!usuarioId}
                               onClick={(e) => handleFavoriteProducto(e, producto)}
                               ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                              className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                              className="h-10 w-full sm:w-auto px-2 sm:px-3"
                             />
                           </div>
                         </div>
@@ -326,8 +317,8 @@ const HomeContent = () => {
                     >
                       <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
 
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-[#AA4A44] truncate">{emp.nombreComercial}</h3>
 
                         <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
 
@@ -338,7 +329,7 @@ const HomeContent = () => {
                         </p>
                       </div>
 
-                      {/* ----- BOTONES EMPRENDIMIENTO: en móvil apilado, en desktop inline ----- */}
+                      {/* ----- BOTONES EMPRENDIMIENTO: apilado en móvil, inline en desktop ----- */}
                       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
@@ -364,7 +355,7 @@ const HomeContent = () => {
                             toggleable={!!usuarioId}
                             onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
                             ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                            className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                            className="h-10 w-full sm:w-auto px-2 sm:px-3"
                           />
                         </div>
                       </div>
@@ -418,7 +409,7 @@ const HomeContent = () => {
                     : '—'}
                 </p>
 
-                {/* Modal botones: móvil apilado, desktop en fila */}
+                {/* Modal botones: móvil apilado, desktop inline */}
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <button
                     onClick={(e) => {
@@ -446,7 +437,7 @@ const HomeContent = () => {
                       toggleable={!!usuarioId}
                       onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
                       ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
-                      className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                      className="h-10 w-full sm:w-auto px-2 sm:px-3"
                     />
                   </div>
                 </div>
@@ -540,7 +531,7 @@ const HomeContent = () => {
                       toggleable={!!usuarioId}
                       onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
                       ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
-                      className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                      className="h-10 w-full sm:w-auto px-2 sm:px-3"
                     />
                   </div>
                 </div>
