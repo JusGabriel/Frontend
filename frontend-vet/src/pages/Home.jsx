@@ -5,7 +5,35 @@ import { Link, useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import heroImage from '../assets/QuitoHome.jpg';
 
-// ---------- COMPONENTES AUXILIARES ----------
+// Placeholder externo (se usa si no hay imagen o falla la carga)
+const DEFAULT_PLACEHOLDER = 'https://via.placeholder.com/800x600?text=Sin+imagen';
+
+// Obtener URL de API desde env (compatible Vite y CRA) y fallback
+const API_URL = (
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  process.env.REACT_APP_API_URL ||
+  'https://backend-production-bd1d.up.railway.app'
+).replace(/\/+$/,'');
+
+// Helper: resuelve la URL final de la imagen
+function resolveImageUrl(imgPath) {
+  if (!imgPath) return DEFAULT_PLACEHOLDER;
+  const trimmed = String(imgPath).trim();
+  // Si es url absoluta
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // Si es ruta relativa que comienza con /uploads
+  if (trimmed.startsWith('/uploads')) {
+    return `${API_URL}${trimmed}`;
+  }
+  // Otros casos (ruta relativa sin slash): intentar prefijar
+  if (trimmed.startsWith('uploads/')) {
+    return `${API_URL}/${trimmed}`;
+  }
+  // fallback: devolver tal cual o placeholder si vacío
+  return DEFAULT_PLACEHOLDER;
+}
+
+// -------------------------- Componentes UI (sin cambios funcionales) --------------------------
 const Header = () => {
   return (
     <header className="sticky top-0 z-50 bg-[#1E1E2F] border-b border-[#F7E5D2] shadow-sm">
@@ -32,7 +60,6 @@ const Footer = () => (
   </footer>
 );
 
-// Iconos inline para que no dependas de librerías externas
 const IconUser = () => (
   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
     <path d="M12 12c2.761 0 5-2.239 5-5s-2.239-5-5-5-5 2.239-5 5 2.239 5 5 5z" stroke="#AA4A44" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -48,7 +75,6 @@ const IconStore = () => (
   </svg>
 );
 
-// Card que reutilizamos para roles
 const RoleCard = ({ title, subtitle, features = [], to, variant = 'primary', icon }) => {
   return (
     <div className="bg-[#F7E5D2] border border-[#E0C7B6] rounded-2xl p-6 shadow-sm hover:shadow-md transition-all focus-within:ring-2 focus-within:ring-[#AA4A44]" tabIndex={0}>
@@ -87,7 +113,7 @@ const RoleCard = ({ title, subtitle, features = [], to, variant = 'primary', ico
   );
 };
 
-// ---------------- HOME ----------------
+// ----------------------------- HOME --------------------------------
 export const Home = () => {
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -98,7 +124,7 @@ export const Home = () => {
   useEffect(() => {
     const fetchEmprendimientos = async () => {
       try {
-        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/emprendimientos/publicos');
+        const res = await fetch(`${API_URL}/api/emprendimientos/publicos`);
         const data = await res.json();
         setEmprendimientos(Array.isArray(data) ? data : []);
       } catch (error) {
@@ -112,9 +138,8 @@ export const Home = () => {
   useEffect(() => {
     const fetchProductos = async () => {
       try {
-        const res = await fetch('https://backend-production-bd1d.up.railway.app/api/productos/todos');
+        const res = await fetch(`${API_URL}/api/productos/todos`);
         const data = await res.json();
-        // Si el backend devuelve un objeto con {productos: []} o directamente array, normalizamos:
         const productosArray = Array.isArray(data) ? data : (Array.isArray(data?.productos) ? data.productos : []);
         setProductos(productosArray);
       } catch (error) {
@@ -142,7 +167,6 @@ export const Home = () => {
     <>
       <Header />
 
-      {/* ================== SECCIÓN TIPOS DE USUARIO (MEJORADA) ================== */}
       <section className="bg-white py-12 px-6 border-b border-[#E0C7B6]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
@@ -179,7 +203,6 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* HERO (ligera mejora) */}
       <main className="py-20 px-6 bg-[#F7E5D2] text-gray-900">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-10">
           <div className="flex-1 text-center md:text-left">
@@ -199,10 +222,9 @@ export const Home = () => {
         </div>
       </main>
 
-      {/* Línea */}
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-      {/* ---------------- PRODUCTOS (con botón Contactar + Emprendimiento/Emprendedor) ---------------- */}
+      {/* PRODUCTOS */}
       <section className="py-10 px-6 bg-white text-gray-800">
         <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Productos Destacados</h2>
@@ -214,6 +236,7 @@ export const Home = () => {
               {productos.map((producto) => {
                 const empr = producto.emprendimiento ?? {};
                 const dueño = empr?.emprendedor ?? null;
+                const imgSrc = resolveImageUrl(producto.imagen);
 
                 return (
                   <article
@@ -223,24 +246,18 @@ export const Home = () => {
                     role="button"
                     tabIndex={0}
                   >
-                    <img src={producto.imagen} alt={producto.nombre} className="w-full h-48 object-cover rounded-lg mb-4" />
+                    <img
+                      src={imgSrc}
+                      alt={producto.nombre}
+                      className="w-full h-48 object-cover rounded-lg mb-4"
+                      onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
+                    />
 
-                    {/* Nombre */}
                     <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
-
-                    {/* Descripción */}
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
-
-                    {/* Precio */}
                     <p className="mt-3 text-lg font-bold text-[#28a745]">${producto.precio}</p>
-
-                    {/* Stock */}
                     <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
-
-                    {/* Emprendimiento */}
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}</p>
-
-                    {/* Emprendedor */}
                     <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
                     <div className="mt-3">
@@ -260,47 +277,51 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Línea */}
       <div className="max-w-7xl mx-auto my-6 h-[3px] bg-gradient-to-r from-[#AA4A44] via-transparent to-[#AA4A44]" />
 
-      {/* ---------------- EMPRENDIMIENTOS EN VERTICAL ---------------- */}
+      {/* EMPRENDIMIENTOS */}
       <section className="py-16 px-4 text-gray-800" style={{ backgroundImage: `url(${fondoblanco})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         <div className="max-w-7xl mx-auto flex flex-col items-center">
           <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">Explora Emprendimientos</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full">
-            {emprendimientos.map((emp) => (
-              <div
-                key={emp._id}
-                className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
-                onClick={() => navigate(buildPublicUrl(emp))}
-              >
-                <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
-
-                <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
-
-                <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
-
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
-
-                <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEmprendimientoSeleccionado(emp);
-                  }}
-                  className="mt-3 bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+            {emprendimientos.map((emp) => {
+              const logoSrc = resolveImageUrl(emp.logo);
+              return (
+                <div
+                  key={emp._id}
+                  className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                  onClick={() => navigate(buildPublicUrl(emp))}
                 >
-                  Ver detalles
-                </button>
-              </div>
-            ))}
+                  <img
+                    src={logoSrc}
+                    alt={emp.nombreComercial}
+                    className="w-full h-40 object-cover rounded-lg mb-3"
+                    onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
+                  />
+
+                  <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
+                  <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
+                  <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEmprendimientoSeleccionado(emp);
+                    }}
+                    className="mt-3 bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                  >
+                    Ver detalles
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ---------------- MODAL PRODUCTO ---------------- */}
+      {/* MODAL PRODUCTO */}
       {productoSeleccionado && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -318,21 +339,17 @@ export const Home = () => {
             </button>
 
             <img
-              src={productoSeleccionado.imagen}
+              src={resolveImageUrl(productoSeleccionado.imagen)}
               alt={productoSeleccionado.nombre}
               className="w-full h-48 object-cover rounded-md mb-4"
+              onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
             />
 
             <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
-
             <p className="text-gray-600 mt-2">{productoSeleccionado.descripcion}</p>
-
             <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
-
             <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock ?? '—'}</p>
-
             <p className="text-sm text-gray-600 mt-2"><strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}</p>
-
             <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {productoSeleccionado.emprendimiento?.emprendedor ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
 
             <div className="mt-4">
@@ -347,7 +364,7 @@ export const Home = () => {
         </div>
       )}
 
-      {/* ---------------- MODAL EMPRENDIMIENTO ---------------- */}
+      {/* MODAL EMPRENDIMIENTO */}
       {emprendimientoSeleccionado && (
         <div
           className="fixed inset-0 bg-black/30 backdrop-blur-md flex justify-center items-center z-50"
@@ -365,9 +382,10 @@ export const Home = () => {
             </button>
 
             <img
-              src={emprendimientoSeleccionado.logo}
+              src={resolveImageUrl(emprendimientoSeleccionado.logo)}
               alt={emprendimientoSeleccionado.nombreComercial}
               className="w-full h-48 object-cover rounded-md mb-4"
+              onError={(e) => { e.currentTarget.src = DEFAULT_PLACEHOLDER; }}
             />
 
             <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
