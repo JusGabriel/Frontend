@@ -27,9 +27,9 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 
 /**
  * HeartButton - botón reutilizable para "Me encanta".
- * - compacto en desktop, full width en móvil cuando se le pase la clase.
- * - accesible (aria-pressed, aria-label)
- * - toggleable si no está controlado
+ * - en móvil suele ocupar ancho completo (w-full) si se pasa esa clase,
+ * - en desktop queda compacto (sm:w-auto) y muestra texto si hay espacio.
+ * - accesible: aria-pressed, aria-label
  */
 const HeartButton = ({
   filled: controlledFilled,
@@ -44,15 +44,13 @@ const HeartButton = ({
 
   useEffect(() => {
     if (isControlled) setLocalFilled(Boolean(controlledFilled));
-  }, [controlledFilled]);
+  }, [controlledFilled, isControlled]);
 
   const filled = isControlled ? controlledFilled : localFilled;
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (!isControlled && toggleable) {
-      setLocalFilled((s) => !s);
-    }
+    if (!isControlled && toggleable) setLocalFilled((s) => !s);
     try {
       onClick(e, !filled);
     } catch (err) {
@@ -67,7 +65,8 @@ const HeartButton = ({
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap ${className}`}
+      className={`inline-flex items-center justify-center sm:justify-start gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02]
+        focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap ${className}`}
     >
       <span
         className={`inline-flex items-center justify-center rounded-full ${
@@ -166,7 +165,7 @@ const HomeContent = () => {
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
-    const emprendedorId = empr?.emprendedor?._id;
+    const emprendedorId = empr?.emprendedor?._id ?? empr?.emprendedorId;
     if (!emprendedorId) return console.warn('Producto sin emprendedor:', producto);
 
     if (usuarioId) {
@@ -182,7 +181,7 @@ const HomeContent = () => {
 
   const handleContactarEmprendimiento = (e, emp) => {
     e.stopPropagation();
-    const emprendedorId = emp?.emprendedor?._id;
+    const emprendedorId = emp?.emprendedor?._id ?? emp?.emprendedorId;
     if (!emprendedorId) return console.warn('Emprendimiento sin emprendedor:', emp);
 
     if (usuarioId) {
@@ -276,7 +275,7 @@ const HomeContent = () => {
                         </div>
 
                         {/* ----- BOTONES: en móvil vertical, en desktop en fila ----- */}
-                        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
                             className="w-full sm:flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
@@ -284,13 +283,14 @@ const HomeContent = () => {
                             Contactar
                           </button>
 
-                          <HeartButton
-                            toggleable={!!usuarioId}
-                            onClick={(e) => handleFavoriteProducto(e, producto)}
-                            ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                            // full width on mobile, auto on desktop
-                            className="h-10 w-full sm:w-auto px-2 sm:px-3"
-                          />
+                          <div className="w-full sm:w-auto">
+                            <HeartButton
+                              toggleable={!!usuarioId}
+                              onClick={(e) => handleFavoriteProducto(e, producto)}
+                              ariaLabel={`Agregar ${producto.nombre} a favoritos`}
+                              className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                            />
+                          </div>
                         </div>
                       </article>
                     );
@@ -339,7 +339,7 @@ const HomeContent = () => {
                       </div>
 
                       {/* ----- BOTONES EMPRENDIMIENTO: en móvil apilado, en desktop inline ----- */}
-                      <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             onClick={(e) => {
@@ -359,12 +359,14 @@ const HomeContent = () => {
                           </button>
                         </div>
 
-                        <HeartButton
-                          toggleable={!!usuarioId}
-                          onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
-                          ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                          className="h-10 w-full sm:w-auto px-2 sm:px-3"
-                        />
+                        <div className="w-full sm:w-auto">
+                          <HeartButton
+                            toggleable={!!usuarioId}
+                            onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
+                            ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
+                            className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))
@@ -412,26 +414,21 @@ const HomeContent = () => {
                 <p className="text-sm text-gray-600 mt-1">
                   <strong>Emprendedor:</strong>{' '}
                   {productoSeleccionado.emprendimiento?.emprendedor
-                    ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`
+                    ? `${productoSeleccionado.emprendimiento.emprendedor.nombre ?? ''} ${productoSeleccionado.emprendimiento.emprendedor.apellido ?? ''}`.trim()
                     : '—'}
                 </p>
 
                 {/* Modal botones: móvil apilado, desktop en fila */}
-                <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const empr = productoSeleccionado.emprendimiento ?? {};
+                      const id = empr?.emprendedor?._id ?? empr?.emprendedorId;
+                      if (!id) return;
                       if (usuarioId) {
-                        const empr = productoSeleccionado.emprendimiento ?? {};
-                        const emprendedorId = empr?.emprendedor?._1;
-                        // note: keep original logic; guard in case missing
-                        const id = empr?.emprendedor?._id ?? empr?.emprendedorId;
-                        const finalId = emprendedorId || id;
-                        if (!finalId) {
-                          // fallback do nothing
-                          return;
-                        }
                         navigate(
-                          `/dashboard/chat?user=${finalId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
+                          `/dashboard/chat?user=${id}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
                             productoSeleccionado.nombre
                           )}`
                         );
@@ -444,12 +441,14 @@ const HomeContent = () => {
                     Contactar
                   </button>
 
-                  <HeartButton
-                    toggleable={!!usuarioId}
-                    onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
-                    ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
-                    className="h-10 w-full sm:w-auto px-2 sm:px-3"
-                  />
+                  <div className="w-full sm:w-auto">
+                    <HeartButton
+                      toggleable={!!usuarioId}
+                      onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
+                      ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
+                      className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -491,7 +490,7 @@ const HomeContent = () => {
                   {emprendimientoSeleccionado.ubicacion?.ciudad} – {emprendimientoSeleccionado.ubicacion?.direccion}
                 </p>
 
-                <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {emprendimientoSeleccionado.contacto?.sitioWeb && (
                       <a
@@ -499,6 +498,7 @@ const HomeContent = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-[#007bff] hover:underline text-sm"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         Sitio web
                       </a>
@@ -506,7 +506,10 @@ const HomeContent = () => {
 
                     <div>
                       <button
-                        onClick={() => openPublicSite(emprendimientoSeleccionado, { closeModal: true })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPublicSite(emprendimientoSeleccionado, { closeModal: true });
+                        }}
                         className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834]"
                       >
                         Ir al sitio
@@ -515,8 +518,9 @@ const HomeContent = () => {
 
                     <div>
                       <button
-                        onClick={() => {
-                          const emprendedorId = emprendimientoSeleccionado?.emprendedor?._id;
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const emprendedorId = emprendimientoSeleccionado?.emprendedor?._id ?? emprendimientoSeleccionado?.emprendedorId;
                           if (!emprendedorId) return;
                           if (usuarioId) {
                             navigate(`/dashboard/chat?user=${emprendedorId}`);
@@ -531,12 +535,14 @@ const HomeContent = () => {
                     </div>
                   </div>
 
-                  <HeartButton
-                    toggleable={!!usuarioId}
-                    onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
-                    ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
-                    className="h-10 w-full sm:w-auto px-2 sm:px-3"
-                  />
+                  <div className="w-full sm:w-auto">
+                    <HeartButton
+                      toggleable={!!usuarioId}
+                      onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
+                      ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
+                      className="h-10 w-full sm:w-10 px-2 sm:px-3"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
