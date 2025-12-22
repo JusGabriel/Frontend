@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
 
 const BACKEND_URL = 'https://backend-production-bd1d.up.railway.app';
-const DEFAULT_IMAGE = 'https://via.placeholder.com/800x600?text=Sin+imagen';
+const DEFAULT_IMAGE = 'https://via.placeholder.com/400x300?text=Sin+imagen';
 
 /* ---------------- IconHeart ---------------- */
 const IconHeartSvg = ({ filled = false, size = 18 }) => (
@@ -18,7 +19,9 @@ const IconHeartSvg = ({ filled = false, size = 18 }) => (
 );
 
 /* ---------------- HeartButton ----------------
-   - fixed height, flex-1 para compartir ancho en pies de tarjeta
+   - box-border para que borders no cambien tamaño
+   - h-11 y flex-1 para igualar altura y width cuando se usan en flex row
+   - texto oculto en xs y visible desde sm
 ------------------------------------------------*/
 const HeartButton = ({ filled = false, onClick, label = 'Me encanta', ariaLabel, className = '' }) => {
   const handleClick = (e) => {
@@ -37,13 +40,16 @@ const HeartButton = ({ filled = false, onClick, label = 'Me encanta', ariaLabel,
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      className={`box-border flex items-center justify-center gap-2 h-11 flex-1 px-3 rounded-md border transition-colors text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] 
+      // box-border para que border no aumente tamaño; h-11 para altura fija; flex-1 para ocupar espacio en fila
+      className={`box-border flex items-center justify-center gap-2 h-11 flex-1 px-3 rounded-lg border transition-all text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] 
         ${filled ? 'bg-[#AA4A44] text-white border-[#AA4A44] hover:brightness-110' : 'bg-white text-[#AA4A44] border-[#E5CFCB] hover:bg-[#F8EFED]'}
         ${className}`}
     >
-      <span className="flex items-center justify-center w-7 h-7 flex-none">
+      <span className="flex items-center justify-center w-8 h-8 flex-none">
         <IconHeartSvg filled={filled} />
       </span>
+
+      {/* texto solo desde sm: evita expandir el botón en pantallas muy pequeñas */}
       <span className="hidden sm:inline font-medium leading-none whitespace-nowrap">
         {label}
       </span>
@@ -54,24 +60,20 @@ const HeartButton = ({ filled = false, onClick, label = 'Me encanta', ariaLabel,
 /* ---------------- HomeContent ---------------- */
 const HomeContent = () => {
   const navigate = useNavigate();
-  const { id: usuarioId } = storeAuth() || {};
+  const { id: usuarioId } = storeAuth();
 
   const [productos, setProductos] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [favorites, setFavorites] = useState(new Set());
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
-  const getImageUrl = (img) => {
-    if (!img) return DEFAULT_IMAGE;
-    return img.startsWith('http') ? img : `${BACKEND_URL}${img}`;
-  };
+  const getImageUrl = (img) => (!img ? DEFAULT_IMAGE : img.startsWith('http') ? img : `${BACKEND_URL}${img}`);
 
   useEffect(() => {
     fetch(`${BACKEND_URL}/api/productos/todos`)
       .then((r) => r.json())
-      .then((d) => {
-        const list = Array.isArray(d) ? d : d.productos || [];
-        setProductos(list);
-      })
+      .then((d) => setProductos(Array.isArray(d) ? d : d.productos || []))
       .catch((err) => console.error('Error fetch productos:', err));
   }, []);
 
@@ -111,150 +113,172 @@ const HomeContent = () => {
     return `${nombre} ${apellido}`.trim() || '—';
   };
 
-  const onCardClick = (tipo, id) => {
-    if (tipo === 'producto') navigate(`/producto/${id}`);
-    if (tipo === 'emprendimiento') navigate(`/emprendimiento/${id}`);
-  };
-
   return (
-    <div className="space-y-16 py-12 px-4 bg-gray-50">
+    <>
       {/* PRODUCTOS */}
-      <section className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-          Productos Destacados
-        </h2>
+      <section className="py-12 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-10">
+            Productos Destacados
+          </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {productos.map((p) => {
-            const favKey = `producto:${p._id}`;
-            const isFav = favorites.has(favKey);
-            return (
-              <article
-                key={p._id}
-                onClick={() => onCardClick('producto', p._id)}
-                className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
-                role="button"
-                tabIndex={0}
-              >
-                {/* Imagen consistente */}
-                <div className="relative w-full h-44 sm:h-40 md:h-44 lg:h-48 overflow-hidden bg-gray-100">
-                  <img
-                    src={getImageUrl(p.imagen)}
-                    alt={p.titulo || 'Producto'}
-                    className="object-cover w-full h-full"
-                    loading="lazy"
-                  />
-                </div>
+          {/* auto-rows-fr hace que cada celda tenga la misma altura en la fila */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 auto-rows-fr">
+            {productos.map((p) => {
+              const fav = favorites.has(`producto:${p._id}`);
 
-                {/* Contenido */}
-                <div className="p-4 flex-1 flex flex-col">
-                  <div className="mb-2">
-                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-2">
-                      {p.titulo || 'Sin título'}
-                    </h3>
-                    {p.precio != null && (
-                      <p className="text-sm font-bold text-[#AA4A44] mt-1">
-                        ${Number(p.precio).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-
-                  <p className="text-xs text-gray-500 flex-1 line-clamp-3">
-                    {p.descripcion || '—'}
-                  </p>
-
-                  <div className="mt-3 text-xs text-gray-400">
-                    <span className="block truncate">{nombreCompletoEmprendedor(p)}</span>
-                  </div>
-
-                  {/* Pie: botones que comparten el espacio */}
-                  <div className="mt-4 flex gap-3">
-                    <HeartButton
-                      filled={isFav}
-                      onClick={(e) => toggleFavorite(e, 'producto', p._id)}
-                      label="Me encanta"
-                      ariaLabel="Añadir a favoritos"
+              return (
+                // h-full + flex-col permite que mt-auto empuje las acciones al final y que todas las cards igualen altura
+                <article
+                  key={p._id}
+                  className="h-full flex flex-col bg-white border border-[#E0C7B6] rounded-xl p-0 shadow-sm hover:shadow-lg transition overflow-hidden"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setProductoSeleccionado(p)}
+                >
+                  <div className="w-full">
+                    <img
+                      src={getImageUrl(p.imagen)}
+                      alt={p.nombre}
+                      className="w-full h-44 object-cover"
+                      onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE; }}
                     />
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/producto/${p._id}`); }}
-                      className="h-11 flex-1 px-3 rounded-md border bg-[#AA4A44] text-white font-medium hover:brightness-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
-                    >
-                      Ver producto
-                    </button>
                   </div>
-                </div>
-              </article>
-            );
-          })}
+
+                  <div className="flex-1 flex flex-col p-4">
+                    <h3 className="font-semibold text-[#AA4A44]">{p.nombre}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-2 mt-1">{p.descripcion}</p>
+
+                    <div className="mt-2">
+                      <p className="text-lg font-bold text-[#28a745]">${p.precio}</p>
+                      <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {p.stock ?? '—'}</p>
+                      <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {p.emprendimiento?.nombreComercial ?? '—'}</p>
+                      <p className="text-sm text-gray-600 mt-1"><strong>Emprendedor:</strong> {p.emprendimiento?.emprendedor ? `${p.emprendimiento.emprendedor.nombre ?? ''} ${p.emprendimiento.emprendedor.apellido ?? ''}`.trim() || '—' : '—'}</p>
+                    </div>
+
+                    {/* ACCIONES: uso de flex para que ambos botones tengan la misma altura y ancho proporcional */}
+                    <div className="mt-auto pt-4 flex flex-col sm:flex-row gap-3">
+                      <HeartButton
+                        filled={fav}
+                        onClick={(e) => toggleFavorite(e, 'producto', p._1 || p._id)}
+                        label="Me encanta"
+                        ariaLabel={`Agregar ${p.nombre} a favoritos`}
+                        className="flex-1"
+                      />
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          usuarioId ? navigate(`/dashboard/chat?productoId=${p._id}`) : navigate('/login?rol=cliente');
+                        }}
+                        className="flex-1 h-11 rounded-lg bg-[#AA4A44] text-white text-sm font-medium hover:brightness-110 transition"
+                        aria-label={`Contactar ${p.nombre}`}
+                      >
+                        Contactar
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {/* EMPRENDIMIENTOS */}
-      <section className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-8">
-          Emprendimientos
-        </h2>
+      <section
+        className="py-16 px-4"
+        style={{
+          backgroundImage: `url(${fondoblanco})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-[#AA4A44] text-center mb-10">Explora Emprendimientos</h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {emprendimientos.map((e) => {
-            const favKey = `emprendimiento:${e._id}`;
-            const isFav = favorites.has(favKey);
-            return (
-              <article
-                key={e._id}
-                onClick={() => onCardClick('emprendimiento', e._id)}
-                className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden flex flex-col"
-                role="button"
-                tabIndex={0}
-              >
-                <div className="relative w-full h-44 sm:h-40 md:h-44 lg:h-48 overflow-hidden bg-gray-100">
-                  <img
-                    src={getImageUrl(e.imagenPortada || e.imagen)}
-                    alt={e.nombre || 'Emprendimiento'}
-                    className="object-cover w-full h-full"
-                    loading="lazy"
-                  />
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 auto-rows-fr">
+            {emprendimientos.map((e) => {
+              const fav = favorites.has(`emprendimiento:${e._id}`);
 
-                <div className="p-4 flex-1 flex flex-col">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-2">
-                      {e.nombre || 'Sin nombre'}
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">{e.rubro || e.categoria || ''}</p>
-                  </div>
-
-                  <p className="text-xs text-gray-500 mt-2 flex-1 line-clamp-3">
-                    {e.descripcionCorta || e.descripcion || '—'}
-                  </p>
-
-                  <div className="mt-3 text-xs text-gray-400">
-                    <span className="block truncate">{nombreCompletoEmprendedor(e)}</span>
-                  </div>
-
-                  <div className="mt-4 flex gap-3">
-                    <HeartButton
-                      filled={isFav}
-                      onClick={(ev) => toggleFavorite(ev, 'emprendimiento', e._id)}
-                      label="Favorito"
-                      ariaLabel="Añadir emprendimiento a favoritos"
+              return (
+                <div
+                  key={e._id}
+                  className="h-full flex flex-col bg-white rounded-xl shadow-sm border border-[#E0C7B6] overflow-hidden hover:shadow-lg transition cursor-pointer"
+                  onClick={() => {
+                    // navegar a la web pública (ajusta si tu URL es externa)
+                    window.open(`/${encodeURIComponent(e.slug || e.nombreComercial)}`, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  <div className="w-full">
+                    <img
+                      src={getImageUrl(e.logo)}
+                      alt={e.nombreComercial}
+                      className="w-full h-40 object-cover"
+                      onError={(ev) => { ev.currentTarget.src = DEFAULT_IMAGE; }}
                     />
-                    <button
-                      type="button"
-                      onClick={(ev) => { ev.stopPropagation(); navigate(`/emprendimiento/${e._id}`); }}
-                      className="h-11 flex-1 px-3 rounded-md border bg-white text-[#AA4A44] font-medium border-[#E5CFCB] hover:bg-[#F8EFED] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
-                    >
-                      Ver emprendimiento
-                    </button>
+                  </div>
+
+                  <div className="flex-1 flex flex-col p-4">
+                    <h3 className="font-semibold text-[#AA4A44]">{e.nombreComercial}</h3>
+                    <p className="text-sm text-gray-600 line-clamp-2 mt-1">{e.descripcion}</p>
+                    <p className="text-xs text-gray-500 mt-2">{e.ubicacion?.ciudad ?? ''} {e.ubicacion?.direccion ? `- ${e.ubicacion.direccion}` : ''}</p>
+
+                    <div className="mt-auto pt-4 flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          // abrir detalle o sitio
+                          window.open(`/${encodeURIComponent(e.slug || e.nombreComercial)}`, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="flex-1 h-11 rounded-lg bg-[#AA4A44] text-white text-sm hover:brightness-110 transition"
+                        aria-label={`Ver sitio ${e.nombreComercial}`}
+                      >
+                        Ver sitio
+                      </button>
+
+                      <HeartButton
+                        filled={fav}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          toggleFavorite(ev, 'emprendimiento', e._id);
+                        }}
+                        label="Me encanta"
+                        ariaLabel={`Agregar ${e.nombreComercial} a favoritos`}
+                        className="flex-1"
+                      />
+                    </div>
                   </div>
                 </div>
-              </article>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
-    </div>
+
+      {/* MODALES (simple) */}
+      {productoSeleccionado && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setProductoSeleccionado(null)}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <button className="absolute top-3 right-3 text-gray-600" onClick={() => setProductoSeleccionado(null)} aria-label="Cerrar">✕</button>
+            <img src={getImageUrl(productoSeleccionado.imagen)} alt={productoSeleccionado.nombre} className="w-full h-48 object-cover rounded-md mb-4" onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE; }} />
+            <h2 className="text-xl font-bold text-[#AA4A44]">{productoSeleccionado.nombre}</h2>
+            <p className="text-gray-600 mt-2">{productoSeleccionado.descripcion}</p>
+          </div>
+        </div>
+      )}
+
+      {emprendimientoSeleccionado && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setEmprendimientoSeleccionado(null)}>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <button className="absolute top-3 right-3 text-gray-600" onClick={() => setEmprendimientoSeleccionado(null)} aria-label="Cerrar">✕</button>
+            <img src={getImageUrl(emprendimientoSeleccionado.logo)} alt={emprendimientoSeleccionado.nombreComercial} className="w-full h-48 object-cover rounded-md mb-4" onError={(e) => { e.currentTarget.src = DEFAULT_IMAGE; }} />
+            <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
+            <p className="text-gray-600 mt-2">{emprendimientoSeleccionado.descripcion}</p>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
