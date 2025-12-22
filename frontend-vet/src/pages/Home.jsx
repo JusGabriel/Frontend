@@ -19,17 +19,13 @@ const API_URL = (
 function resolveImageUrl(imgPath) {
   if (!imgPath) return DEFAULT_PLACEHOLDER;
   const trimmed = String(imgPath).trim();
-  // Si es url absoluta
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  // Si es ruta relativa que comienza con /uploads
   if (trimmed.startsWith('/uploads')) {
     return `${API_URL}${trimmed}`;
   }
-  // Otros casos (ruta relativa sin slash): intentar prefijar
   if (trimmed.startsWith('uploads/')) {
     return `${API_URL}/${trimmed}`;
   }
-  // fallback: devolver tal cual o placeholder si vacío
   return DEFAULT_PLACEHOLDER;
 }
 
@@ -55,15 +51,16 @@ const IconHeartSvg = ({ filled = false, size = 18 }) => (
     width={size}
     height={size}
     viewBox="0 0 24 24"
-    fill={filled ? 'currentColor' : 'none'}
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden
     focusable="false"
   >
+    {/* Usamos fill cuando está activo, stroke cuando está inactivo para mejor contraste */}
     <path
       d="M12 21s-6.716-4.33-9.428-7.043C.86 12.245.86 9.487 2.572 7.774c1.713-1.713 4.47-1.713 6.183 0L12 10.02l3.245-3.246c1.713-1.713 4.47-1.713 6.183 0 1.713 1.713 1.713 4.47 0 6.183C18.716 16.67 12 21 12 21z"
-      stroke="white"
-      strokeWidth="1.1"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke={filled ? 'none' : '#AA4A44'}
+      strokeWidth={1.25}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -73,35 +70,61 @@ const IconHeartSvg = ({ filled = false, size = 18 }) => (
 /**
  * HeartButton - botón reutilizable para "Me encanta"
  *
- * Props:
- * - filled: boolean (si está activo/llenado)
- * - onClick: function
- * - label: string (texto visible)
- * - ariaLabel: string
- * - className: string (clases tailwind adicionales)
+ * Características clave:
+ * - Responsive: ocultar texto en pantallas pequeñas, mostrar solo el icono (ahorra espacio)
+ * - Accesibilidad: aria-pressed, aria-label, foco visible
+ * - Controlado / no controlado: si pasas `filled` como booleano actúa como controlado; si no, puede manejar su propio estado cuando `toggleable` es true
+ * - No cambia el comportamiento `onClick` existente (seguirá llamando a tu handler). onClick recibe (event, nextState)
  */
-const HeartButton = ({ filled = false, onClick = () => {}, label = 'Me encanta', ariaLabel, className = '' }) => {
-  const colorBg = filled ? 'bg-[#AA4A44]' : 'bg-white';
-  const ring = filled ? 'ring-2 ring-offset-2 ring-[#AA4A44] ring-opacity-30' : 'ring-1 ring-[#E8D9D1]';
+const HeartButton = ({
+  filled: controlledFilled,
+  onClick = () => {},
+  label = 'Me encanta',
+  ariaLabel,
+  className = '',
+  toggleable = false, // si true y no se pasó `filled`, el botón maneja su propio estado visual
+}) => {
+  const isControlled = typeof controlledFilled === 'boolean';
+  const [localFilled, setLocalFilled] = useState(Boolean(controlledFilled));
 
+  // Sincronizar local si prop controlada cambia
+  useEffect(() => {
+    if (isControlled) setLocalFilled(Boolean(controlledFilled));
+  }, [controlledFilled]);
+
+  const filled = isControlled ? controlledFilled : localFilled;
+
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (!isControlled && toggleable) {
+      setLocalFilled((s) => !s);
+    }
+    // permitimos que el handler reciba el siguiente estado sugerido
+    try {
+      onClick(e, !filled);
+    } catch (err) {
+      // no romper en caso de handler externo
+      console.error(err);
+    }
+  };
+
+  // Estilos: si el padre usa `w-full` lo ocupará; otherwise se ajusta automáticamente
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={handleClick}
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${ring} ${className}`}
+      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${className}`}
     >
       {/* badge circular */}
-      <span className={`inline-flex items-center justify-center rounded-full flex-none ${filled ? 'bg-[#933834] text-white' : 'bg-[#FFF] text-[#AA4A44] border border-[#EADBD3]'} w-8 h-8 sm:w-9 sm:h-9`}>
+      <span className={`inline-flex items-center justify-center rounded-full flex-none ${filled ? 'bg-[#AA4A44] text-white' : 'bg-white text-[#AA4A44] border border-[#EADBD3]'} w-8 h-8 sm:w-9 sm:h-9 transition-colors duration-150`}> 
         <IconHeartSvg filled={filled} size={16} />
       </span>
 
-      {/* texto: responsive */}
-      <span className="text-xs sm:text-sm md:text-sm font-medium text-[#AA4A44] leading-none">
-        {label}
-      </span>
+      {/* texto: responsive -> oculto en pantallas muy pequeñas (solo icono), visible en sm+ */}
+      <span className={`text-xs sm:text-sm md:text-sm font-medium text-[#AA4A44] leading-none ${filled ? 'text-[#333] sm:text-white' : 'text-[#AA4A44]'} hidden sm:inline`}>{label}</span>
     </button>
   );
 };
