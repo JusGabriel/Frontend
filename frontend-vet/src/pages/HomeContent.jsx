@@ -225,7 +225,6 @@ const HomeContent = () => {
 
   // ------------------ Favoritos (UI-only + optimistic backend call) ------------------
   const handleFavoriteProducto = (e, producto, nextState) => {
-    // e already stopPropagation in HeartButton, but keep safe
     e?.stopPropagation?.();
 
     if (!usuarioId) {
@@ -233,15 +232,11 @@ const HomeContent = () => {
       return;
     }
 
-    // Optimistic UI handled by HeartButton (toggleable)
-    // Real implementation: llamada al backend para crear/eliminar favorito
-    // Aquí lanzamos petición 'fire-and-forget' (ajusta según tu API)
     try {
       fetch(`${API_BASE}/api/favoritos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'producto', itemId: producto._id }),
-        // si usas auth, agrega Authorization header con token
       }).catch((err) => {
         console.warn('No se pudo guardar favorito (optimista):', err);
       });
@@ -291,7 +286,7 @@ const HomeContent = () => {
                     return (
                       <article
                         key={producto._id}
-                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer"
+                        className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all cursor-pointer flex flex-col"
                         onClick={() => setProductoSeleccionado(producto)}
                       >
                         <img
@@ -300,41 +295,45 @@ const HomeContent = () => {
                           className="w-full h-48 object-cover rounded-lg mb-4"
                         />
 
-                        <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-[#AA4A44]">{producto.nombre}</h3>
 
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{producto.descripcion}</p>
 
-                        <p className="mt-3 text-lg font-bold text-[#28a745]">${producto.precio}</p>
+                          <p className="mt-3 text-lg font-bold text-[#28a745]">${producto.precio}</p>
 
-                        <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
+                          <p className="text-sm font-semibold text-gray-700 mt-1">Stock: {producto.stock ?? '—'}</p>
 
-                        <p className="text-sm text-gray-600 mt-1">
-                          <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
-                        </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
+                          </p>
 
-                        <p className="text-sm text-gray-600 mt-1">
-                          <strong>Emprendedor:</strong>{' '}
-                          {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
-                        </p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            <strong>Emprendedor:</strong>{' '}
+                            {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
+                          </p>
+                        </div>
 
-                        {/* Botones: Heart + Contactar (responsive, no rompe diseño) */}
-                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="w-full">
+                        {/* Botones: separo Heart del Contactar para evitar mezcla */}
+                        <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                          <div className="flex-1 w-full">
+                            <button
+                              onClick={(e) => handleContactarProducto(e, producto)}
+                              className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                            >
+                              Contactar
+                            </button>
+                          </div>
+
+                          <div className="w-full sm:w-auto">
                             <HeartButton
                               toggleable={!!usuarioId}
                               onClick={(e, next) => handleFavoriteProducto(e, producto, next)}
                               label="Me encanta"
                               ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                              className="w-full justify-center"
+                              className="w-full sm:w-auto justify-center"
                             />
                           </div>
-
-                          <button
-                            onClick={(e) => handleContactarProducto(e, producto)}
-                            className="w-full mt-0 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                          >
-                            Contactar
-                          </button>
                         </div>
                       </article>
                     );
@@ -365,45 +364,49 @@ const HomeContent = () => {
                   emprendimientos.map((emp) => (
                     <div
                       key={emp._id}
-                      className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer"
+                      className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer flex flex-col"
                       onClick={() => openPublicSite(emp)}
                     >
                       <img src={emp.logo} alt={emp.nombreComercial} className="w-full h-40 object-cover rounded-lg mb-3" />
 
-                      <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h3>
 
-                      <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
+                        <p className="text-sm text-gray-700 font-semibold mt-1">{nombreCompletoEmprendedor(emp)}</p>
 
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
 
-                      <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                        <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                      </div>
 
-                      {/* Ajuste: 3 columnas en sm para mantener proporción y no romper diseño */}
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEmprendimientoSeleccionado(emp);
-                          }}
-                          className="bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]"
-                        >
-                          Ver detalles
-                        </button>
+                      {/* Botones: left -> Ver detalles + Contactar ; right -> Heart (separados) */}
+                      <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEmprendimientoSeleccionado(emp);
+                            }}
+                            className="w-full bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]"
+                          >
+                            Ver detalles
+                          </button>
 
-                        <button
-                          onClick={(e) => handleContactarEmprendimiento(e, emp)}
-                          className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-2 rounded-md text-sm hover:bg-white/90"
-                        >
-                          Contactar
-                        </button>
+                          <button
+                            onClick={(e) => handleContactarEmprendimiento(e, emp)}
+                            className="w-full bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-2 rounded-md text-sm hover:bg-white/90"
+                          >
+                            Contactar
+                          </button>
+                        </div>
 
-                        <div className="w-full">
+                        <div className="w-full sm:w-auto">
                           <HeartButton
                             toggleable={!!usuarioId}
                             onClick={(e, next) => handleFavoriteEmprendimiento(e, emp, next)}
                             label="Me encanta"
                             ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                            className="w-full justify-center"
+                            className="w-full sm:w-auto justify-center"
                           />
                         </div>
                       </div>
@@ -458,34 +461,38 @@ const HomeContent = () => {
                     : '—'}
                 </p>
 
-                <div className="mt-4 grid grid-cols-1 gap-3">
-                  <HeartButton
-                    toggleable={!!usuarioId}
-                    onClick={(e, next) => handleFavoriteProducto(e, productoSeleccionado, next)}
-                    label="Agregar a favoritos"
-                    ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
-                    className="w-full justify-center"
-                  />
+                <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                  <div className="flex-1 w-full">
+                    <button
+                      onClick={() => {
+                        if (usuarioId) {
+                          const empr = productoSeleccionado.emprendimiento ?? {};
+                          const emprendedorId = empr?.emprendedor?._id;
+                          if (!emprendedorId) return;
+                          navigate(
+                            `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
+                              productoSeleccionado.nombre
+                            )}`
+                          );
+                        } else {
+                          navigate('/login?rol=cliente');
+                        }
+                      }}
+                      className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
+                    >
+                      Contactar
+                    </button>
+                  </div>
 
-                  <button
-                    onClick={() => {
-                      if (usuarioId) {
-                        const empr = productoSeleccionado.emprendimiento ?? {};
-                        const emprendedorId = empr?.emprendedor?._id;
-                        if (!emprendedorId) return;
-                        navigate(
-                          `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
-                            productoSeleccionado.nombre
-                          )}`
-                        );
-                      } else {
-                        navigate('/login?rol=cliente');
-                      }
-                    }}
-                    className="w-full mt-2 bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                  >
-                    Contactar
-                  </button>
+                  <div className="w-full sm:w-auto">
+                    <HeartButton
+                      toggleable={!!usuarioId}
+                      onClick={(e, next) => handleFavoriteProducto(e, productoSeleccionado, next)}
+                      label="Agregar a favoritos"
+                      ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
+                      className="w-full sm:w-auto justify-center"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -529,66 +536,49 @@ const HomeContent = () => {
                   {emprendimientoSeleccionado.ubicacion?.direccion}
                 </p>
 
-                <div className="flex gap-3 mt-4 flex-wrap text-sm">
-                  {emprendimientoSeleccionado.contacto?.sitioWeb && (
-                    <a
-                      href={emprendimientoSeleccionado.contacto.sitioWeb}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#007bff] hover:underline"
-                    >
-                      Sitio web
-                    </a>
-                  )}
+                <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {emprendimientoSeleccionado.contacto?.sitioWeb && (
+                      <a
+                        href={emprendimientoSeleccionado.contacto.sitioWeb}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#007bff] hover:underline text-sm"
+                      >
+                        Sitio web
+                      </a>
+                    )}
 
-                  {emprendimientoSeleccionado.contacto?.facebook && (
-                    <a
-                      href={emprendimientoSeleccionado.contacto.facebook}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#3b5998] hover:underline"
-                    >
-                      Facebook
-                    </a>
-                  )}
+                    <div>
+                      <button
+                        onClick={() => {
+                          openPublicSite(emprendimientoSeleccionado, { closeModal: true });
+                        }}
+                        className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
+                      >
+                        Ir al sitio
+                      </button>
+                    </div>
 
-                  {emprendimientoSeleccionado.contacto?.instagram && (
-                    <a
-                      href={emprendimientoSeleccionado.contacto.instagram}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#C13584] hover:underline"
-                    >
-                      Instagram
-                    </a>
-                  )}
+                    <div>
+                      <button
+                        onClick={() => {
+                          const emprendedorId = emprendimientoSeleccionado?.emprendedor?._id;
+                          if (!emprendedorId) return;
+                          if (usuarioId) {
+                            navigate(`/dashboard/chat?user=${emprendedorId}`);
+                          } else {
+                            navigate('/login?rol=cliente');
+                          }
+                        }}
+                        className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-white/90"
+                      >
+                        Contactar
+                      </button>
+                    </div>
+                  </div>
 
-                  <button
-                    onClick={() => {
-                      openPublicSite(emprendimientoSeleccionado, { closeModal: true });
-                    }}
-                    className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
-                  >
-                    Ir al sitio
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      // Contactar emprendedor desde modal de emprendimiento
-                      const emprendedorId = emprendimientoSeleccionado?.emprendedor?._id;
-                      if (!emprendedorId) return;
-                      if (usuarioId) {
-                        navigate(`/dashboard/chat?user=${emprendedorId}`);
-                      } else {
-                        navigate('/login?rol=cliente');
-                      }
-                    }}
-                    className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-white/90"
-                  >
-                    Contactar
-                  </button>
-
-                  <div className="ml-2">
+                  <div className="w-full sm:w-auto">
                     <HeartButton
                       toggleable={!!usuarioId}
                       onClick={(e, next) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado, next)}
