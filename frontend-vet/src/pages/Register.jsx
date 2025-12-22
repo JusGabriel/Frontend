@@ -1,3 +1,4 @@
+// src/components/Register.jsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -7,13 +8,16 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import panecillo from "../pages/Imagenes/panecillo.jpg";
 import fondo from "../assets/fondoblanco.jpg";
+import politicasPdf from "../assets/Politicas_QuitoEmprende.pdf"; // ✅ NUEVO IMPORT
 
 export const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, watch } = useForm();
 
-  const GOOGLE_CLIENT_URL = "https://backend-production-bd1d.up.railway.app/auth/google/cliente";
-  const GOOGLE_EMPRENDEDOR_URL = "https://backend-production-bd1d.up.railway.app/auth/google/emprendedor";
+  // ✅ Versión (opcional) para auditar aceptación en backend
+  const POLICIES_VERSION = '2025-12-22';
+
+  // ⛔ Se eliminaron URLs y botones de Google
 
   const registro = async (data) => {
     try {
@@ -27,12 +31,16 @@ export const Register = () => {
         return;
       }
 
+      // ✅ Enviar campos de aceptación al backend (auditoría mínima)
       const payload = {
         nombre: data.nombre,
         apellido: data.apellido,
         email: data.email,
         password: data.password,
-        telefono: data.celular
+        telefono: data.celular,
+        termsAccepted: true,
+        privacyAccepted: true,
+        policiesVersionAccepted: POLICIES_VERSION,
       };
 
       const respuesta = await axios.post(url, payload);
@@ -42,13 +50,8 @@ export const Register = () => {
     }
   };
 
-  const loginGoogleCliente = () => {
-    window.location.href = GOOGLE_CLIENT_URL;
-  };
-
-  const loginGoogleEmprendedor = () => {
-    window.location.href = GOOGLE_EMPRENDEDOR_URL;
-  };
+  // ✅ Deshabilita el submit si no se aceptan términos
+  const accepted = watch('accepted', false);
 
   return (
     <div style={containerStyle}>
@@ -141,16 +144,47 @@ export const Register = () => {
             </select>
             {errors.role && <p style={errorText}>{errors.role.message}</p>}
 
-            <button type="submit" style={buttonStyle}>Registrarse</button>
+            {/* ✅ Aceptación de Términos + Política (obligatoria) */}
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', marginTop: '1rem' }}>
+              <input
+                type="checkbox"
+                {...register('accepted', { required: "Debes aceptar los Términos y la Política de Privacidad para continuar" })}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <span style={{ fontSize: '0.9rem', color: '#333' }}>
+                He leído y acepto los{' '}
+                <a
+                  href={politicasPdf}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#AA4A44', textDecoration: 'none' }} // ✅ sin subrayado
+                  aria-label="Abrir políticas de QuitoEmprende en PDF"
+                >
+                  Términos y la Política de Privacidad de QuitoEmprende
+                </a>.
+              </span>
+            </label>
+            {errors.accepted && <p style={errorText}>{errors.accepted.message}</p>}
 
+            {/* ✅ Botón de registro (deshabilitado si no se acepta) */}
+            <button
+              type="submit"
+              disabled={!accepted}
+              style={{
+                ...buttonStyle,
+                opacity: accepted ? 1 : 0.6,
+                cursor: accepted ? 'pointer' : 'not-allowed'
+              }}
+            >
+              Registrarse
+            </button>
+
+            {/* ⛔ Se eliminaron los botones de Google */}
+            {/* 
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
-              <button type="button" onClick={loginGoogleCliente} style={{ ...googleButtonStyle, backgroundColor: '#EA4335' }}>
-                Google Cliente
-              </button>
-              <button type="button" onClick={loginGoogleEmprendedor} style={{ ...googleButtonStyle, backgroundColor: '#4285F4' }}>
-                Google Emprendedor
-              </button>
+              ... (ELIMINADO)
             </div>
+            */}
 
             <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem' }}>
               ¿Ya posees una cuenta?{' '}
@@ -326,16 +360,6 @@ const buttonStyle = {
   fontSize: '1rem',
   cursor: 'pointer',
   fontFamily: "'Segoe UI', sans-serif",
-};
-
-const googleButtonStyle = {
-  flex: 1,
-  color: 'white',
-  border: 'none',
-  borderRadius: '20px',
-  padding: '0.4rem',
-  margin: '0 0.3rem',
-  cursor: 'pointer',
 };
 
 const errorText = {
