@@ -27,11 +27,9 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 
 /**
  * HeartButton - botón reutilizable para "Me encanta".
- * Props:
- * - filled: boolean (controlado)
- * - toggleable: boolean (si true y no se pasó `filled`, el botón maneja su propio estado)
- * - onClick: (event, nextState) => void
- * - label, ariaLabel, className
+ * - compacto (no ocupa todo el ancho)
+ * - accesible (aria-pressed, aria-label)
+ * - toggleable si no está controlado
  */
 const HeartButton = ({
   filled: controlledFilled,
@@ -69,7 +67,7 @@ const HeartButton = ({
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] ${className}`}
     >
       <span
         className={`inline-flex items-center justify-center rounded-full flex-none ${
@@ -79,10 +77,9 @@ const HeartButton = ({
         <IconHeartSvg filled={filled} size={16} />
       </span>
 
+      {/* Texto solo en sm+ para ahorrar espacio en móviles */}
       <span
-        className={`text-xs sm:text-sm md:text-sm font-medium leading-none ${
-          filled ? 'text-white' : 'text-[#AA4A44]'
-        } hidden sm:inline`}
+        className={`text-xs sm:text-sm font-medium leading-none ${filled ? 'text-white' : 'text-[#AA4A44]'} hidden sm:inline`}
       >
         {label}
       </span>
@@ -93,9 +90,9 @@ const HeartButton = ({
 /* -------------------- HomeContent -------------------- */
 const HomeContent = () => {
   const navigate = useNavigate();
-  const { id: usuarioId, rol: usuarioRol } = storeAuth();
+  const { id: usuarioId } = storeAuth();
 
-  const [section, setSection] = useState('inicio');
+  const [section] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
 
@@ -104,11 +101,9 @@ const HomeContent = () => {
 
   const API_BASE = 'https://backend-production-bd1d.up.railway.app';
 
-  // ---------------------------------------
-  // SLUG
-  // ---------------------------------------
-  const generarSlug = (texto) => {
-    return texto
+  // helpers
+  const generarSlug = (texto) =>
+    texto
       ?.toString()
       .toLowerCase()
       .trim()
@@ -120,19 +115,12 @@ const HomeContent = () => {
       .replace(/ñ/g, 'n')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
-  };
 
-  // ---------------------------------------
-  // URL PÚBLICA
-  // ---------------------------------------
   const buildPublicUrl = (emp) => {
     const slug = emp?.slug || generarSlug(emp?.nombreComercial) || emp?._id;
     return `https://frontend-production-480a.up.railway.app/${slug}`;
   };
 
-  // ---------------------------------------
-  // ABRIR PÁGINA PÚBLICA
-  // ---------------------------------------
   const openPublicSite = (emp, { closeModal = false } = {}) => {
     const url = buildPublicUrl(emp);
     const a = document.createElement('a');
@@ -150,9 +138,7 @@ const HomeContent = () => {
     }
   };
 
-  // ---------------------------------------
-  // Fetch emprendimientos
-  // ---------------------------------------
+  // fetch data
   useEffect(() => {
     fetch(`${API_BASE}/api/emprendimientos/publicos`)
       .then((res) => res.json())
@@ -160,18 +146,11 @@ const HomeContent = () => {
       .catch((err) => console.error('Error emprendimientos:', err));
   }, []);
 
-  // ---------------------------------------
-  // Fetch productos
-  // ---------------------------------------
   useEffect(() => {
     fetch(`${API_BASE}/api/productos/todos`)
       .then((res) => res.json())
       .then((data) => {
-        const productosArray = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.productos)
-          ? data.productos
-          : [];
+        const productosArray = Array.isArray(data) ? data : Array.isArray(data?.productos) ? data.productos : [];
         setProductos(productosArray);
       })
       .catch((err) => console.error('Error productos:', err));
@@ -183,18 +162,12 @@ const HomeContent = () => {
     return `${e.nombre ?? e.nombres ?? ''} ${e.apellido ?? e.apellidos ?? ''}`.trim() || '—';
   };
 
-  // ---------------------------------------
-  // CONTACTAR: usar ID del EMPRENDEDOR (user param)
-  // ---------------------------------------
+  // navigation / actions
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
     const emprendedorId = empr?.emprendedor?._id;
-
-    if (!emprendedorId) {
-      console.warn('Producto sin emprendedor:', producto);
-      return;
-    }
+    if (!emprendedorId) return console.warn('Producto sin emprendedor:', producto);
 
     if (usuarioId) {
       navigate(
@@ -210,11 +183,7 @@ const HomeContent = () => {
   const handleContactarEmprendimiento = (e, emp) => {
     e.stopPropagation();
     const emprendedorId = emp?.emprendedor?._id;
-
-    if (!emprendedorId) {
-      console.warn('Emprendimiento sin emprendedor:', emp);
-      return;
-    }
+    if (!emprendedorId) return console.warn('Emprendimiento sin emprendedor:', emp);
 
     if (usuarioId) {
       navigate(`/dashboard/chat?user=${emprendedorId}`);
@@ -223,44 +192,36 @@ const HomeContent = () => {
     }
   };
 
-  // ------------------ Favoritos (UI-only + optimistic backend call) ------------------
-  const handleFavoriteProducto = (e, producto, nextState) => {
+  // favoritos (optimista)
+  const handleFavoriteProducto = (e, producto) => {
     e?.stopPropagation?.();
-
     if (!usuarioId) {
       navigate('/login?rol=cliente');
       return;
     }
-
     try {
       fetch(`${API_BASE}/api/favoritos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'producto', itemId: producto._id }),
-      }).catch((err) => {
-        console.warn('No se pudo guardar favorito (optimista):', err);
-      });
+      }).catch((err) => console.warn('No se pudo guardar favorito (optimista):', err));
     } catch (err) {
       console.error(err);
     }
   };
 
-  const handleFavoriteEmprendimiento = (e, emp, nextState) => {
+  const handleFavoriteEmprendimiento = (e, emp) => {
     e?.stopPropagation?.();
-
     if (!usuarioId) {
       navigate('/login?rol=cliente');
       return;
     }
-
     try {
       fetch(`${API_BASE}/api/favoritos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'emprendimiento', itemId: emp._id }),
-      }).catch((err) => {
-        console.warn('No se pudo guardar favorito (optimista):', err);
-      });
+      }).catch((err) => console.warn('No se pudo guardar favorito (optimista):', err));
     } catch (err) {
       console.error(err);
     }
@@ -314,26 +275,21 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* Botones: separo Heart del Contactar para evitar mezcla */}
-                        <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-                          <div className="flex-1 w-full">
-                            <button
-                              onClick={(e) => handleContactarProducto(e, producto)}
-                              className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                            >
-                              Contactar
-                            </button>
-                          </div>
+                        {/* ----- BOTONES: grid para evitar mezcla ----- */}
+                        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                          <button
+                            onClick={(e) => handleContactarProducto(e, producto)}
+                            className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                          >
+                            Contactar
+                          </button>
 
-                          <div className="w-full sm:w-auto">
-                            <HeartButton
-                              toggleable={!!usuarioId}
-                              onClick={(e, next) => handleFavoriteProducto(e, producto, next)}
-                              label="Me encanta"
-                              ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                              className="w-full sm:w-auto justify-center"
-                            />
-                          </div>
+                          <HeartButton
+                            toggleable={!!usuarioId}
+                            onClick={(e) => handleFavoriteProducto(e, producto)}
+                            ariaLabel={`Agregar ${producto.nombre} a favoritos`}
+                            className="h-10 px-2 sm:px-3"
+                          />
                         </div>
                       </article>
                     );
@@ -376,39 +332,38 @@ const HomeContent = () => {
 
                         <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
 
-                        <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          {emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}
+                        </p>
                       </div>
 
-                      {/* Botones: left -> Ver detalles + Contactar ; right -> Heart (separados) */}
-                      <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                      {/* ----- BOTONES EMPRENDIMIENTO: grid para evitar mezcla ----- */}
+                      <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setEmprendimientoSeleccionado(emp);
                             }}
-                            className="w-full bg-[#AA4A44] text-white px-3 py-2 rounded-md text-sm hover:bg-[#933834]"
+                            className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834]"
                           >
                             Ver detalles
                           </button>
 
                           <button
                             onClick={(e) => handleContactarEmprendimiento(e, emp)}
-                            className="w-full bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-2 rounded-md text-sm hover:bg-white/90"
+                            className="h-10 w-full border border-[#AA4A44] text-[#AA4A44] rounded-md text-sm font-medium hover:bg-[#F9F1ED]"
                           >
                             Contactar
                           </button>
                         </div>
 
-                        <div className="w-full sm:w-auto">
-                          <HeartButton
-                            toggleable={!!usuarioId}
-                            onClick={(e, next) => handleFavoriteEmprendimiento(e, emp, next)}
-                            label="Me encanta"
-                            ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                            className="w-full sm:w-auto justify-center"
-                          />
-                        </div>
+                        <HeartButton
+                          toggleable={!!usuarioId}
+                          onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
+                          ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
+                          className="h-10 px-2 sm:px-3"
+                        />
                       </div>
                     </div>
                   ))
@@ -430,6 +385,7 @@ const HomeContent = () => {
                 <button
                   onClick={() => setProductoSeleccionado(null)}
                   className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+                  aria-label="Cerrar"
                 >
                   ✕
                 </button>
@@ -446,9 +402,7 @@ const HomeContent = () => {
 
                 <p className="font-bold text-[#28a745] mt-3 text-lg">${productoSeleccionado.precio}</p>
 
-                <p className="font-semibold text-gray-800 mt-2">
-                  Stock disponible: {productoSeleccionado.stock ?? '—'}
-                </p>
+                <p className="font-semibold text-gray-800 mt-2">Stock disponible: {productoSeleccionado.stock ?? '—'}</p>
 
                 <p className="text-sm text-gray-600 mt-2">
                   <strong>Emprendimiento:</strong> {productoSeleccionado.emprendimiento?.nombreComercial ?? '—'}
@@ -461,38 +415,34 @@ const HomeContent = () => {
                     : '—'}
                 </p>
 
-                <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-                  <div className="flex-1 w-full">
-                    <button
-                      onClick={() => {
-                        if (usuarioId) {
-                          const empr = productoSeleccionado.emprendimiento ?? {};
-                          const emprendedorId = empr?.emprendedor?._id;
-                          if (!emprendedorId) return;
-                          navigate(
-                            `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
-                              productoSeleccionado.nombre
-                            )}`
-                          );
-                        } else {
-                          navigate('/login?rol=cliente');
-                        }
-                      }}
-                      className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors"
-                    >
-                      Contactar
-                    </button>
-                  </div>
+                {/* Modal botones: igual patrón grid */}
+                <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                  <button
+                    onClick={() => {
+                      if (usuarioId) {
+                        const empr = productoSeleccionado.emprendimiento ?? {};
+                        const emprendedorId = empr?.emprendedor?._id;
+                        if (!emprendedorId) return;
+                        navigate(
+                          `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
+                            productoSeleccionado.nombre
+                          )}`
+                        );
+                      } else {
+                        navigate('/login?rol=cliente');
+                      }
+                    }}
+                    className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                  >
+                    Contactar
+                  </button>
 
-                  <div className="w-full sm:w-auto">
-                    <HeartButton
-                      toggleable={!!usuarioId}
-                      onClick={(e, next) => handleFavoriteProducto(e, productoSeleccionado, next)}
-                      label="Agregar a favoritos"
-                      ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
-                      className="w-full sm:w-auto justify-center"
-                    />
-                  </div>
+                  <HeartButton
+                    toggleable={!!usuarioId}
+                    onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
+                    ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
+                    className="h-10 px-2 sm:px-3"
+                  />
                 </div>
               </div>
             </div>
@@ -511,6 +461,7 @@ const HomeContent = () => {
                 <button
                   onClick={() => setEmprendimientoSeleccionado(null)}
                   className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+                  aria-label="Cerrar"
                 >
                   ✕
                 </button>
@@ -521,9 +472,7 @@ const HomeContent = () => {
                   className="w-full h-48 object-cover rounded-md mb-4"
                 />
 
-                <h2 className="text-xl font-bold text-[#AA4A44]">
-                  {emprendimientoSeleccionado.nombreComercial}
-                </h2>
+                <h2 className="text-xl font-bold text-[#AA4A44]">{emprendimientoSeleccionado.nombreComercial}</h2>
 
                 <p className="text-gray-800 font-bold text-sm mt-1">
                   Emprendedor: {nombreCompletoEmprendedor(emprendimientoSeleccionado)}
@@ -532,12 +481,11 @@ const HomeContent = () => {
                 <p className="text-gray-600 mt-2">{emprendimientoSeleccionado.descripcion}</p>
 
                 <p className="text-sm text-gray-500 mt-2">
-                  {emprendimientoSeleccionado.ubicacion?.ciudad} –{' '}
-                  {emprendimientoSeleccionado.ubicacion?.direccion}
+                  {emprendimientoSeleccionado.ubicacion?.ciudad} – {emprendimientoSeleccionado.ubicacion?.direccion}
                 </p>
 
-                <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 items-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {emprendimientoSeleccionado.contacto?.sitioWeb && (
                       <a
                         href={emprendimientoSeleccionado.contacto.sitioWeb}
@@ -551,10 +499,8 @@ const HomeContent = () => {
 
                     <div>
                       <button
-                        onClick={() => {
-                          openPublicSite(emprendimientoSeleccionado, { closeModal: true });
-                        }}
-                        className="bg-[#AA4A44] text-white px-3 py-1 rounded-md text-sm hover:bg-[#933834]"
+                        onClick={() => openPublicSite(emprendimientoSeleccionado, { closeModal: true })}
+                        className="h-10 w-full bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834]"
                       >
                         Ir al sitio
                       </button>
@@ -571,21 +517,19 @@ const HomeContent = () => {
                             navigate('/login?rol=cliente');
                           }
                         }}
-                        className="bg-white border border-[#AA4A44] text-[#AA4A44] px-3 py-1 rounded-md text-sm hover:bg-white/90"
+                        className="h-10 w-full border border-[#AA4A44] text-[#AA4A44] rounded-md text-sm font-medium hover:bg-[#F9F1ED]"
                       >
                         Contactar
                       </button>
                     </div>
                   </div>
 
-                  <div className="w-full sm:w-auto">
-                    <HeartButton
-                      toggleable={!!usuarioId}
-                      onClick={(e, next) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado, next)}
-                      label="Me encanta"
-                      ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
-                    />
-                  </div>
+                  <HeartButton
+                    toggleable={!!usuarioId}
+                    onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
+                    ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
+                    className="h-10 px-2 sm:px-3"
+                  />
                 </div>
               </div>
             </div>
