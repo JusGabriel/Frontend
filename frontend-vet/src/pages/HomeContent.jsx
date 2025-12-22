@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
@@ -87,6 +87,540 @@ const HeartButton = ({
   );
 };
 
+/* ===================== Helpers de búsqueda / highlight ===================== */
+
+/** Normaliza texto para comparaciones locales (quita acentos, baja a minúsculas) */
+function normalize(str = '') {
+  return str
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // remove diacritics
+}
+
+/** Resalta el término en el texto con <mark> */
+function highlight(text, term) {
+  if (!text || !term) return text;
+  const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${safe})`, 'ig');
+  return text.split(re).map((chunk, i) =>
+    re.test(chunk) ? <mark key={i} className="bg-yellow-200">{chunk}</mark> : <span key={i}>{chunk}</span>
+  );
+}
+
+/* ===================== Barra de Búsqueda con sugerencias ===================== */
+const SearchBar = ({
+  API_BASE,
+  onResults,
+  onClear,
+  productos,
+  emprendimientos
+}) => {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [errorSuggest, setErrorSuggest] = useState(null);
+  const [suggestions, setSuggestions] = useState({ productos: [], emprendimientos: [], emprendedores: [] });
+  const [activeIndex, setActiveIndex] = useState(0);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const abortRef = useRef(null);
+
+  // Cierra dropdown si se hace click fuera
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounce de sugerencias (solo para términos >= 2)
+  useEffect(() => {
+    if (abortRef.current) abortRef.current.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    const t = setTimeout(async () => {
+      const q = term.trim();
+      if (q.length < 2) {
+        setSuggestions({ productos: [], emprendimientos: [], emprendedores: [] });
+        setOpen(false);
+        setErrorSuggest(null);
+        setLoadingSuggest(false);
+        return;
+      }
+      try {
+        setLoadingSuggest(true);
+        setErrorSuggest(null);
+        const res = await fetch(`${API_BASE}/api/search/suggest?q=${encodeURIComponent(q)}`, { signal: ac.signal });
+        const data = await res.json();
+        setSuggestions(data?.sugerencias || { productos: [], emprendimientos: [], emprendedores: [] });
+        setOpen(true);
+        setActiveIndex(0);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setErrorSuggest('No se pudo obtener sugerencias');
+        }
+      } finally {
+        setLoadingSuggest(false);
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [term, API_BASE]);
+
+  // Lista plana para navegación con teclado
+  const flatList = [
+    ...suggestions.productos.map(s => ({ type: 'producto', value: s })),
+    ...suggestions.emprendimientos.map(s => ({ type: 'emprendimiento', value: s })),
+    ...suggestions.emprendedores.map(s => ({ type: 'emprendedor', value: s })),
+  ];
+
+  /** Filtro local para términos cortos (instantáneo) */
+  const localSearch = (q) => {
+    const nq = normalize(q);
+    const prods = productos.filter(p => {
+      const nombre = normalize(p?.nombre || '');
+      const desc = normalize(p?.descripcion || '');
+      const empNombre = normalize(p?.emprendimiento?.nombreComercial || '');
+      const owner = normalize(
+        ((p?.emprendimiento?.emprendedor?.nombre || '') + ' ' + (p?.emprendimiento?.emprendedor?.apellido || '')).trim()
+      );
+      return nombre.includes(nq) || desc.includes(nq) || empNombre.includes(nq) || owner.includes(nq);
+    }).slice(0, 12);
+
+    const emps = emprendimientos.filter(emp => {
+      const nombreComercial = normalize(emp?.nombreComercial || '');
+      const desc = normalize(emp?.descripcion || '');
+      const ciudad = normalize(emp?.ubicacion?.ciudad || '');
+      const owner = normalize(((emp?.emprendedor?.nombre || '') + ' ' + (emp?.emprendedor?.apellido || '')).trim());
+      return nombreComercial.includes(nq) || desc.includes(nq) || ciudad.includes(nq) || owner.includes(nq);
+    }).slice(0, 12);
+
+    // Derivar "emprendedores" desde emprendimientos localmente (sin backend)
+    const ownersMap = new Map();
+    emps.forEach(emp => {
+      const ownerId = emp?.emprendedor?._id || emp?.emprendedorId;
+      if (!ownerId) return;
+      if (!ownersMap.has(ownerId)) {
+        ownersMap.set(ownerId, {
+          _id: ownerId,
+          nombre: emp?.emprendedor?.nombre || '',
+          apellido: emp?.emprendedor?.apellido || '',
+          email: emp?.emprendedor?.email || '',
+          telefono: emp?.emprendedor?.telefono || ''
+        });
+      }
+    });
+    const owners = Array.from(ownersMap.values()).slice(0, 12);
+
+    onResults({
+      q,
+      page: 1,
+      limit: 12,
+      results: { productos: prods, emprendimientos: emps, emprendedores: owners },
+      counts: { productos: prods.length, emprendimientos: emps.length, emprendedores: owners.length }
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const q = term.trim();
+    if (!q) return;
+    onClear();
+
+    // Si el término es corto, usa filtro local
+    if (q.length < 2) {
+      localSearch(q);
+      setOpen(false);
+      return;
+    }
+
+    // Caso ≥ 2: buscar en backend
+    try {
+      const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&types=productos,emprendimientos,emprendedores&limit=12&page=1`);
+      const data = await res.json();
+      onResults({ ...data, q });
+      setOpen(false);
+    } catch (err) {
+      onResults({ error: 'No se pudo realizar la búsqueda' });
+    }
+  };
+
+  const handleKeyDown = async (e) => {
+    if (!open || flatList.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, flatList.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = flatList[activeIndex];
+      const q = (
+        item?.type === 'producto' ? (item.value?.nombre || item.value?.empNombreComercial) :
+        item?.type === 'emprendimiento' ? (item.value?.nombreComercial || item.value?.ownerNombreCompleto) :
+        (item?.value?.nombre ? `${item.value?.nombre} ${item.value?.apellido || ''}`.trim() : item?.value?.email)
+      ) || term.trim();
+
+      if (q.length < 2) {
+        localSearch(q);
+        setOpen(false);
+        return;
+      }
+
+      try {
+        onClear();
+        const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&types=productos,emprendimientos,emprendedores&limit=12&page=1`);
+        const data = await res.json();
+        onResults({ ...data, q });
+        setOpen(false);
+      } catch {
+        onResults({ error: 'No se pudo realizar la búsqueda' });
+      }
+    }
+  };
+
+  return (
+    <div ref={containerRef} className="max-w-7xl mx-auto px-6 pt-6">
+      <form onSubmit={handleSubmit} className="flex items-stretch gap-2" role="search" aria-label="Buscador global">
+        <div className="flex-1 relative">
+          <input
+            ref={inputRef}
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Buscar productos, emprendimientos o emprendedores…"
+            aria-label="Buscar"
+            className="w-full px-4 py-2 rounded-md border border-[#E0C7B6] bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#AA4A44]"
+          />
+          {/* Estado de carga de sugerencias */}
+          {loadingSuggest && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">Buscando…</span>
+          )}
+        </div>
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-md bg-[#AA4A44] text-white text-sm font-semibold hover:bg-[#933834] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#AA4A44]"
+          aria-label="Buscar"
+          title="Buscar"
+        >
+          Buscar
+        </button>
+      </form>
+
+      {/* Dropdown de sugerencias */}
+      {open && (
+        <div
+          className="relative"
+        >
+          <div
+            className="absolute mt-2 w-full bg-white border border-[#E0C7B6] rounded-md shadow-lg z-50"
+            role="listbox"
+            aria-label="Sugerencias de búsqueda"
+          >
+            {errorSuggest && (
+              <div className="px-3 py-2 text-sm text-red-600">{errorSuggest}</div>
+            )}
+            {!errorSuggest && flatList.length === 0 && (
+              <div className="px-3 py-2 text-sm text-gray-600">Sin sugerencias</div>
+            )}
+            {flatList.map((item, idx) => {
+              const isActive = idx === activeIndex;
+              return (
+                <div
+                  key={`${item.type}-${idx}`}
+                  role="option"
+                  aria-selected={isActive}
+                  className={`px-3 py-2 cursor-pointer text-sm flex items-center justify-between hover:bg-[#F7E5D2] ${isActive ? 'bg-[#F7E5D2]' : ''}`}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const q = (
+                      item.type === 'producto' ? (item.value?.nombre || item.value?.empNombreComercial) :
+                      item.type === 'emprendimiento' ? (item.value?.nombreComercial || item.value?.ownerNombreCompleto) :
+                      (item.value?.nombre ? `${item.value?.nombre} ${item.value?.apellido || ''}`.trim() : item.value?.email)
+                    ) || term.trim();
+
+                    onClear();
+                    if (q.length < 2) {
+                      localSearch(q);
+                      setOpen(false);
+                      return;
+                    }
+                    fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&types=productos,emprendimientos,emprendedores&limit=12&page=1`)
+                      .then(r => r.json())
+                      .then(d => onResults({ ...d, q }))
+                      .catch(() => onResults({ error: 'No se pudo realizar la búsqueda' }));
+                    setOpen(false);
+                  }}
+                >
+                  <span className="text-gray-800">
+                    {item.type === 'producto' && (
+                      <>
+                        <span className="font-semibold text-[#AA4A44]">{highlight(item.value?.nombre || item.value?.empNombreComercial, term)}</span>
+                        {item.value?.empNombreComercial && <span className="text-gray-600"> · {highlight(item.value?.empNombreComercial, term)}</span>}
+                      </>
+                    )}
+                    {item.type === 'emprendimiento' && (
+                      <>
+                        <span className="font-semibold text-[#AA4A44]">{highlight(item.value?.nombreComercial, term)}</span>
+                        {item.value?.ownerNombreCompleto && <span className="text-gray-600"> · {highlight(item.value?.ownerNombreCompleto, term)}</span>}
+                      </>
+                    )}
+                    {item.type === 'emprendedor' && (
+                      <>
+                        <span className="font-semibold text-[#AA4A44]">
+                          {highlight(`${item.value?.nombre || ''} ${item.value?.apellido || ''}`.trim() || item.value?.email, term)}
+                        </span>
+                        {item.value?.email && <span className="text-gray-600"> · {item.value?.email}</span>}
+                      </>
+                    )}
+                  </span>
+                  <span className="text-[11px] text-gray-500 uppercase">{item.type}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ===================== Resultados de Búsqueda ===================== */
+const SearchResults = ({
+  data,
+  query,
+  onClose,
+  navigate,
+  fmtUSD,
+  handleFavoriteProducto,
+  handleFavoriteEmprendimiento,
+  favoritesSet
+}) => {
+  const [activeTab, setActiveTab] = useState('todos'); // todos | productos | emprendimientos | emprendedores
+
+  if (!data) return null;
+  if (data?.error) {
+    return (
+      <section className="bg-white py-6 px-6 border-b border-[#E0C7B6]">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-2xl font-bold text-[#AA4A44]">Resultados</h2>
+            <button
+              onClick={onClose}
+              className="text-sm text-gray-600 hover:text-[#AA4A44]"
+              aria-label="Cerrar resultados"
+            >
+              Cerrar
+            </button>
+          </div>
+          <p className="text-red-600">No se pudo realizar la búsqueda.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const productos = data?.results?.productos || [];
+  const emprendimientos = data?.results?.emprendimientos || [];
+  const emprendedores = data?.results?.emprendedores || [];
+  const total = (data?.counts?.productos || 0) + (data?.counts?.emprendimientos || 0) + (data?.counts?.emprendedores || 0);
+
+  return (
+    <section className="bg-white py-10 px-6 border-b border-[#E0C7B6]">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-2xl font-extrabold text-[#AA4A44]">
+            Resultados para “{query}”
+          </h2>
+          <div className="text-sm text-gray-600">
+            {total} resultados ·
+            <button onClick={onClose} className="ml-2 underline text-[#AA4A44]">Limpiar</button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {[
+            { id: 'todos', label: `Todos (${total})` },
+            { id: 'productos', label: `Productos (${data?.counts?.productos || 0})` },
+            { id: 'emprendimientos', label: `Emprendimientos (${data?.counts?.emprendimientos || 0})` },
+            { id: 'emprendedores', label: `Emprendedores (${data?.counts?.emprendedores || 0})` },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-3 py-1 rounded-full border text-sm ${
+                activeTab === tab.id ? 'bg-[#AA4A44] text-white border-[#AA4A44]' : 'bg-white text-[#AA4A44] border-[#AA4A44]'
+              }`}
+              aria-pressed={activeTab === tab.id}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {(activeTab === 'todos' || activeTab === 'productos') && (
+          <>
+            <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Productos</h3>
+            {productos.length === 0 ? (
+              <p className="text-gray-600 mb-6">Sin productos.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full mb-8">
+                {productos.map((p) => {
+                  const isFav = favoritesSet.has(String(p._id));
+                  return (
+                    <article
+                      key={`sr-prod-${p._id}-${p.nombre}`}
+                      className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow hover:shadow-lg transition-all"
+                    >
+                      <img
+                        src={p.imagen}
+                        alt={p.nombre}
+                        className="w-full h-44 object-cover rounded-lg mb-3"
+                        loading="lazy"
+                      />
+                      <h4 className="font-semibold text-lg text-[#AA4A44]">{p.nombre}</h4>
+                      {p.empNombreComercial && (
+                        <p className="text-sm text-gray-600 mt-1"><strong>Emprendimiento:</strong> {p.empNombreComercial}</p>
+                      )}
+                      {typeof p.precio === 'number' && (
+                        <p className="mt-2 text-lg font-bold text-[#28a745]">{fmtUSD.format(Number(p.precio ?? 0))}</p>
+                      )}
+                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.descripcion}</p>
+
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Reutiliza tu lógica de contactar desde resultados
+                            // Se necesita p.emprendimiento para id; si no llega en respuesta de búsqueda,
+                            // puedes abrir login para el flujo actual:
+                            navigate('/login?rol=cliente');
+                          }}
+                          className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
+                          aria-label={`Contactar ${p.nombre}`}
+                        >
+                          Contactar
+                        </button>
+                        <HeartButton
+                          filled={isFav}
+                          onClick={(e) => handleFavoriteProducto(e, p)}
+                          ariaLabel={`Agregar ${p.nombre} a favoritos`}
+                          className="w-full justify-center"
+                          size="sm"
+                          fullWidth
+                          showLabelOnMobile
+                        />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {(activeTab === 'todos' || activeTab === 'emprendimientos') && (
+          <>
+            <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Emprendimientos</h3>
+            {emprendimientos.length === 0 ? (
+              <p className="text-gray-600 mb-6">Sin emprendimientos.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 w-full mb-8">
+                {emprendimientos.map((emp) => {
+                  const isFav = favoritesSet.has(String(emp._id));
+                  return (
+                    <div
+                      key={`sr-emp-${emp._id}-${emp.slug || emp.nombreComercial}`}
+                      className="bg-white rounded-2xl shadow-md border border-[#E0C7B6] p-5 hover:shadow-lg transition-all cursor-pointer flex flex-col"
+                      onClick={() => window.open(`${window.location.origin}/${encodeURIComponent(emp.slug || emp.nombreComercial)}`, '_blank', 'noopener,noreferrer')}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <img
+                        src={emp.logo}
+                        alt={emp.nombreComercial}
+                        className="w-full h-40 object-cover rounded-lg mb-3"
+                        loading="lazy"
+                      />
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold text-[#AA4A44]">{emp.nombreComercial}</h4>
+                        {emp.ownerNombreCompleto && (
+                          <p className="text-sm text-gray-700 font-semibold mt-1">{emp.ownerNombreCompleto}</p>
+                        )}
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{emp.descripcion}</p>
+                        <p className="text-xs text-gray-500 mt-2">{emp.ubicacion?.ciudad} - {emp.ubicacion?.direccion}</p>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`${window.location.origin}/${encodeURIComponent(emp.slug || emp.nombreComercial)}`, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="bg-[#AA4A44] text-white w-full py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
+                        >
+                          Ver sitio
+                        </button>
+                        <HeartButton
+                          filled={isFav}
+                          onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
+                          ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
+                          className="w-full justify-center"
+                          size="sm"
+                          fullWidth
+                          showLabelOnMobile
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {(activeTab === 'todos' || activeTab === 'emprendedores') && (
+          <>
+            <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Emprendedores</h3>
+            {emprendedores.length === 0 ? (
+              <p className="text-gray-600">Sin emprendedores.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {emprendedores.map((owner) => (
+                  <div key={`sr-own-${owner._id}-${owner.email}`} className="bg-white border border-[#E0C7B6] rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#F7E5D2] flex items-center justify-center text-[#AA4A44] font-bold">
+                        {(owner.nombre?.[0] || 'E')}{(owner.apellido?.[0] || '')}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-[#AA4A44]">{(owner.nombre || '') + ' ' + (owner.apellido || '')}</p>
+                        <p className="text-xs text-gray-600">{owner.email}</p>
+                      </div>
+                    </div>
+                    {owner.telefono && <p className="mt-2 text-sm text-gray-700">Tel: {owner.telefono}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  );
+};
+
 /* -------------------- HomeContent -------------------- */
 const HomeContent = () => {
   const navigate = useNavigate();
@@ -108,6 +642,10 @@ const HomeContent = () => {
   // ====== Estados de UX/Paginación (client-side) ======
   const [prodVisibleCount, setProdVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
   const [empVisibleCount, setEmpVisibleCount] = useState(EMPS_PAGE_SIZE);
+
+  // ====== Estados de búsqueda (resultados y query) ======
+  const [searchData, setSearchData] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // helpers
   const generarSlug = (texto) =>
@@ -155,7 +693,7 @@ const HomeContent = () => {
         setEmpVisibleCount(EMPS_PAGE_SIZE); // reinicia visible ante nueva carga
       })
       .catch((err) => console.error('Error emprendimientos:', err));
-  }, []);
+  }, [API_BASE]);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/productos/todos`)
@@ -170,7 +708,7 @@ const HomeContent = () => {
         setProdVisibleCount(PRODUCTS_PAGE_SIZE); // reinicia visible ante nueva carga
       })
       .catch((err) => console.error('Error productos:', err));
-  }, []);
+  }, [API_BASE]);
 
   // Cargar favoritos del usuario (si está autenticado)
   const fetchMyFavorites = useCallback(async () => {
@@ -203,7 +741,7 @@ const HomeContent = () => {
     } catch (err) {
       console.error('Error fetchMyFavorites:', err);
     }
-  }, [token]);
+  }, [token, API_BASE]);
 
   useEffect(() => {
     fetchMyFavorites();
@@ -271,19 +809,16 @@ const HomeContent = () => {
       }
 
       const result = await res.json();
-      // result.action: 'created'|'removed'|'reactivated' and favorito
       if (result?.favorito) {
         const f = result.favorito;
         const map = { ...favoriteDocsByItem };
         if (result.action === 'removed') {
-          // remove
           const s = new Set(favoritesSet);
           s.delete(String(itemId));
           setFavoritesSet(s);
           delete map[String(itemId)];
           setFavoriteDocsByItem(map);
         } else {
-          // created or reactivated
           const s = new Set(favoritesSet);
           s.add(String(itemId));
           setFavoritesSet(s);
@@ -291,12 +826,10 @@ const HomeContent = () => {
           setFavoriteDocsByItem(map);
         }
       } else {
-        // en caso de respuesta inesperada, recargar la lista desde servidor
         fetchMyFavorites();
       }
     } catch (err) {
       console.error('Error toggleFavorite:', err);
-      // revertir optimista
       fetchMyFavorites();
     }
   };
@@ -328,7 +861,7 @@ const HomeContent = () => {
     });
   };
 
-  // navegación / acciones (igual que antes)
+  // navegación / acciones
   const handleContactarProducto = (e, producto) => {
     e.stopPropagation();
     const empr = producto.emprendimiento ?? {};
@@ -368,8 +901,58 @@ const HomeContent = () => {
   const empStart = 1;
   const empEnd = Math.min(empVisibleCount, emprendimientos.length);
 
+  // Formateador local de precios
+  const fmtUSD = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
+
+  // Callbacks de buscador
+  const handleSearchResults = (payload) => {
+    if (payload?.error) {
+      setSearchData(payload);
+      setSearchQuery('');
+      return;
+    }
+    setSearchData(payload);
+    setSearchQuery(payload?.q || '');
+    // Scroll a resultados
+    try {
+      const el = document.getElementById('search-results-anchor');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {}
+  };
+
+  const handleSearchClear = () => {
+    setSearchData(null);
+    setSearchQuery('');
+  };
+
   return (
     <>
+      {/* Barra de búsqueda global */}
+      <SearchBar
+        API_BASE={API_BASE}
+        onResults={handleSearchResults}
+        onClear={handleSearchClear}
+        productos={productos}
+        emprendimientos={emprendimientos}
+      />
+
+      {/* Anchor para scroll automático a resultados */}
+      <div id="search-results-anchor" />
+
+      {/* Resultados del buscador (si hay) */}
+      {searchData && (
+        <SearchResults
+          data={searchData}
+          query={searchQuery}
+          onClose={handleSearchClear}
+          navigate={navigate}
+          fmtUSD={fmtUSD}
+          handleFavoriteProducto={handleFavoriteProducto}
+          handleFavoriteEmprendimiento={handleFavoriteEmprendimiento}
+          favoritesSet={favoritesSet}
+        />
+      )}
+
       {section === 'inicio' && (
         <>
           {/* PRODUCTOS DESTACADOS */}
@@ -429,7 +1012,7 @@ const HomeContent = () => {
                               {producto.descripcion}
                             </p>
 
-                            <p className="text-lg font-bold text-[#28a745] mb-2">${producto.precio}</p>
+                            <p className="text-lg font-bold text-[#28a745] mb-2">{fmtUSD.format(Number(producto.precio ?? 0))}</p>
 
                             <p className="text-sm font-semibold text-gray-700 mb-1">
                               Stock: {producto.stock ?? '—'}
@@ -553,7 +1136,6 @@ const HomeContent = () => {
                           </h3>
 
                           <p className="text-base font-semibold text-gray-800 mb-2">
-                            {/* Nombre emprendedor */}
                             {emp.emprendedor?.nombre
                               ? `${emp.emprendedor?.nombre} ${emp.emprendedor?.apellido ?? ''}`.trim()
                               : '—'}
@@ -566,7 +1148,7 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* BOTONES EMPRENDIMIENTOS: columna 100%, SIEMPRE dentro de la card */}
+                        {/* BOTONES EMPRENDIMIENTOS */}
                         <div className="mt-6 grid grid-cols-1 gap-2">
                           <button
                             onClick={(e) => {
@@ -625,7 +1207,7 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* MODALES (sin cambios funcionales) */}
+          {/* MODALES */}
           {productoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -651,7 +1233,7 @@ const HomeContent = () => {
                     loading="lazy"
                   />
                   <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{productoSeleccionado.nombre}</h2>
-                  <p className="text-3xl font-black text-[#28a745] mb-4">${productoSeleccionado.precio}</p>
+                  <p className="text-3xl font-black text-[#28a745] mb-4">{fmtUSD.format(Number(productoSeleccionado.precio ?? 0))}</p>
                 </div>
 
                 <div className="space-y-3 mb-8">
@@ -680,7 +1262,6 @@ const HomeContent = () => {
                   </p>
                 </div>
 
-                {/* BOTONES MODAL PRODUCTO */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     onClick={(e) => {
@@ -775,7 +1356,6 @@ const HomeContent = () => {
                   )}
                 </div>
 
-                {/* BOTONES MODAL EMPRENDIMIENTO */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <button
                     onClick={(e) => {
