@@ -27,7 +27,7 @@ const IconHeartSvg = ({ filled = false, size = 16 }) => (
 
 /**
  * HeartButton - botón reutilizable para "Me encanta".
- * - compacto (no ocupa todo el ancho)
+ * - compacto en desktop, full width en móvil cuando se le pase la clase.
  * - accesible (aria-pressed, aria-label)
  * - toggleable si no está controlado
  */
@@ -67,13 +67,12 @@ const HeartButton = ({
       aria-pressed={filled}
       aria-label={ariaLabel || label}
       title={label}
-      // aseguramos tamaño mínimo, no crece, y buena accesibilidad visual
-      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap flex-none min-w-[44px] ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-md shadow-sm transition transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44] whitespace-nowrap ${className}`}
     >
       <span
-        className={`inline-flex items-center justify-center rounded-full flex-none ${
+        className={`inline-flex items-center justify-center rounded-full ${
           filled ? 'bg-[#AA4A44] text-white' : 'bg-white text-[#AA4A44] border border-[#EADBD3]'
-        } w-8 h-8 sm:w-9 sm:h-9 transition-colors duration-150`}
+        } w-8 h-8 sm:w-9 sm:h-9 transition-colors duration-150 flex-none`}
       >
         <IconHeartSvg filled={filled} size={16} />
       </span>
@@ -276,11 +275,11 @@ const HomeContent = () => {
                           </p>
                         </div>
 
-                        {/* ----- BOTONES: uso de flex para evitar overlap y mantener proporciones ----- */}
-                        <div className="mt-4 flex items-center gap-2">
+                        {/* ----- BOTONES: en móvil vertical, en desktop en fila ----- */}
+                        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           <button
                             onClick={(e) => handleContactarProducto(e, producto)}
-                            className="flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                            className="w-full sm:flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                           >
                             Contactar
                           </button>
@@ -289,7 +288,8 @@ const HomeContent = () => {
                             toggleable={!!usuarioId}
                             onClick={(e) => handleFavoriteProducto(e, producto)}
                             ariaLabel={`Agregar ${producto.nombre} a favoritos`}
-                            className="h-10 px-2 sm:px-3"
+                            // full width on mobile, auto on desktop
+                            className="h-10 w-full sm:w-auto px-2 sm:px-3"
                           />
                         </div>
                       </article>
@@ -338,8 +338,8 @@ const HomeContent = () => {
                         </p>
                       </div>
 
-                      {/* ----- BOTONES EMPRENDIMIENTO: grupo de 2 + corazón ----- */}
-                      <div className="mt-4 flex items-center gap-2">
+                      {/* ----- BOTONES EMPRENDIMIENTO: en móvil apilado, en desktop inline ----- */}
+                      <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <button
                             onClick={(e) => {
@@ -363,7 +363,7 @@ const HomeContent = () => {
                           toggleable={!!usuarioId}
                           onClick={(e) => handleFavoriteEmprendimiento(e, emp)}
                           ariaLabel={`Agregar ${emp.nombreComercial} a favoritos`}
-                          className="h-10 px-2 sm:px-3"
+                          className="h-10 w-full sm:w-auto px-2 sm:px-3"
                         />
                       </div>
                     </div>
@@ -416,16 +416,22 @@ const HomeContent = () => {
                     : '—'}
                 </p>
 
-                {/* Modal botones: patrón flex */}
-                <div className="mt-4 flex items-center gap-2">
+                {/* Modal botones: móvil apilado, desktop en fila */}
+                <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <button
                     onClick={() => {
                       if (usuarioId) {
                         const empr = productoSeleccionado.emprendimiento ?? {};
-                        const emprendedorId = empr?.emprendedor?._id;
-                        if (!emprendedorId) return;
+                        const emprendedorId = empr?.emprendedor?._1;
+                        // note: keep original logic; guard in case missing
+                        const id = empr?.emprendedor?._id ?? empr?.emprendedorId;
+                        const finalId = emprendedorId || id;
+                        if (!finalId) {
+                          // fallback do nothing
+                          return;
+                        }
                         navigate(
-                          `/dashboard/chat?user=${emprendedorId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
+                          `/dashboard/chat?user=${finalId}&productoId=${productoSeleccionado._id}&productoNombre=${encodeURIComponent(
                             productoSeleccionado.nombre
                           )}`
                         );
@@ -433,7 +439,7 @@ const HomeContent = () => {
                         navigate('/login?rol=cliente');
                       }
                     }}
-                    className="flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
+                    className="w-full sm:flex-1 h-10 bg-[#AA4A44] text-white rounded-md text-sm font-medium hover:bg-[#933834] transition-colors"
                   >
                     Contactar
                   </button>
@@ -442,7 +448,7 @@ const HomeContent = () => {
                     toggleable={!!usuarioId}
                     onClick={(e) => handleFavoriteProducto(e, productoSeleccionado)}
                     ariaLabel={`Agregar ${productoSeleccionado.nombre} a favoritos`}
-                    className="h-10 px-2 sm:px-3"
+                    className="h-10 w-full sm:w-auto px-2 sm:px-3"
                   />
                 </div>
               </div>
@@ -485,7 +491,7 @@ const HomeContent = () => {
                   {emprendimientoSeleccionado.ubicacion?.ciudad} – {emprendimientoSeleccionado.ubicacion?.direccion}
                 </p>
 
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {emprendimientoSeleccionado.contacto?.sitioWeb && (
                       <a
@@ -529,7 +535,7 @@ const HomeContent = () => {
                     toggleable={!!usuarioId}
                     onClick={(e) => handleFavoriteEmprendimiento(e, emprendimientoSeleccionado)}
                     ariaLabel={`Agregar ${emprendimientoSeleccionado.nombreComercial} a favoritos`}
-                    className="h-10 px-2 sm:px-3"
+                    className="h-10 w-full sm:w-auto px-2 sm:px-3"
                   />
                 </div>
               </div>
