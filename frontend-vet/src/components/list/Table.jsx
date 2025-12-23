@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -22,6 +21,7 @@ const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "US
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
   Correcto: "#28a745",       // OK (equivale a Activo)
+  Activo: "#28a745"
   Advertencia1: "#ffc107",
   Advertencia2: "#fd7e14",
   Advertencia3: "#dc3545",
@@ -1556,3 +1556,4 @@ const styles = {
 };
 
 export default Table;
+
