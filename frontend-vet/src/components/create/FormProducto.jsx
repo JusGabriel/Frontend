@@ -1,3 +1,5 @@
+
+// src/components/FormProducto.jsx
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth";
@@ -6,13 +8,16 @@ const API_BASE = "https://backend-production-bd1d.up.railway.app";
 
 export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
+
   const [productos, setProductos] = useState([]);
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
   const [error, setError] = useState(null);
 
-  // Productos - formulario
+  // -------------------------
+  // Estado: Producto (form)
+  // -------------------------
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -27,11 +32,13 @@ export const FormProducto = () => {
   const [modoEdicionProducto, setModoEdicionProducto] = useState(false);
   const [productoEditId, setProductoEditId] = useState(null);
 
-  // Emprendimientos - formulario
+  // -----------------------------
+  // Estado: Emprendimiento (form)
+  // -----------------------------
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
-    logo: "", // URL fallback
+    logo: "", // URL fallback (compatibilidad)
     ubicacion: { direccion: "", ciudad: "", lat: "", lng: "" },
     contacto: { telefono: "", email: "", sitioWeb: "", facebook: "", instagram: "" },
     categorias: [],
@@ -43,19 +50,24 @@ export const FormProducto = () => {
   const [modoEdicionEmp, setModoEdicionEmp] = useState(false);
   const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
 
-  // --- Helper: resolver rutas relativas '/uploads/...' a URL completo ---
-  const resolveMediaUrl = (maybePath) => {
-    if (!maybePath) return null;
-    // si ya es URL absoluta no la toques
-    if (/^https?:\/\//i.test(maybePath)) return maybePath;
-    // si empieza por /uploads o uploads -> prefijar API_BASE
-    if (maybePath.startsWith("/uploads")) return `${API_BASE}${maybePath}`;
-    if (maybePath.startsWith("uploads")) return `${API_BASE}/${maybePath}`;
-    // si es algo más (ej: dataUrl) devolver tal cual
-    return maybePath;
+  // ------------------------------------------
+  // Helper: resolver URLs (Cloudinary y legado)
+  // ------------------------------------------
+  const resolveMediaUrl = (maybeUrl) => {
+    if (!maybeUrl) return null;
+    // Si ya es URL absoluta (Cloudinary u otra), devolver tal cual
+    if (/^https?:\/\//i.test(maybeUrl)) return maybeUrl;
+
+    // Fallback temporal por si quedan registros antiguos con /uploads
+    if (maybeUrl.startsWith("/uploads")) return `${API_BASE}${maybeUrl}`;
+    if (maybeUrl.startsWith("uploads")) return `${API_BASE}/${maybeUrl}`;
+
+    return maybeUrl;
   };
 
-  // --- CARGA INICIAL ---
+  // ------------------------------------------
+  // Carga inicial
+  // ------------------------------------------
   const cargarProductos = async () => {
     if (!emprendedorId) return;
     setLoading(true);
@@ -65,7 +77,7 @@ export const FormProducto = () => {
       setProductos(res.data);
     } catch (err) {
       console.error(err);
-      setError("Error al cargar productos");
+      setError(err.response?.data?.mensaje || "Error al cargar productos");
     } finally {
       setLoading(false);
     }
@@ -79,7 +91,7 @@ export const FormProducto = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = res.data || [];
-      const soloMios = data.filter(emp => {
+      const soloMios = data.filter((emp) => {
         if (!emp) return false;
         const ownerId = emp.emprendedor && emp.emprendedor._id ? emp.emprendedor._id : emp.emprendedor;
         return ownerId && ownerId.toString() === emprendedorId?.toString();
@@ -90,7 +102,7 @@ export const FormProducto = () => {
       }
     } catch (err) {
       console.error(err);
-      setError("Error al cargar emprendimientos");
+      setError(err.response?.data?.mensaje || "Error al cargar emprendimientos");
     } finally {
       setLoadingEmprendimientos(false);
     }
@@ -99,18 +111,24 @@ export const FormProducto = () => {
   useEffect(() => {
     cargarProductos();
     cargarEmprendimientos();
-    // cleanup previews on unmount
+    // cleanup previews al desmontar
     return () => {
-      if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
-      if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) URL.revokeObjectURL(productImagePreview);
+      if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(logoPreview);
+      }
+      if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(productImagePreview);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emprendedorId]);
 
-  // --- MANEJO INPUTS ---
+  // ------------------------------------------
+  // Handlers: inputs y selección
+  // ------------------------------------------
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleChangeEmprSeleccion = (e) => {
@@ -120,15 +138,17 @@ export const FormProducto = () => {
   const handleChangeEmprendimiento = (e) => {
     const { name, value } = e.target;
     if (["direccion", "ciudad", "lat", "lng"].includes(name)) {
-      setFormEmprendimiento(prev => ({ ...prev, ubicacion: { ...prev.ubicacion, [name]: value } }));
+      setFormEmprendimiento((prev) => ({ ...prev, ubicacion: { ...prev.ubicacion, [name]: value } }));
     } else if (["telefono", "email", "sitioWeb", "facebook", "instagram"].includes(name)) {
-      setFormEmprendimiento(prev => ({ ...prev, contacto: { ...prev.contacto, [name]: value } }));
+      setFormEmprendimiento((prev) => ({ ...prev, contacto: { ...prev.contacto, [name]: value } }));
     } else {
-      setFormEmprendimiento(prev => ({ ...prev, [name]: value }));
+      setFormEmprendimiento((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // --- MANEJO ARCHIVOS Y PREVIEWS ---
+  // ------------------------------------------
+  // Handlers: archivos y previews
+  // ------------------------------------------
   const handleLogoFileChange = (e) => {
     const file = e.target.files?.[0] || null;
     if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
@@ -138,6 +158,8 @@ export const FormProducto = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setLogoPreview(url);
+    } else {
+      setLogoPreview(null);
     }
   };
 
@@ -150,10 +172,14 @@ export const FormProducto = () => {
     if (file) {
       const url = URL.createObjectURL(file);
       setProductImagePreview(url);
+    } else {
+      setProductImagePreview(null);
     }
   };
 
-  // --- RESET FORMULARIOS ---
+  // ------------------------------------------
+  // Reset formularios
+  // ------------------------------------------
   const resetFormProducto = () => {
     setForm({ nombre: "", descripcion: "", precio: "", imagen: "", stock: "" });
     if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
@@ -186,7 +212,9 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // --- PRODUCTOS: crear / actualizar / eliminar (usando FormData cuando hay archivo) ---
+  // ------------------------------------------
+  // Productos: crear / actualizar / eliminar
+  // ------------------------------------------
   const crearProducto = async () => {
     if (!token) { setError("No autenticado"); return; }
     if (!selectedEmprendimiento) { setError("Debes seleccionar el emprendimiento donde guardar el producto"); return; }
@@ -197,17 +225,19 @@ export const FormProducto = () => {
       formData.append("descripcion", form.descripcion || "");
       formData.append("precio", form.precio !== "" ? String(form.precio) : "0");
       formData.append("stock", form.stock !== "" ? String(form.stock) : "0");
-      formData.append("categoria", ""); // si manejas categorías ajusta esto
+      // Si manejas categorías reales, reemplaza "" con el valor correcto
+      formData.append("categoria", "");
       formData.append("emprendimiento", selectedEmprendimiento);
 
       if (productImageFile) {
         formData.append("imagen", productImageFile);
       } else if (form.imagen) {
-        formData.append("imagen", form.imagen); // compatibilidad URL
+        // compatibilidad: URL directa (por ejemplo, si pegaste un link de Cloudinary)
+        formData.append("imagen", form.imagen);
       }
 
       await axios.post(`${API_BASE}/api/productos`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
 
       await cargarProductos();
@@ -220,7 +250,6 @@ export const FormProducto = () => {
 
   const actualizarProducto = async () => {
     if (!token || !productoEditId) { setError("No autenticado o producto inválido"); return; }
-    if (!selectedEmprendimiento) { setError("Debes seleccionar el emprendimiento donde guardar el producto"); return; }
 
     try {
       const formData = new FormData();
@@ -228,10 +257,18 @@ export const FormProducto = () => {
       formData.append("descripcion", form.descripcion || "");
       formData.append("precio", form.precio !== "" ? String(form.precio) : "0");
       formData.append("stock", form.stock !== "" ? String(form.stock) : "0");
-      if (productImageFile) formData.append("imagen", productImageFile);
+
+      // Si hay archivo nuevo, lo enviamos; si no, dejamos que el backend conserve la imagen actual
+      if (productImageFile) {
+        formData.append("imagen", productImageFile);
+      } else if (form.imagen && /^https?:\/\//i.test(form.imagen)) {
+        // Si quieres forzar el cambio manual de URL (poco común), podrías enviarla;
+        // de lo contrario, omitir para mantener la imagen existente.
+        formData.append("imagen", form.imagen);
+      }
 
       await axios.put(`${API_BASE}/api/productos/${productoEditId}`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
 
       await cargarProductos();
@@ -245,8 +282,11 @@ export const FormProducto = () => {
   const eliminarProducto = async (id) => {
     if (!token) { setError("No autenticado"); return; }
     if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
+
     try {
-      await axios.delete(`${API_BASE}/api/productos/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API_BASE}/api/productos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await cargarProductos();
     } catch (err) {
       console.error(err);
@@ -254,14 +294,16 @@ export const FormProducto = () => {
     }
   };
 
-  // --- EMPRENDIMIENTOS: crear / actualizar / eliminar (FormData para logo) ---
+  // ------------------------------------------
+  // Emprendimientos: crear / actualizar / eliminar
+  // ------------------------------------------
   const crearEmprendimiento = async () => {
     if (!token) { setError("No autenticado"); return; }
     try {
       const fd = new FormData();
       fd.append("nombreComercial", formEmprendimiento.nombreComercial);
       fd.append("descripcion", formEmprendimiento.descripcion || "");
-      // ubicacion fields using nested keys (controller parsea ubicacion[direccion], etc.)
+      // ubicacion (nested keys)
       fd.append("ubicacion[direccion]", formEmprendimiento.ubicacion.direccion || "");
       fd.append("ubicacion[ciudad]", formEmprendimiento.ubicacion.ciudad || "");
       fd.append("ubicacion[lat]", formEmprendimiento.ubicacion.lat || "");
@@ -271,19 +313,19 @@ export const FormProducto = () => {
       fd.append("contacto[email]", formEmprendimiento.contacto.email || "");
       fd.append("contacto[sitioWeb]", formEmprendimiento.contacto.sitioWeb || "");
       fd.append("estado", formEmprendimiento.estado || "Activo");
-      // categorias (si manejas array, stringify)
+      // categorias
       if (formEmprendimiento.categorias && formEmprendimiento.categorias.length > 0) {
         fd.append("categorias", JSON.stringify(formEmprendimiento.categorias));
       }
-
+      // logo
       if (logoFile) {
         fd.append("logo", logoFile);
       } else if (formEmprendimiento.logo) {
-        fd.append("logo", formEmprendimiento.logo); // compatibilidad URL
+        fd.append("logo", formEmprendimiento.logo); // URL compatibilidad
       }
 
       await axios.post(`${API_BASE}/api/emprendimientos`, fd, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
 
       await cargarEmprendimientos();
@@ -315,7 +357,7 @@ export const FormProducto = () => {
       if (logoFile) fd.append("logo", logoFile);
 
       await axios.put(`${API_BASE}/api/emprendimientos/${emprendimientoEditId}`, fd, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
       });
 
       await cargarEmprendimientos();
@@ -331,7 +373,9 @@ export const FormProducto = () => {
     if (!token) { setError("No autenticado"); return; }
     if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
     try {
-      await axios.delete(`${API_BASE}/api/emprendimientos/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API_BASE}/api/emprendimientos/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await cargarEmprendimientos();
     } catch (err) {
       console.error(err);
@@ -339,7 +383,9 @@ export const FormProducto = () => {
     }
   };
 
-  // --- Edit handlers cargar en formulario para editar ---
+  // ------------------------------------------
+  // Edit handlers (cargar datos en el form)
+  // ------------------------------------------
   const editarProducto = (producto) => {
     setModoEdicionProducto(true);
     setProductoEditId(producto._id);
@@ -350,15 +396,15 @@ export const FormProducto = () => {
       imagen: producto.imagen || "",
       stock: producto.stock || "",
     });
-    // preview si trae imagen URL (resolver a URL completa)
+
     if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
       URL.revokeObjectURL(productImagePreview);
       setProductImagePreview(null);
     }
-    if (producto.imagen) {
-      setProductImagePreview(resolveMediaUrl(producto.imagen));
-    }
+    if (producto.imagen) setProductImagePreview(resolveMediaUrl(producto.imagen));
+
     setProductImageFile(null);
+
     if (producto.emprendimiento) {
       const empId = typeof producto.emprendimiento === "object" ? producto.emprendimiento._id : producto.emprendimiento;
       setSelectedEmprendimiento(empId);
@@ -389,6 +435,7 @@ export const FormProducto = () => {
       categorias: emp.categorias || [],
       estado: emp.estado || "Activo",
     });
+
     if (logoPreview && typeof logoPreview === "string" && logoPreview.startsWith("blob:")) {
       URL.revokeObjectURL(logoPreview);
       setLogoPreview(null);
@@ -398,7 +445,9 @@ export const FormProducto = () => {
     setError(null);
   };
 
-  // --- Submit handlers ---
+  // ------------------------------------------
+  // Submit handlers
+  // ------------------------------------------
   const handleSubmitProducto = (e) => {
     e.preventDefault();
     if (modoEdicionProducto) actualizarProducto();
@@ -411,12 +460,16 @@ export const FormProducto = () => {
     else crearEmprendimiento();
   };
 
+  // ------------------------------------------
+  // Render
+  // ------------------------------------------
   return (
     <>
       {/* FORMULARIO EMPRENDIMIENTO */}
       <div style={{ ...styles.formContainer, marginBottom: "2rem" }}>
         <h2 style={styles.title}>{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
         {error && <p style={styles.error}>{error}</p>}
+
         <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
           <input
             type="text"
@@ -438,12 +491,7 @@ export const FormProducto = () => {
 
           {/* Upload logo */}
           <label style={{ fontSize: 13, color: "#374151", marginTop: 6 }}>Logo (subir imagen)</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleLogoFileChange}
-            style={styles.inputFile}
-          />
+          <input type="file" accept="image/*" onChange={handleLogoFileChange} style={styles.inputFile} />
           {logoPreview && (
             <div style={{ maxWidth: 160, marginTop: 8 }}>
               <img
@@ -571,10 +619,36 @@ export const FormProducto = () => {
       <div style={styles.formContainer}>
         <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
         {error && <p style={styles.error}>{error}</p>}
+
         <form onSubmit={handleSubmitProducto} style={styles.form}>
-          <input type="text" name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} required style={styles.input} />
-          <input type="text" name="descripcion" placeholder="Descripción" value={form.descripcion} onChange={handleChange} style={styles.input} />
-          <input type="number" name="precio" placeholder="Precio" step="0.01" value={form.precio} onChange={handleChange} required min="0" style={styles.input} />
+          <input
+            type="text"
+            name="nombre"
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+          <input
+            type="text"
+            name="descripcion"
+            placeholder="Descripción"
+            value={form.descripcion}
+            onChange={handleChange}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            name="precio"
+            placeholder="Precio"
+            step="0.01"
+            value={form.precio}
+            onChange={handleChange}
+            required
+            min="0"
+            style={styles.input}
+          />
 
           {/* Imagen producto */}
           <label style={{ fontSize: 13, color: "#374151", marginTop: 6 }}>Imagen del producto</label>
@@ -590,17 +664,40 @@ export const FormProducto = () => {
             </div>
           )}
 
-          <input type="number" name="stock" placeholder="Stock" value={form.stock} onChange={handleChange} min="0" style={styles.input} />
+          <input
+            type="number"
+            name="stock"
+            placeholder="Stock"
+            value={form.stock}
+            onChange={handleChange}
+            min="0"
+            style={styles.input}
+          />
 
           <label style={{ fontSize: 14, marginTop: 6, color: "#374151" }}>Selecciona el emprendimiento</label>
-          <select value={selectedEmprendimiento} onChange={handleChangeEmprSeleccion} style={{ ...styles.input, appearance: 'menulist' }} required>
+          <select
+            value={selectedEmprendimiento}
+            onChange={handleChangeEmprSeleccion}
+            style={{ ...styles.input, appearance: "menulist" }}
+            required
+          >
             <option value="">-- Selecciona el emprendimiento --</option>
-            {emprendimientos.map(emp => <option key={emp._id} value={emp._id}>{emp.nombreComercial}</option>)}
+            {emprendimientos.map((emp) => (
+              <option key={emp._id} value={emp._id}>
+                {emp.nombreComercial}
+              </option>
+            ))}
           </select>
 
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>{modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}</button>
-            {modoEdicionProducto && (<button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>Cancelar</button>)}
+            <button type="submit" style={styles.buttonCreate}>
+              {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
+            </button>
+            {modoEdicionProducto && (
+              <button type="button" onClick={resetFormProducto} style={styles.buttonCancel}>
+                Cancelar
+              </button>
+            )}
           </div>
         </form>
       </div>
@@ -608,7 +705,11 @@ export const FormProducto = () => {
       {/* LISTA PRODUCTOS */}
       <div style={styles.listaContainer}>
         <h3 style={styles.sectionTitle}>Tus Productos</h3>
-        {loading ? (<p style={styles.muted}>Cargando productos...</p>) : productos.length === 0 ? (<p style={styles.muted}>No tienes productos aún.</p>) : (
+        {loading ? (
+          <p style={styles.muted}>Cargando productos...</p>
+        ) : productos.length === 0 ? (
+          <p style={styles.muted}>No tienes productos aún.</p>
+        ) : (
           <div style={styles.grid}>
             {productos.map((prod) => (
               <div key={prod._id || prod._1d} style={styles.card}>
@@ -623,7 +724,9 @@ export const FormProducto = () => {
                     />
                   ) : (
                     <div style={styles.productPlaceholder}>
-                      <span style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{prod.nombre?.charAt(0) || "P"}</span>
+                      <span style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                        {prod.nombre?.charAt(0) || "P"}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -631,7 +734,9 @@ export const FormProducto = () => {
                 <div style={styles.cardBody}>
                   <strong style={styles.cardTitle}>{prod.nombre}</strong>
                   <p style={styles.cardDescClamp}>{prod.descripcion}</p>
-                  <p style={styles.price}>Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span></p>
+                  <p style={styles.price}>
+                    Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span>
+                  </p>
                   <p style={styles.small}>Stock: {prod.stock}</p>
                   <p style={styles.small}>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
                 </div>
@@ -649,7 +754,7 @@ export const FormProducto = () => {
   );
 };
 
-// estilos (mantengo los tuyos igual)
+// estilos
 const styles = {
   formContainer: {
     background: "#fff",
@@ -698,14 +803,12 @@ const styles = {
     minWidth: 0,
     boxSizing: "border-box",
   },
-
   sectionTitle: {
     fontSize: "1.5rem",
     fontWeight: 800,
     color: "#0F172A",
     margin: "10px 0 16px 0",
   },
-
   buttonCreate: {
     padding: "10px 16px",
     backgroundColor: "#0F766E",
@@ -728,12 +831,9 @@ const styles = {
     transition: "background-color .12s ease",
   },
   buttonRow: { display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.75rem" },
-
   listaContainer: { maxWidth: 920, margin: "1.5rem auto 0 auto", padding: 15, fontFamily: "'Inter', system-ui, Aerial, sans-serif" },
   muted: { color: "#6B7280", fontSize: "0.95rem", textAlign: "center", margin: "12px 0" },
-
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", alignItems: "stretch" },
-
   card: {
     display: "flex",
     flexDirection: "column",
@@ -745,7 +845,6 @@ const styles = {
     minHeight: 280,
     overflow: "hidden",
   },
-
   productImageWrapSmall: {
     width: "100%",
     height: 140,
@@ -759,7 +858,6 @@ const styles = {
     marginBottom: 10,
     flexShrink: 0,
   },
-
   productImageWrap: {
     width: "100%",
     height: 160,
@@ -774,12 +872,9 @@ const styles = {
   },
   productImage: { width: "100%", height: "100%", objectFit: "cover", display: "block" },
   productPlaceholder: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#334155" },
-
   cardBody: { flex: 1, display: "flex", flexDirection: "column", gap: 8 },
-
   cardTitle: { fontSize: "1.02rem", color: "#0F172A", marginBottom: 4, display: "block", wordBreak: "break-word" },
   cardDesc: { color: "#4B5563", fontSize: "0.92rem", marginBottom: 8, wordBreak: "break-word" },
-
   cardDescClamp: {
     color: "#4B5563",
     fontSize: "0.92rem",
@@ -791,16 +886,12 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
   },
-
   small: { fontSize: "0.85rem", color: "#6B7280", margin: 0, wordBreak: "break-word" },
-
   price: { margin: 0, fontSize: "0.95rem", color: "#111827" },
   priceValue: { color: "#0F766E", fontWeight: 700 },
-
   cardActions: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 },
   buttonEdit: { backgroundColor: "#F59E0B", border: "none", padding: "8px 12px", borderRadius: 8, cursor: "pointer" },
   buttonDelete: { backgroundColor: "#DC2626", color: "white", border: "none", padding: "8px 12px", borderRadius: 8, cursor: "pointer" },
-
   error: { color: "#B91C1C", marginBottom: 8, fontWeight: 700, textAlign: "center" },
 };
 
