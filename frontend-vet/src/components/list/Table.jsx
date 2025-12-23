@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -20,17 +21,18 @@ const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "US
 
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
-  Activo: "#28a745",
-  Inactivo: "#6c757d",
-  Suspendido: "#dc3545",
+  Correcto: "#28a745",       // OK (mapea a Activo)
   Advertencia1: "#ffc107",
   Advertencia2: "#fd7e14",
   Advertencia3: "#dc3545",
+  Suspendido: "#dc3545",     // Bloqueado/inactivo
 };
 
 /* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
-const ESTADOS_CLIENTE = ["Activo", "Inactivo", "Suspendido", "Advertencia1", "Advertencia2", "Advertencia3"];
+
+// *** CLIENTE: SOLO los que pediste ***
+const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
 /* ===========================
    COMPONENTE
@@ -84,13 +86,19 @@ const Table = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= NUEVO: derivar estado visible desde campos reales del backend ========= */
+  /* ========= Derivar estado visible CLIENTE desde el modelo =========
+     - Activo + status:true  => Correcto
+     - AdvertenciaX          => AdvertenciaX
+     - Suspendido            => Suspendido (y status:false)
+     - status:false          => Suspendido (por consistencia)
+  */
   const deriveEstadoCliente = (item) => {
-    if (!item) return "Activo";
-    if (item.status === false) return "Inactivo";
-    const em = item.estado_Emprendedor;
-    if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(em)) return em || "Activo";
-    return "Activo";
+    if (!item) return "Correcto";
+    if (item.status === false) return "Suspendido";
+    const e = item.estado_Emprendedor;
+    if (e === "Activo") return "Correcto";
+    if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
+    return "Correcto";
   };
 
   /* ===========================
@@ -106,7 +114,7 @@ const Table = () => {
       });
       const data = await res.json();
 
-      // ======= NUEVO: normalizar para que el select y el badge muestren correctamente =======
+      // Normaliza para que select y badge muestren el label correcto.
       let normalizados = Array.isArray(data) ? data : [];
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
@@ -114,8 +122,6 @@ const Table = () => {
           return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
         });
       } else if (tipo === "emprendedor") {
-        // Si tu backend de emprendedor retorna 'estado_Emprendedor',
-        // añadimos 'estado' para UI homogénea
         normalizados = normalizados.map((e) => ({ ...e, estado: e.estado_Emprendedor || "Activo" }));
       }
 
@@ -129,7 +135,7 @@ const Table = () => {
     }
   };
 
-  // Catálogos para fallback
+  // Catálogos para fallback (solo para panel anidado de emprendedor)
   const fetchCatalogosGenerales = async () => {
     try {
       const [resProd, resEmpr] = await Promise.all([
@@ -297,11 +303,17 @@ const Table = () => {
       setMensaje("");
       setError("");
 
+      // Validación rápida para clientes
+      if (tipo === "cliente" && !ESTADOS_CLIENTE.includes(nuevoEstado)) {
+        setError("Estado inválido para cliente.");
+        return;
+      }
+
       const urlEstado = `${BASE_URLS[tipo]}/estado/${item._id}`;
       const bodyPayload =
         tipo === "emprendedor"
           ? { estado_Emprendedor: nuevoEstado }
-          : { estado: nuevoEstado }; // ===== NUEVO: payload directo para clientes
+          : { estado: nuevoEstado }; // CLIENTE: Correcto/Advertencia/Suspendido
 
       // Intento #1: endpoint dedicado
       let res = await fetch(urlEstado, {
@@ -313,7 +325,7 @@ const Table = () => {
         body: JSON.stringify(bodyPayload),
       });
 
-      // Fallback actualizar/:id (por si la ruta estado no está disponible para el tipo actual)
+      // Fallback actualizar/:id (si el endpoint estado no existe para ese tipo)
       if (!res.ok) {
         res = await fetch(`${BASE_URLS[tipo]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -367,6 +379,7 @@ const Table = () => {
     }
   };
 
+  // Carga panel anidado (emprendimientos y productos por emprendedor)
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
     setLoadingNested(true);
@@ -387,6 +400,7 @@ const Table = () => {
       }
     };
 
+    // Emprendimientos por emprendedor
     const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
@@ -405,6 +419,7 @@ const Table = () => {
       });
     }
 
+    // Productos por emprendedor
     const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
