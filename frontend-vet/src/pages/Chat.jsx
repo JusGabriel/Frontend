@@ -1,7 +1,14 @@
+
 import { useState, useEffect, useRef } from "react";
 import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
+/**
+ * Chat responsivo con foco mobile-first y UX/UI mejorado.
+ * - Sidebar como Drawer en móvil (toggle con botón).
+ * - Accesibilidad: aria-live, role="log", focus ring, etc.
+ * - Mantiene endpoints y lógica que ya tienes.
+ */
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
 
@@ -20,17 +27,20 @@ const Chat = () => {
   const [mensajeQueja, setMensajeQueja] = useState("");
   const [mensajesQueja, setMensajesQueja] = useState([]);
 
-  // Mensajes de info / error
+  // Estados de UI/UX
   const [info, setInfo] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingConv, setLoadingConv] = useState(false);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [loadingQuejas, setLoadingQuejas] = useState(false);
 
   // Ref para scroll automático
   const mensajesRef = useRef(null);
 
-  // Para leer parámetros de la URL
+  // Leer parámetros de la URL
   const location = useLocation();
   const params = new URLSearchParams(location.search);
 
-  // ID del emprendedor (user) que viene desde HomeContent
   const chatUserIdParam = params.get("user"); // id del emprendedor con quien chatear
   const productoIdParam = params.get("productoId");
   const productoNombreParam = params.get("productoNombre");
@@ -39,11 +49,23 @@ const Chat = () => {
   // Estado local para mantener el id del target con el que queremos chatear
   const [chatTargetId, setChatTargetId] = useState(null);
 
-  // --- Funciones Chat General ---
+  // --- Funciones utilitarias de UI ---
+  const colorBrand = "#AA4A44";
+  const colorBrandHover = "#8C3E39";
+  const colorBrandSoft = "#F7E5D2";
+  const bubbleMaxWMobile = "max-w-[80%]";
+  const bubbleMaxWDesktop = "sm:max-w-[70%]";
 
+  const inputEnabled =
+    vista === "chat"
+      ? Boolean(conversacionId || chatTargetId)
+      : Boolean(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor");
+
+  // --- Funciones Chat General ---
   const cargarConversaciones = async () => {
     if (!usuarioId) return [];
     try {
+      setLoadingConv(true);
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${usuarioId}`
       );
@@ -55,12 +77,15 @@ const Chat = () => {
       console.error("Error cargando conversaciones", error);
       setInfo("❌ Error cargando conversaciones");
       return [];
+    } finally {
+      setLoadingConv(false);
     }
   };
 
   const obtenerMensajes = async () => {
     if (!conversacionId) return;
     try {
+      setLoadingMsgs(true);
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
       );
@@ -69,6 +94,8 @@ const Chat = () => {
     } catch (error) {
       console.error("Error cargando mensajes", error);
       setInfo("❌ Error cargando mensajes");
+    } finally {
+      setLoadingMsgs(false);
     }
   };
 
@@ -95,7 +122,7 @@ const Chat = () => {
             receptorId,
             receptorRol,
             contenido: mensaje.trim(),
-            // si el backend admite productoId, descomenta:
+            // Si el backend admite productoId, descomentar:
             // productoId: productoIdParam || null,
           }),
         }
@@ -105,8 +132,6 @@ const Chat = () => {
       if (res.ok) {
         setMensaje("");
         setInfo("");
-        // refrescar mensajes y conversaciones
-        // Si ya existe conversacionId, obtenerMensajes lo cargará; si no, se refreshearán conversaciones
         await obtenerMensajes();
         await cargarConversaciones();
         return true;
@@ -120,9 +145,10 @@ const Chat = () => {
     }
   };
 
-  // --- Quejas (sin cambios funcionales) ---
+  // --- Quejas ---
   const cargarQuejas = async () => {
     try {
+      setLoadingQuejas(true);
       const res = await fetch(
         "https://backend-production-bd1d.up.railway.app/api/quejas/todas-con-mensajes"
       );
@@ -140,6 +166,8 @@ const Chat = () => {
     } catch (error) {
       console.error("Error cargando quejas", error);
       setInfo("❌ Error cargando quejas");
+    } finally {
+      setLoadingQuejas(false);
     }
   };
 
@@ -148,6 +176,8 @@ const Chat = () => {
     setMensajesQueja(queja.mensajes || []);
     setMensajeQueja("");
     setInfo("");
+    // En móvil, cerrar el drawer al seleccionar
+    setSidebarOpen(false);
   };
 
   const enviarMensajeQueja = async (e) => {
@@ -208,11 +238,11 @@ const Chat = () => {
 
   // --- Efectos y polling ---
   useEffect(() => {
-    // si la URL trae user, almacenarlo en chatTargetId y abrir vista chat
+    // Si la URL trae user, almacenarlo en chatTargetId y abrir vista chat
     if (chatUserIdParam) {
       setChatTargetId(chatUserIdParam);
       setVista("chat");
-      // prefill si viene productoNombre
+      // Prefill si viene productoNombre
       if (productoNombre && !mensaje) {
         setMensaje(`Hola, estoy interesado en "${productoNombre}". ¿Está disponible?`);
       }
@@ -242,7 +272,6 @@ const Chat = () => {
     if (convExistente) {
       setConversacionId(convExistente._id);
       setVista("chat");
-      // No mostramos ni el id en UI; setConversacionId activará el efecto que obtiene mensajes
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatTargetId, conversaciones]);
@@ -282,9 +311,7 @@ const Chat = () => {
         const receptor = conv?.participantes?.find((p) => p.id && p.id._id !== usuarioId);
         if (receptor) {
           const ok = await handleEnviar(e, receptor.id._id, receptor.rol);
-          if (ok) {
-            await obtenerMensajes();
-          }
+          if (ok) await obtenerMensajes();
         }
         return;
       }
@@ -293,7 +320,6 @@ const Chat = () => {
       if (chatTargetId) {
         const ok = await handleEnviar(e, chatTargetId, "Emprendedor");
         if (ok) {
-          // el backend crea la conversación con el primer mensaje. Ahora refrescamos conversaciones y seleccionamos la nueva.
           const lista = await cargarConversaciones();
           const nuevaConv = lista.find((conv) =>
             conv.participantes.some((p) => p.id && p.id._id === chatTargetId)
@@ -301,14 +327,13 @@ const Chat = () => {
           if (nuevaConv) {
             setConversacionId(nuevaConv._id);
             await obtenerMensajes();
-            // una vez seleccionada la conv, limpiamos chatTargetId si quieres; opcional:
             setChatTargetId(null);
           }
         }
         return;
       }
 
-      // 3) si no hay target ni conversacion -> nothing
+      // 3) si no hay target ni conversacion -> mensaje de ayuda
       setInfo("❌ Selecciona una conversación o usa el botón 'Contactar' desde un producto/emprendimiento.");
       return;
     }
@@ -327,203 +352,317 @@ const Chat = () => {
 
   const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
 
+  const HeaderTitle = () => {
+    if (vista === "chat") {
+      if (chatActivo) {
+        const nombreReceptor =
+          chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido";
+        return `Chat con ${nombreReceptor}${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`;
+      }
+      if (chatTargetId) {
+        return `Chat con el emprendedor${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`;
+      }
+      return "Selecciona una conversación";
+    }
+    if (vista === "quejas") {
+      if (quejaSeleccionada) {
+        const nombreOtro =
+          quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido";
+        return `Chat Queja con ${nombreOtro}`;
+      }
+      return (emisorRol === "Cliente" || emisorRol === "Emprendedor")
+        ? "Manda una queja al administrador del sitio"
+        : "Selecciona una queja";
+    }
+    return "";
+  };
+
   return (
     <div
-      className="flex bg-white"
-      style={{ width: "calc(100vw - 1.5cm)", height: "calc(100vh - 7cm)", padding: 5 }}
+      className="bg-white min-h-[100dvh] w-full"
+      style={{ padding: 5 }}
     >
-      {/* Sidebar */}
-      <aside className="w-80 border-r border-gray-300 flex flex-col">
-        <div
-          className="py-4 px-6 font-bold text-lg text-center cursor-pointer"
-          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
-        >
-          <div className="flex justify-center gap-4">
-            <button
-              onClick={() => setVista("chat")}
-              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "chat"
-                  ? "bg-[#AA4A44] text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-              }`}
-            >
-              💬 Chat General
-            </button>
-            <button
-              onClick={() => setVista("quejas")}
-              className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                vista === "quejas"
-                  ? "bg-[#AA4A44] text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-              }`}
-            >
-              📢 Quejas
-            </button>
-          </div>
+      {/* Header fijo en mobile con toggle del Drawer */}
+      <header
+        className="flex items-center justify-between px-4 py-3 md:py-4 md:px-6 sticky top-0 z-30"
+        style={{ color: colorBrand, backgroundColor: colorBrandSoft }}
+      >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Abrir panel lateral"
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md bg-white border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            style={{ focusRingColor: colorBrand }}
+          >
+            {/* Icono hamburguesa */}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke={colorBrand} strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+          <h1 className="font-bold text-base sm:text-lg">{HeaderTitle()}</h1>
         </div>
 
-        <div className="flex-grow overflow-y-auto">
-          {vista === "chat" ? (
-            conversaciones.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">No hay conversaciones</p>
+        {/* Toggle vistas */}
+        <div className="hidden md:flex gap-2">
+          <button
+            onClick={() => setVista("chat")}
+            className={`px-3 py-2 rounded-md font-semibold transition-colors ${
+              vista === "chat"
+                ? "text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+            }`}
+            style={{ backgroundColor: vista === "chat" ? colorBrand : undefined }}
+          >
+            💬 Chat
+          </button>
+          <button
+            onClick={() => setVista("quejas")}
+            className={`px-3 py-2 rounded-md font-semibold transition-colors ${
+              vista === "quejas"
+                ? "text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+            }`}
+            style={{ backgroundColor: vista === "quejas" ? colorBrand : undefined }}
+          >
+            📢 Quejas
+          </button>
+        </div>
+      </header>
+
+      {/* Layout principal: Drawer + contenido (grid en desktop) */}
+      <div className="grid md:grid-cols-[20rem_1fr] md:gap-0">
+
+        {/* Overlay del Drawer en móvil */}
+        {sidebarOpen && (
+          <div
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40 md:hidden"
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Sidebar / Drawer */}
+        <aside
+          className={`fixed md:relative z-50 md:z-10 inset-y-0 left-0 w-80 md:w-full bg-white border-r border-gray-300 flex flex-col transform transition-transform duration-300 ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
+        >
+          {/* Tabs en móvil dentro del drawer */}
+          <div
+            className="py-3 px-4 md:px-6 font-bold text-sm md:text-lg text-center md:text-left"
+            style={{ color: colorBrand, backgroundColor: colorBrandSoft }}
+          >
+            <div className="flex justify-center md:justify-start gap-2">
+              <button
+                onClick={() => setVista("chat")}
+                className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+                  vista === "chat"
+                    ? "text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+                }`}
+                style={{ backgroundColor: vista === "chat" ? colorBrand : undefined }}
+              >
+                💬 Chat
+              </button>
+              <button
+                onClick={() => setVista("quejas")}
+                className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+                  vista === "quejas"
+                    ? "text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+                }`}
+                style={{ backgroundColor: vista === "quejas" ? colorBrand : undefined }}
+              >
+                📢 Quejas
+              </button>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="md:hidden ml-auto px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-grow overflow-y-auto">
+            {vista === "chat" ? (
+              loadingConv ? (
+                <p className="p-4 text-center text-gray-500">Cargando conversaciones…</p>
+              ) : conversaciones.length === 0 ? (
+                <p className="p-4 text-center text-gray-500">No hay conversaciones</p>
+              ) : (
+                conversaciones.map((conv) => {
+                  const otro = conv.participantes.find((p) => p.id && p.id._id !== usuarioId);
+                  const isActive = conv._id === conversacionId;
+                  const nombre = otro ? `${otro.id?.nombre ?? ""} ${otro.id?.apellido ?? ""}`.trim() : "Participante desconocido";
+                  const initials = nombre.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+
+                  return (
+                    <button
+                      key={conv._id}
+                      onClick={() => {
+                        setConversacionId(conv._id);
+                        setChatTargetId(null);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-center gap-3 ${
+                        isActive ? "bg-[#fceaea]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f7d4d1] text-[#8C3E39] font-bold text-xs">
+                        {initials || "?"}
+                      </div>
+                      <span className="truncate">{nombre}</span>
+                    </button>
+                  );
+                })
+              )
             ) : (
-              conversaciones.map((conv) => {
-                const otro = conv.participantes.find((p) => p.id && p.id._id !== usuarioId);
-                const isActive = conv._id === conversacionId;
-                return (
-                  <button
-                    key={conv._id}
-                    onClick={() => {
-                      setConversacionId(conv._id);
-                      // si venimos por chatTarget, al seleccionar una conv limpiamos chatTargetId
-                      setChatTargetId(null);
-                    }}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex justify-between items-center ${
-                      isActive ? "bg-[#fceaea]" : ""
-                    }`}
-                  >
-                    <span>
-                      {otro ? `${otro.id?.nombre} ${otro.id?.apellido}` : "Participante desconocido"}
-                    </span>
-                  </button>
-                );
-              })
-            )
-          ) : vista === "quejas" ? (
-            quejas.length === 0 ? (
-              <p className="p-4 text-center text-gray-500 flex-grow">
+              loadingQuejas ? (
+                <p className="p-4 text-center text-gray-500">Cargando quejas…</p>
+              ) : quejas.length === 0 ? (
+                <p className="p-4 text-center text-gray-500">
+                  {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
+                    ? "Manda una queja al administrador del sitio"
+                    : "No hay quejas registradas."}
+                </p>
+              ) : (
+                quejas.map((q) => {
+                  const emprendedor = q.participantes.find((p) => p.rol === "Emprendedor")?.id;
+                  const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
+                  const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
+                  const isSelected = quejaSeleccionada?._id === q._id;
+
+                  const initials = `${(emprendedor?.nombre ?? "")} ${(emprendedor?.apellido ?? "")}`
+                    .split(" ")
+                    .map(w => w[0])
+                    .join("")
+                    .slice(0,2)
+                    .toUpperCase();
+
+                  return (
+                    <button
+                      key={q._id}
+                      onClick={() => seleccionarQueja(q)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-start gap-3 ${
+                        isSelected ? "bg-[#fceaea]" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f7d4d1] text-[#8C3E39] font-bold text-xs mt-1">
+                        {initials || "!"}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#AA4A44]">
+                          Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Receptor: {admin?.nombre} {admin?.apellido}
+                        </p>
+                        <p className="mt-1 text-gray-800 text-sm line-clamp-2">
+                          <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-1">
+                          {new Date(q.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              )
+            )}
+          </div>
+        </aside>
+
+        {/* Contenido principal */}
+        <section className="flex-1 flex flex-col">
+          {/* Contenedor de mensajes */}
+          <div
+            ref={mensajesRef}
+            role="log"
+            aria-live="polite"
+            className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50 space-y-3 sm:space-y-4"
+          >
+            {chatActivo ? (
+              loadingMsgs ? (
+                <p className="text-center text-gray-500 mt-10">Cargando mensajes…</p>
+              ) : mensajesActivos.length === 0 ? (
+                <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
+              ) : (
+                mensajesActivos.map((msg) => {
+                  const esMio = msg.emisor === usuarioId;
+                  return (
+                    <div key={msg._id || msg.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`px-4 py-2 rounded-2xl shadow ${
+                          esMio
+                            ? `text-white ${bubbleMaxWMobile} ${bubbleMaxWDesktop}`
+                            : `bg-white border border-gray-300 ${bubbleMaxWMobile} ${bubbleMaxWDesktop}`
+                        }`}
+                        style={esMio ? { backgroundColor: colorBrand } : {}}
+                      >
+                        <div className="whitespace-pre-wrap break-words">{msg.contenido}</div>
+                        <div className={`mt-1 text-[11px] ${esMio ? "text-white/80" : "text-gray-500"} text-right`}>
+                          {msg.emisorRol || ""}{msg.timestamp ? ` · ${new Date(msg.timestamp).toLocaleTimeString()}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            ) : (
+              <p className="text-center text-gray-500 mt-10">
                 {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
                   ? "Manda una queja al administrador del sitio"
-                  : "No hay quejas registradas."}
+                  : "Selecciona una queja para comenzar"}
               </p>
-            ) : (
-              quejas.map((q) => {
-                const emprendedor = q.participantes.find((p) => p.rol === "Emprendedor")?.id;
-                const admin = q.participantes.find((p) => p.rol === "Administrador")?.id;
-                const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
-                const isSelected = quejaSeleccionada?._id === q._id;
+            )}
+          </div>
 
-                return (
-                  <button
-                    key={q._id}
-                    onClick={() => seleccionarQueja(q)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex flex-col ${
-                      isSelected ? "bg-[#fceaea]" : ""
-                    }`}
-                  >
-                    <p className="font-semibold text-[#AA4A44]">
-                      Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
-                    </p>
-                    <p className="text-sm text-gray-600">Receptor: {admin?.nombre} {admin?.apellido}</p>
-                    <p className="mt-1 text-gray-800 text-sm line-clamp-2">
-                      <strong>Último mensaje:</strong> {ultimoMensaje?.contenido || "Sin mensajes"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(q.updatedAt).toLocaleString()}
-                    </p>
-                  </button>
-                );
-              })
-            )
-          ) : null}
-        </div>
-      </aside>
-
-      <section className="flex-1 flex flex-col">
-        <header
-          className="py-4 px-6 font-bold text-lg"
-          style={{ color: "#AA4A44", backgroundColor: "#F7E5D2" }}
-        >
-          {vista === "chat" ? (
-            chatActivo ? (
-              `Chat con ${
-                chatActivo.participantes.find((p) => p.id && p.id._id !== usuarioId)?.id?.nombre || "Desconocido"
-              }${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
-            ) : chatTargetId ? (
-              // Si no hay conversación seleccionada pero venimos desde HomeContent: mostrar texto amigable sin ID
-              `Chat con el emprendedor${productoNombre ? ` — Sobre: ${productoNombre}` : ""}`
-            ) : (
-              "Selecciona una conversación"
-            )
-          ) : vista === "quejas" ? (
-            quejaSeleccionada ? (
-              `Chat Queja con ${
-                quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id?.nombre || "Desconocido"
-              }`
-            ) : (emisorRol === "Cliente" || emisorRol === "Emprendedor") ? (
-              "Manda una queja al administrador del sitio"
-            ) : (
-              "Selecciona una queja"
-            )
-          ) : (
-            ""
-          )}
-        </header>
-
-        <div
-          ref={mensajesRef}
-          className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-4"
-        >
-          {chatActivo ? (
-            mensajesActivos.length === 0 ? (
-              <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
-            ) : (
-              mensajesActivos.map((msg) => {
-                const esMio = msg.emisor === usuarioId;
-                return (
-                  <div key={msg._id || msg.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-lg shadow ${esMio ? "text-white" : "bg-white border border-gray-300"}`}
-                      style={esMio ? { backgroundColor: "#AA4A44" } : {}}
-                    >
-                      {msg.contenido}
-                      <div className="text-xs text-gray-300 mt-1 text-right">{msg.emisorRol || ""}</div>
-                    </div>
-                  </div>
-                );
-              })
-            )
-          ) : (
-            <p className="text-center text-gray-500 mt-10">
-              {(emisorRol === "Cliente" || emisorRol === "Emprendedor")
-                ? "Manda una queja al administrador del sitio"
-                : "Selecciona una queja para comenzar"}
-            </p>
-          )}
-        </div>
-
-        <form onSubmit={handleEnviarMensaje} className="flex p-4 border-t border-gray-300 bg-white">
-          <input
-            type="text"
-            placeholder={
-              vista === "chat"
-                ? productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje..."
-                : "Escribe tu respuesta..."
-            }
-            value={vista === "chat" ? mensaje : mensajeQueja}
-            onChange={(e) => (vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value))}
-            className="flex-1 border border-gray-300 rounded-l-lg p-2 focus:outline-none"
-            style={{ boxShadow: "0 0 0 2px transparent" }}
-            onFocus={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #AA4A44")}
-            onBlur={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px transparent")}
-            // habilitar input si hay conversación o si venimos desde HomeContent con user (chatTargetId)
-            disabled={vista === "chat" ? !(conversacionId || chatTargetId) : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
-            autoComplete="off"
-          />
-          <button
-            type="submit"
-            disabled={vista === "chat" ? !(conversacionId || chatTargetId) : !(quejaSeleccionada || emisorRol === "Cliente" || emisorRol === "Emprendedor")}
-            className="text-white px-6 py-2 rounded-r-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ backgroundColor: "#AA4A44" }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = "#8C3E39")}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = "#AA4A44")}
+          {/* Input fijo con safe area (mejora en móviles) */}
+          <form
+            onSubmit={handleEnviarMensaje}
+            className="flex items-center gap-2 p-3 sm:p-4 border-t border-gray-300 bg-white sticky bottom-0"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px))" }}
           >
-            Enviar
-          </button>
-        </form>
+            <label htmlFor="messageInput" className="sr-only">
+              {vista === "chat"
+                ? productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje…"
+                : "Escribe tu respuesta…"}
+            </label>
+            <input
+              id="messageInput"
+              type="text"
+              placeholder={
+                vista === "chat"
+                  ? productoNombre ? `Mensaje sobre "${productoNombre}"` : "Escribe un mensaje…"
+                  : "Escribe tu respuesta…"
+              }
+              value={vista === "chat" ? mensaje : mensajeQueja}
+              onChange={(e) => (vista === "chat" ? setMensaje(e.target.value) : setMensajeQueja(e.target.value))}
+              className="flex-1 border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-0 text-[15px]"
+              style={{ boxShadow: "0 0 0 2px transparent" }}
+              disabled={!inputEnabled}
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={!inputEnabled}
+              className="inline-flex items-center gap-2 text-white px-4 sm:px-6 py-2 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2"
+              style={{ backgroundColor: colorBrand }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = colorBrandHover)}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = colorBrand)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M3 20l18-8L3 4l3 7 8 1-8 1-3 7z" fill="currentColor"/>
+              </svg>
+              <span className="hidden sm:inline">Enviar</span>
+            </button>
+          </form>
 
-        {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
-      </section>
+          {info && <div className="p-2 text-center text-red-600 font-medium">{info}</div>}
+        </section>
+      </div>
     </div>
   );
 };
