@@ -21,17 +21,17 @@ const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "US
 
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
-  Correcto: "#28a745",       // OK (mapea a Activo)
+  Correcto: "#28a745",       // OK (equivale a Activo)
   Advertencia1: "#ffc107",
   Advertencia2: "#fd7e14",
   Advertencia3: "#dc3545",
-  Suspendido: "#dc3545",     // Bloqueado/inactivo
+  Suspendido: "#dc3545",
 };
 
 /* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
-// *** CLIENTE: SOLO los que pediste ***
+// *** CLIENTE: EXACTAMENTE los que necesitas ***
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
 /* ===========================
@@ -78,19 +78,18 @@ const Table = () => {
 
   /* --------- Sub-filtros por fecha para Emprendedor --------- */
   const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
-  const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({}); // {emprendedorId: array}
-  const [mapEmpProductos, setMapEmpProductos] = useState({});             // {emprendedorId: array}
+  const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
+  const [mapEmpProductos, setMapEmpProductos] = useState({});
   const [loadingNested, setLoadingNested] = useState(false);
 
   /* --------- Catálogos generales (fallback) --------- */
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= Derivar estado visible CLIENTE desde el modelo =========
-     - Activo + status:true  => Correcto
-     - AdvertenciaX          => AdvertenciaX
-     - Suspendido            => Suspendido (y status:false)
-     - status:false          => Suspendido (por consistencia)
+  /* ========= Derivar estado visible CLIENTE desde modelo =========
+     - Activo + status:true      => Correcto
+     - AdvertenciaX              => AdvertenciaX
+     - Suspendido OR status:false => Suspendido
   */
   const deriveEstadoCliente = (item) => {
     if (!item) return "Correcto";
@@ -114,7 +113,7 @@ const Table = () => {
       });
       const data = await res.json();
 
-      // Normaliza para que select y badge muestren el label correcto.
+      // Normaliza para que select y badge muestren los labels pedidos.
       let normalizados = Array.isArray(data) ? data : [];
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
@@ -135,7 +134,7 @@ const Table = () => {
     }
   };
 
-  // Catálogos para fallback (solo para panel anidado de emprendedor)
+  // Catálogos para fallback (panel anidado de emprendedor)
   const fetchCatalogosGenerales = async () => {
     try {
       const [resProd, resEmpr] = await Promise.all([
@@ -325,7 +324,7 @@ const Table = () => {
         body: JSON.stringify(bodyPayload),
       });
 
-      // Fallback actualizar/:id (si el endpoint estado no existe para ese tipo)
+      // Fallback actualizar/:id
       if (!res.ok) {
         res = await fetch(`${BASE_URLS[tipo]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -379,7 +378,6 @@ const Table = () => {
     }
   };
 
-  // Carga panel anidado (emprendimientos y productos por emprendedor)
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
     setLoadingNested(true);
@@ -400,7 +398,6 @@ const Table = () => {
       }
     };
 
-    // Emprendimientos por emprendedor
     const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
@@ -419,7 +416,6 @@ const Table = () => {
       });
     }
 
-    // Productos por emprendedor
     const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
@@ -1404,7 +1400,6 @@ const styles = {
     borderRadius: 8,
     border: "1px solid #cbd5e1",
     backgroundColor: "#fff",
-    outline: "none",
   },
 
   btnTiny: {
