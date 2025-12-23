@@ -19,14 +19,16 @@ const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : 
 const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
 
 /* Paleta de estados (para badges) */
+
 const ESTADO_COLORS = {
-  Correcto: "#28a745",       // OK (equivale a Activo)
-  Activo: "#28a745"
+  Correcto: "#28a745",
+  Activo: "#28a745",        // <<< añadir esta línea
   Advertencia1: "#ffc107",
   Advertencia2: "#fd7e14",
   Advertencia3: "#dc3545",
   Suspendido: "#dc3545",
-};
+}
+
 
 /* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
@@ -1556,4 +1558,5 @@ const styles = {
 };
 
 export default Table;
+
 
