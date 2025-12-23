@@ -84,6 +84,15 @@ const Table = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
+  /* ========= NUEVO: derivar estado visible desde campos reales del backend ========= */
+  const deriveEstadoCliente = (item) => {
+    if (!item) return "Activo";
+    if (item.status === false) return "Inactivo";
+    const em = item.estado_Emprendedor;
+    if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(em)) return em || "Activo";
+    return "Activo";
+  };
+
   /* ===========================
      CARGA DE LISTAS
   ============================ */
@@ -96,7 +105,21 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       const data = await res.json();
-      setLista(Array.isArray(data) ? data : []);
+
+      // ======= NUEVO: normalizar para que el select y el badge muestren correctamente =======
+      let normalizados = Array.isArray(data) ? data : [];
+      if (tipo === "cliente") {
+        normalizados = normalizados.map((c) => {
+          const estadoUI = deriveEstadoCliente(c);
+          return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
+        });
+      } else if (tipo === "emprendedor") {
+        // Si tu backend de emprendedor retorna 'estado_Emprendedor',
+        // añadimos 'estado' para UI homogénea
+        normalizados = normalizados.map((e) => ({ ...e, estado: e.estado_Emprendedor || "Activo" }));
+      }
+
+      setLista(normalizados);
     } catch (e) {
       console.error(e);
       setError("No se pudo cargar el listado.");
@@ -192,7 +215,6 @@ const Table = () => {
     });
     setMensaje("");
     setError("");
-    // Llevar al inicio del formulario de edición visualmente (si se desea).
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -264,8 +286,8 @@ const Table = () => {
   ============================ */
   const getEstado = (item) =>
     tipo === "emprendedor"
-      ? item.estado_Emprendedor || "Activo"
-      : item.estado_Cliente ?? item.estado ?? "Activo";
+      ? item.estado || item.estado_Emprendedor || "Activo"
+      : item.estado_Cliente ?? item.estado ?? deriveEstadoCliente(item);
 
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
@@ -279,7 +301,7 @@ const Table = () => {
       const bodyPayload =
         tipo === "emprendedor"
           ? { estado_Emprendedor: nuevoEstado }
-          : { estado_Cliente: nuevoEstado, estado: nuevoEstado };
+          : { estado: nuevoEstado }; // ===== NUEVO: payload directo para clientes
 
       // Intento #1: endpoint dedicado
       let res = await fetch(urlEstado, {
@@ -291,7 +313,7 @@ const Table = () => {
         body: JSON.stringify(bodyPayload),
       });
 
-      // Fallback actualizar/:id
+      // Fallback actualizar/:id (por si la ruta estado no está disponible para el tipo actual)
       if (!res.ok) {
         res = await fetch(`${BASE_URLS[tipo]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -345,7 +367,6 @@ const Table = () => {
     }
   };
 
-  // Intenta endpoints específicos; si no, filtra catálogos locales por owner + rango de fechas
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
     setLoadingNested(true);
@@ -366,7 +387,6 @@ const Table = () => {
       }
     };
 
-    // Emprendimientos por emprendedor
     const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
@@ -385,7 +405,6 @@ const Table = () => {
       });
     }
 
-    // Productos por emprendedor
     const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${
       from || to ? `?from=${from}&to=${to}` : ""
     }`;
