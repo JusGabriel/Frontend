@@ -1,6 +1,5 @@
 
-// src/components/FormProducto.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import storeAuth from "../../context/storeAuth";
 
@@ -9,15 +8,14 @@ const API_BASE = "https://backend-production-bd1d.up.railway.app";
 export const FormProducto = () => {
   const { token, id: emprendedorId } = storeAuth();
 
-  const [productos, setProductos] = useState([]);
-  const [emprendimientos, setEmprendimientos] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
-  const [error, setError] = useState(null);
-
   // -------------------------
   // Estado: Producto (form)
   // -------------------------
+  const [productos, setProductos] = useState([]);
+  const [loadingProductos, setLoadingProductos] = useState(false);
+  const [uploadingProducto, setUploadingProducto] = useState(false);
+  const [uploadProgressProducto, setUploadProgressProducto] = useState(0);
+
   const [form, setForm] = useState({
     nombre: "",
     descripcion: "",
@@ -35,6 +33,11 @@ export const FormProducto = () => {
   // -----------------------------
   // Estado: Emprendimiento (form)
   // -----------------------------
+  const [emprendimientos, setEmprendimientos] = useState([]);
+  const [loadingEmprendimientos, setLoadingEmprendimientos] = useState(false);
+  const [uploadingEmp, setUploadingEmp] = useState(false);
+  const [uploadProgressEmp, setUploadProgressEmp] = useState(0);
+
   const [formEmprendimiento, setFormEmprendimiento] = useState({
     nombreComercial: "",
     descripcion: "",
@@ -51,17 +54,36 @@ export const FormProducto = () => {
   const [emprendimientoEditId, setEmprendimientoEditId] = useState(null);
 
   // ------------------------------------------
+  // UI refs para scroll y focus en formularios
+  // ------------------------------------------
+  const empFormRef = useRef(null);
+  const empFirstInputRef = useRef(null);
+  const prodFormRef = useRef(null);
+  const prodFirstInputRef = useRef(null);
+
+  const scrollToRef = (ref) => {
+    if (!ref?.current) return;
+    const offsetTop = ref.current.getBoundingClientRect().top + window.scrollY;
+    // Ajuste por headers fijos si tu layout los tiene (por ejemplo 80px)
+    const HEADER_OFFSET = 16;
+    window.scrollTo({ top: offsetTop - HEADER_OFFSET, behavior: "smooth" });
+  };
+
+  const focusFirstInput = (inputRef) => {
+    // Pequeño delay para asegurar que el DOM está pintado
+    setTimeout(() => inputRef?.current?.focus?.(), 120);
+  };
+
+  // ------------------------------------------
   // Helper: resolver URLs (Cloudinary y legado)
   // ------------------------------------------
   const resolveMediaUrl = (maybeUrl) => {
     if (!maybeUrl) return null;
     // Si ya es URL absoluta (Cloudinary u otra), devolver tal cual
     if (/^https?:\/\//i.test(maybeUrl)) return maybeUrl;
-
     // Fallback temporal por si quedan registros antiguos con /uploads
     if (maybeUrl.startsWith("/uploads")) return `${API_BASE}${maybeUrl}`;
     if (maybeUrl.startsWith("uploads")) return `${API_BASE}/${maybeUrl}`;
-
     return maybeUrl;
   };
 
@@ -70,22 +92,19 @@ export const FormProducto = () => {
   // ------------------------------------------
   const cargarProductos = async () => {
     if (!emprendedorId) return;
-    setLoading(true);
-    setError(null);
+    setLoadingProductos(true);
     try {
       const res = await axios.get(`${API_BASE}/api/productos/emprendedor/${emprendedorId}`);
-      setProductos(res.data);
+      setProductos(res.data || []);
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al cargar productos");
+      console.error("cargarProductos error:", err);
     } finally {
-      setLoading(false);
+      setLoadingProductos(false);
     }
   };
 
   const cargarEmprendimientos = async () => {
     setLoadingEmprendimientos(true);
-    setError(null);
     try {
       const res = await axios.get(`${API_BASE}/api/emprendimientos`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -101,8 +120,7 @@ export const FormProducto = () => {
         setSelectedEmprendimiento(soloMios[0]._id);
       }
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al cargar emprendimientos");
+      console.error("cargarEmprendimientos error:", err);
     } finally {
       setLoadingEmprendimientos(false);
     }
@@ -189,7 +207,8 @@ export const FormProducto = () => {
     setProductImageFile(null);
     setModoEdicionProducto(false);
     setProductoEditId(null);
-    setError(null);
+    setUploadingProducto(false);
+    setUploadProgressProducto(0);
   };
 
   const resetFormEmprendimiento = () => {
@@ -209,17 +228,21 @@ export const FormProducto = () => {
     setLogoFile(null);
     setModoEdicionEmp(false);
     setEmprendimientoEditId(null);
-    setError(null);
+    setUploadingEmp(false);
+    setUploadProgressEmp(0);
   };
 
   // ------------------------------------------
   // Productos: crear / actualizar / eliminar
   // ------------------------------------------
   const crearProducto = async () => {
-    if (!token) { setError("No autenticado"); return; }
-    if (!selectedEmprendimiento) { setError("Debes seleccionar el emprendimiento donde guardar el producto"); return; }
+    if (!token) return;
+    if (!selectedEmprendimiento) return;
 
     try {
+      setUploadingProducto(true);
+      setUploadProgressProducto(0);
+
       const formData = new FormData();
       formData.append("nombre", form.nombre);
       formData.append("descripcion", form.descripcion || "");
@@ -237,50 +260,58 @@ export const FormProducto = () => {
       }
 
       await axios.post(`${API_BASE}/api/productos`, formData, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgressProducto(Math.round((e.loaded / e.total) * 100));
+        },
       });
 
       await cargarProductos();
       resetFormProducto();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al crear producto");
+      console.error("crearProducto error:", err);
+      setUploadingProducto(false);
     }
   };
 
   const actualizarProducto = async () => {
-    if (!token || !productoEditId) { setError("No autenticado o producto inválido"); return; }
+    if (!token || !productoEditId) return;
 
     try {
+      setUploadingProducto(true);
+      setUploadProgressProducto(0);
+
       const formData = new FormData();
       formData.append("nombre", form.nombre);
       formData.append("descripcion", form.descripcion || "");
       formData.append("precio", form.precio !== "" ? String(form.precio) : "0");
       formData.append("stock", form.stock !== "" ? String(form.stock) : "0");
 
-      // Si hay archivo nuevo, lo enviamos; si no, dejamos que el backend conserve la imagen actual
+      // Si hay archivo nuevo, se envía; si no, el backend conserva la imagen actual
       if (productImageFile) {
         formData.append("imagen", productImageFile);
       } else if (form.imagen && /^https?:\/\//i.test(form.imagen)) {
-        // Si quieres forzar el cambio manual de URL (poco común), podrías enviarla;
-        // de lo contrario, omitir para mantener la imagen existente.
+        // Si quieres forzar el cambio manual de URL (poco común)
         formData.append("imagen", form.imagen);
       }
 
       await axios.put(`${API_BASE}/api/productos/${productoEditId}`, formData, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgressProducto(Math.round((e.loaded / e.total) * 100));
+        },
       });
 
       await cargarProductos();
       resetFormProducto();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al actualizar producto");
+      console.error("actualizarProducto error:", err);
+      setUploadingProducto(false);
     }
   };
 
   const eliminarProducto = async (id) => {
-    if (!token) { setError("No autenticado"); return; }
+    if (!token) return;
     if (!window.confirm("¿Estás seguro de eliminar este producto?")) return;
 
     try {
@@ -289,8 +320,7 @@ export const FormProducto = () => {
       });
       await cargarProductos();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al eliminar producto");
+      console.error("eliminarProducto error:", err);
     }
   };
 
@@ -298,20 +328,23 @@ export const FormProducto = () => {
   // Emprendimientos: crear / actualizar / eliminar
   // ------------------------------------------
   const crearEmprendimiento = async () => {
-    if (!token) { setError("No autenticado"); return; }
+    if (!token) return;
     try {
+      setUploadingEmp(true);
+      setUploadProgressEmp(0);
+
       const fd = new FormData();
       fd.append("nombreComercial", formEmprendimiento.nombreComercial);
       fd.append("descripcion", formEmprendimiento.descripcion || "");
       // ubicacion (nested keys)
-      fd.append("ubicacion[direccion]", formEmprendimiento.ubicacion.direccion || "");
-      fd.append("ubicacion[ciudad]", formEmprendimiento.ubicacion.ciudad || "");
-      fd.append("ubicacion[lat]", formEmprendimiento.ubicacion.lat || "");
-      fd.append("ubicacion[lng]", formEmprendimiento.ubicacion.lng || "");
+      fd.append("ubicacion[direccion]", formImpr(formEmprendimiento.ubicacion.direccion));
+      fd.append("ubicacion[ciudad]", formImpr(formEmprendimiento.ubicacion.ciudad));
+      fd.append("ubicacion[lat]", formImpr(formEmprendimiento.ubicacion.lat));
+      fd.append("ubicacion[lng]", formImpr(formEmprendimiento.ubicacion.lng));
       // contacto
-      fd.append("contacto[telefono]", formEmprendimiento.contacto.telefono || "");
-      fd.append("contacto[email]", formEmprendimiento.contacto.email || "");
-      fd.append("contacto[sitioWeb]", formEmprendimiento.contacto.sitioWeb || "");
+      fd.append("contacto[telefono]", formImpr(formEmprendimiento.contacto.telefono));
+      fd.append("contacto[email]", formImpr(formEmprendimiento.contacto.email));
+      fd.append("contacto[sitioWeb]", formImpr(formEmprendimiento.contacto.sitioWeb));
       fd.append("estado", formEmprendimiento.estado || "Activo");
       // categorias
       if (formEmprendimiento.categorias && formEmprendimiento.categorias.length > 0) {
@@ -325,31 +358,37 @@ export const FormProducto = () => {
       }
 
       await axios.post(`${API_BASE}/api/emprendimientos`, fd, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgressEmp(Math.round((e.loaded / e.total) * 100));
+        },
       });
 
       await cargarEmprendimientos();
       alert("Emprendimiento creado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al crear emprendimiento");
+      console.error("crearEmprendimiento error:", err);
+      setUploadingEmp(false);
     }
   };
 
   const actualizarEmprendimiento = async () => {
-    if (!token || !emprendimientoEditId) { setError("No autenticado o emprendimiento inválido"); return; }
+    if (!token || !emprendimientoEditId) return;
     try {
+      setUploadingEmp(true);
+      setUploadProgressEmp(0);
+
       const fd = new FormData();
-      fd.append("nombreComercial", formEmprendimiento.nombreComercial);
-      fd.append("descripcion", formEmprendimiento.descripcion || "");
-      fd.append("ubicacion[direccion]", formEmprendimiento.ubicacion.direccion || "");
-      fd.append("ubicacion[ciudad]", formEmprendimiento.ubicacion.ciudad || "");
-      fd.append("ubicacion[lat]", formEmprendimiento.ubicacion.lat || "");
-      fd.append("ubicacion[lng]", formEmprendimiento.ubicacion.lng || "");
-      fd.append("contacto[telefono]", formEmprendimiento.contacto.telefono || "");
-      fd.append("contacto[email]", formEmprendimiento.contacto.email || "");
-      fd.append("contacto[sitioWeb]", formEmprendimiento.contacto.sitioWeb || "");
+      fd.append("nombreComercial", formImpr(formComercial(formEmprendimiento.nombreComercial)));
+      fd.append("descripcion", formImpr(formEmprendimiento.descripcion));
+      fd.append("ubicacion[direccion]", formImpr(formImpr(formImpr(formEmprendimiento.ubicacion.direccion))));
+      fd.append("ubicacion[ciudad]", formImpr(formEmprendimiento.ubicacion.ciudad));
+      fd.append("ubicacion[lat]", formImpr(formEmprendimiento.ubicacion.lat));
+      fd.append("ubicacion[lng]", formImpr(formEmprendimiento.ubicacion.lng));
+      fd.append("contacto[telefono]", formImpr(formImpr(formEmprendimiento.contacto.telefono)));
+      fd.append("contacto[email]", formImpr(formEmprendimiento.contacto.email));
+      fd.append("contacto[sitioWeb]", formImpr(formEmprendimiento.contacto.sitioWeb));
       fd.append("estado", formEmprendimiento.estado || "Activo");
       if (formEmprendimiento.categorias && formEmprendimiento.categorias.length > 0) {
         fd.append("categorias", JSON.stringify(formEmprendimiento.categorias));
@@ -357,20 +396,23 @@ export const FormProducto = () => {
       if (logoFile) fd.append("logo", logoFile);
 
       await axios.put(`${API_BASE}/api/emprendimientos/${emprendimientoEditId}`, fd, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" },
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (e) => {
+          if (e.total) setUploadProgressEmp(Math.round((e.loaded / e.total) * 100));
+        },
       });
 
       await cargarEmprendimientos();
       alert("Emprendimiento actualizado con éxito");
       resetFormEmprendimiento();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al actualizar emprendimiento");
+      console.error("actualizarEmprendimiento error:", err);
+      setUploadingEmp(false);
     }
   };
 
   const eliminarEmprendimiento = async (id) => {
-    if (!token) { setError("No autenticado"); return; }
+    if (!token) return;
     if (!window.confirm("¿Estás seguro de eliminar este emprendimiento?")) return;
     try {
       await axios.delete(`${API_BASE}/api/emprendimientos/${id}`, {
@@ -378,8 +420,7 @@ export const FormProducto = () => {
       });
       await cargarEmprendimientos();
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.mensaje || "Error al eliminar emprendimiento");
+      console.error("eliminarEmprendimiento error:", err);
     }
   };
 
@@ -392,9 +433,9 @@ export const FormProducto = () => {
     setForm({
       nombre: producto.nombre || "",
       descripcion: producto.descripcion || "",
-      precio: producto.precio || "",
+      precio: producto.precio ?? "",
       imagen: producto.imagen || "",
-      stock: producto.stock || "",
+      stock: producto.stock ?? "",
     });
 
     if (productImagePreview && typeof productImagePreview === "string" && productImagePreview.startsWith("blob:")) {
@@ -402,14 +443,16 @@ export const FormProducto = () => {
       setProductImagePreview(null);
     }
     if (producto.imagen) setProductImagePreview(resolveMediaUrl(producto.imagen));
-
     setProductImageFile(null);
 
     if (producto.emprendimiento) {
       const empId = typeof producto.emprendimiento === "object" ? producto.emprendimiento._id : producto.emprendimiento;
       setSelectedEmprendimiento(empId);
     }
-    setError(null);
+
+    // Scroll y foco al formulario de producto
+    scrollToRef(prodFormRef);
+    focusFirstInput(prodFirstInputRef);
   };
 
   const editarEmprendimiento = (emp) => {
@@ -422,8 +465,8 @@ export const FormProducto = () => {
       ubicacion: {
         direccion: emp.ubicacion?.direccion || "",
         ciudad: emp.ubicacion?.ciudad || "",
-        lat: emp.ubicacion?.lat || "",
-        lng: emp.ubicacion?.lng || "",
+        lat: emp.ubicacion?.lat ?? "",
+        lng: emp.ubicacion?.lng ?? "",
       },
       contacto: {
         telefono: emp.contacto?.telefono || "",
@@ -442,7 +485,10 @@ export const FormProducto = () => {
     }
     if (emp.logo) setLogoPreview(resolveMediaUrl(emp.logo));
     setLogoFile(null);
-    setError(null);
+
+    // Scroll y foco al formulario de emprendimiento
+    scrollToRef(empFormRef);
+    focusFirstInput(empFirstInputRef);
   };
 
   // ------------------------------------------
@@ -460,22 +506,25 @@ export const FormProducto = () => {
     else crearEmprendimiento();
   };
 
+  // Helper para strings en FormData (evitar undefined)
+  const formImpr = (v) => (v === undefined || v === null ? "" : String(v));
+
   // ------------------------------------------
   // Render
   // ------------------------------------------
   return (
     <>
-      {/* FORMULARIO EMPRENDIMIENTO */}
-      <div style={{ ...styles.formContainer, marginBottom: "2rem" }}>
+      {/* FORMULARIO EMPRENDIMIENTO (arriba) */}
+      <div ref={empFormRef} style={{ ...styles.formContainer, marginBottom: "2rem" }}>
         <h2 style={styles.title}>{modoEdicionEmp ? "Editar Emprendimiento" : "Crear Emprendimiento"}</h2>
-        {error && <p style={styles.error}>{error}</p>}
 
         <form onSubmit={handleSubmitEmprendimiento} style={styles.form}>
           <input
+            ref={empFirstInputRef}
             type="text"
             name="nombreComercial"
             placeholder="Nombre Comercial"
-            value={formEmprendimiento.nombreComercial}
+            value={formImpr(formEmprendimiento.nombreComercial)}
             onChange={handleChangeEmprendimiento}
             required
             style={styles.input}
@@ -484,21 +533,29 @@ export const FormProducto = () => {
             type="text"
             name="descripcion"
             placeholder="Descripción"
-            value={formEmprendimiento.descripcion}
+            value={formImpr(formEmprendimiento.descripcion)}
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
 
           {/* Upload logo */}
           <label style={{ fontSize: 13, color: "#374151", marginTop: 6 }}>Logo (subir imagen)</label>
-          <input type="file" accept="image/*" onChange={handleLogoFileChange} style={styles.inputFile} />
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleLogoFileChange}
+            style={styles.inputFile}
+          />
           {logoPreview && (
             <div style={{ maxWidth: 160, marginTop: 8 }}>
               <img
                 src={logoPreview}
                 alt="preview logo"
                 style={{ width: "100%", borderRadius: 8 }}
-                onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                onError={(e) => {
+                  e.currentTarget.src = `${API_BASE}/img/placeholder.png`;
+                }}
               />
             </div>
           )}
@@ -507,7 +564,7 @@ export const FormProducto = () => {
             type="text"
             name="direccion"
             placeholder="Dirección"
-            value={formEmprendimiento.ubicacion.direccion}
+            value={formImpr(formEmprendimiento.ubicacion.direccion)}
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
@@ -515,7 +572,7 @@ export const FormProducto = () => {
             type="text"
             name="ciudad"
             placeholder="Ciudad"
-            value={formEmprendimiento.ubicacion.ciudad}
+            value={formImpr(formEmprendimiento.ubicacion.ciudad)}
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
@@ -525,7 +582,7 @@ export const FormProducto = () => {
               step="any"
               name="lat"
               placeholder="Latitud (ej: -0.180653)"
-              value={formEmprendimiento.ubicacion.lat}
+              value={formImpr(formEmprendimiento.ubicacion.lat)}
               onChange={handleChangeEmprendimiento}
               style={{ ...styles.input, flex: 1 }}
             />
@@ -534,7 +591,7 @@ export const FormProducto = () => {
               step="any"
               name="lng"
               placeholder="Longitud (ej: -78.467834)"
-              value={formEmprendimiento.ubicacion.lng}
+              value={formImpr(formEmprendimiento.ubicacion.lng)}
               onChange={handleChangeEmprendimiento}
               style={{ ...styles.input, flex: 1 }}
             />
@@ -543,7 +600,7 @@ export const FormProducto = () => {
             type="text"
             name="telefono"
             placeholder="Teléfono"
-            value={formEmprendimiento.contacto.telefono}
+            value={formImpr(formImpr(formEmprendimiento.contacto.telefono))}
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
@@ -551,12 +608,27 @@ export const FormProducto = () => {
             type="email"
             name="email"
             placeholder="Email"
-            value={formEmprendimiento.contacto.email}
+            value={formImpr(formEmprendimiento.contacto.email)}
             onChange={handleChangeEmprendimiento}
             style={styles.input}
           />
+
+          {/* Progreso de subida (opcional) */}
+          {uploadingEmp && (
+            <div style={styles.progressWrap}>
+              <div style={{ ...styles.progressBar, width: `${uploadProgressEmp}%` }} />
+            </div>
+          )}
+
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
+            <button
+              type="submit"
+              style={{
+                ...styles.buttonCreate,
+                ...(uploadingEmp ? styles.buttonDisabled : {}),
+              }}
+              disabled={uploadingEmp}
+            >
               {modoEdicionEmp ? "Actualizar Emprendimiento" : "Crear Emprendimiento"}
             </button>
             {modoEdicionEmp && (
@@ -568,7 +640,7 @@ export const FormProducto = () => {
         </form>
       </div>
 
-      {/* LISTA EMPRENDIMIENTOS */}
+      {/* LISTA EMPRENDIMIENTOS (abajo) */}
       <div style={styles.listaContainer}>
         <h3 style={styles.sectionTitle}>Tus Emprendimientos</h3>
         {loadingEmprendimientos ? (
@@ -586,7 +658,9 @@ export const FormProducto = () => {
                       alt={emp.nombreComercial}
                       style={styles.productImage}
                       loading="lazy"
-                      onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                      onError={(e) => {
+                        e.currentTarget.src = `${API_BASE}/img/placeholder.png`;
+                      }}
                     />
                   ) : (
                     <div style={styles.productPlaceholder}>
@@ -600,14 +674,24 @@ export const FormProducto = () => {
                 <div style={styles.cardBody}>
                   <strong style={styles.cardTitle}>{emp.nombreComercial}</strong>
                   <p style={styles.cardDescClamp}>{emp.descripcion}</p>
-                  <p style={styles.small}><b>Dirección:</b> {emp.ubicacion?.direccion || "-"}</p>
-                  <p style={styles.small}><b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}</p>
-                  <p style={styles.small}><b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}</p>
+                  <p style={styles.small}>
+                    <b>Dirección:</b> {emp.ubicacion?.direccion || "-"}
+                  </p>
+                  <p style={styles.small}>
+                    <b>Ciudad:</b> {emp.ubicacion?.ciudad || "-"}
+                  </p>
+                  <p style={styles.small}>
+                    <b>Contacto:</b> {emp.contacto?.telefono || "-"} | {emp.contacto?.email || "-"}
+                  </p>
                 </div>
 
                 <div style={styles.cardActions}>
-                  <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>Editar</button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>Eliminar</button>
+                  <button style={styles.buttonEdit} onClick={() => editarEmprendimiento(emp)}>
+                    Editar
+                  </button>
+                  <button style={styles.buttonDelete} onClick={() => eliminarEmprendimiento(emp._id)}>
+                    Eliminar
+                  </button>
                 </div>
               </div>
             ))}
@@ -615,17 +699,17 @@ export const FormProducto = () => {
         )}
       </div>
 
-      {/* FORMULARIO PRODUCTO */}
-      <div style={styles.formContainer}>
+      {/* FORMULARIO PRODUCTO (arriba del listado de productos — mantenemos orden: formulario y luego lista) */}
+      <div ref={prodFormRef} style={styles.formContainer}>
         <h2 style={styles.title}>{modoEdicionProducto ? "Editar Producto" : "Crear Producto"}</h2>
-        {error && <p style={styles.error}>{error}</p>}
 
         <form onSubmit={handleSubmitProducto} style={styles.form}>
           <input
+            ref={prodFirstInputRef}
             type="text"
             name="nombre"
             placeholder="Nombre"
-            value={form.nombre}
+            value={formImpr(form.nombre)}
             onChange={handleChange}
             required
             style={styles.input}
@@ -634,7 +718,7 @@ export const FormProducto = () => {
             type="text"
             name="descripcion"
             placeholder="Descripción"
-            value={form.descripcion}
+            value={formImpr(form.descripcion)}
             onChange={handleChange}
             style={styles.input}
           />
@@ -643,7 +727,7 @@ export const FormProducto = () => {
             name="precio"
             placeholder="Precio"
             step="0.01"
-            value={form.precio}
+            value={formImpr(form.precio)}
             onChange={handleChange}
             required
             min="0"
@@ -652,14 +736,22 @@ export const FormProducto = () => {
 
           {/* Imagen producto */}
           <label style={{ fontSize: 13, color: "#374151", marginTop: 6 }}>Imagen del producto</label>
-          <input type="file" accept="image/*" onChange={handleProductImageFileChange} style={styles.inputFile} />
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleProductImageFileChange}
+            style={styles.inputFile}
+          />
           {productImagePreview && (
             <div style={{ maxWidth: 240, marginTop: 8 }}>
               <img
                 src={productImagePreview}
                 alt="preview producto"
                 style={{ width: "100%", borderRadius: 8 }}
-                onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                onError={(e) => {
+                  e.currentTarget.src = `${API_BASE}/img/placeholder.png`;
+                }}
               />
             </div>
           )}
@@ -668,7 +760,7 @@ export const FormProducto = () => {
             type="number"
             name="stock"
             placeholder="Stock"
-            value={form.stock}
+            value={formImpr(form.stock)}
             onChange={handleChange}
             min="0"
             style={styles.input}
@@ -689,8 +781,22 @@ export const FormProducto = () => {
             ))}
           </select>
 
+          {/* Progreso de subida (opcional) */}
+          {uploadingProducto && (
+            <div style={styles.progressWrap}>
+              <div style={{ ...styles.progressBar, width: `${uploadProgressProducto}%` }} />
+            </div>
+          )}
+
           <div style={styles.buttonRow}>
-            <button type="submit" style={styles.buttonCreate}>
+            <button
+              type="submit"
+              style={{
+                ...styles.buttonCreate,
+                ...(uploadingProducto ? styles.buttonDisabled : {}),
+              }}
+              disabled={uploadingProducto}
+            >
               {modoEdicionProducto ? "Actualizar Producto" : "Crear Producto"}
             </button>
             {modoEdicionProducto && (
@@ -702,10 +808,10 @@ export const FormProducto = () => {
         </form>
       </div>
 
-      {/* LISTA PRODUCTOS */}
+      {/* LISTA PRODUCTOS (abajo) */}
       <div style={styles.listaContainer}>
         <h3 style={styles.sectionTitle}>Tus Productos</h3>
-        {loading ? (
+        {loadingProductos ? (
           <p style={styles.muted}>Cargando productos...</p>
         ) : productos.length === 0 ? (
           <p style={styles.muted}>No tienes productos aún.</p>
@@ -720,7 +826,9 @@ export const FormProducto = () => {
                       alt={prod.nombre}
                       style={styles.productImage}
                       loading="lazy"
-                      onError={(e) => { e.currentTarget.src = `${API_BASE}/img/placeholder.png`; }}
+                      onError={(e) => {
+                        e.currentTarget.src = `${API_BASE}/img/placeholder.png`;
+                      }}
                     />
                   ) : (
                     <div style={styles.productPlaceholder}>
@@ -735,15 +843,19 @@ export const FormProducto = () => {
                   <strong style={styles.cardTitle}>{prod.nombre}</strong>
                   <p style={styles.cardDescClamp}>{prod.descripcion}</p>
                   <p style={styles.price}>
-                    Precio: <span style={styles.priceValue}>${Number(prod.precio).toFixed(2)}</span>
+                    Precio: <span style={styles.priceValue}>${Number(prod.precio ?? 0).toFixed(2)}</span>
                   </p>
-                  <p style={styles.small}>Stock: {prod.stock}</p>
+                  <p style={styles.small}>Stock: {prod.stock ?? 0}</p>
                   <p style={styles.small}>Emprendimiento: {prod.emprendimiento?.nombreComercial || "-"}</p>
                 </div>
 
                 <div style={styles.cardActions}>
-                  <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>Editar</button>
-                  <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>Eliminar</button>
+                  <button style={styles.buttonEdit} onClick={() => editarProducto(prod)}>
+                    Editar
+                  </button>
+                  <button style={styles.buttonDelete} onClick={() => eliminarProducto(prod._id)}>
+                    Eliminar
+                  </button>
                 </div>
               </div>
             ))}
@@ -764,7 +876,7 @@ const styles = {
     width: "100%",
     maxWidth: "920px",
     margin: "24px auto",
-    fontFamily: "'Inter', system-ui, Aerial, sans-serif",
+    fontFamily: "'Inter', system-ui, Arial, sans-serif",
     boxSizing: "border-box",
   },
   title: {
@@ -831,7 +943,7 @@ const styles = {
     transition: "background-color .12s ease",
   },
   buttonRow: { display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "0.75rem" },
-  listaContainer: { maxWidth: 920, margin: "1.5rem auto 0 auto", padding: 15, fontFamily: "'Inter', system-ui, Aerial, sans-serif" },
+  listaContainer: { maxWidth: 920, margin: "1.5rem auto 0 auto", padding: 15, fontFamily: "'Inter', system-ui, Arial, sans-serif" },
   muted: { color: "#6B7280", fontSize: "0.95rem", textAlign: "center", margin: "12px 0" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", alignItems: "stretch" },
   card: {
@@ -874,7 +986,6 @@ const styles = {
   productPlaceholder: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#334155" },
   cardBody: { flex: 1, display: "flex", flexDirection: "column", gap: 8 },
   cardTitle: { fontSize: "1.02rem", color: "#0F172A", marginBottom: 4, display: "block", wordBreak: "break-word" },
-  cardDesc: { color: "#4B5563", fontSize: "0.92rem", marginBottom: 8, wordBreak: "break-word" },
   cardDescClamp: {
     color: "#4B5563",
     fontSize: "0.92rem",
@@ -893,6 +1004,21 @@ const styles = {
   buttonEdit: { backgroundColor: "#F59E0B", border: "none", padding: "8px 12px", borderRadius: 8, cursor: "pointer" },
   buttonDelete: { backgroundColor: "#DC2626", color: "white", border: "none", padding: "8px 12px", borderRadius: 8, cursor: "pointer" },
   error: { color: "#B91C1C", marginBottom: 8, fontWeight: 700, textAlign: "center" },
+  buttonDisabled: { opacity: 0.6, cursor: "not-allowed" },
+  progressWrap: {
+    width: "100%",
+    height: 8,
+    backgroundColor: "#EEF2FF",
+    borderRadius: 8,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#0F766E",
+    transition: "width .15s ease",
+  },
 };
 
 export default FormProducto;
+``
