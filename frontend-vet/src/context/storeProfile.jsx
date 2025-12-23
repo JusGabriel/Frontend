@@ -10,7 +10,7 @@ const getStoredAuth = () => {
 
 const getAuthHeaders = () => {
   const { token } = getStoredAuth();
-  return { headers: { Authorization: `Bearer ${token}` } }; // 👈 NO fijamos multipart aquí
+  return { headers: { Authorization: `Bearer ${token}` } };
 };
 
 const getEndpointPrefix = (rol) => {
@@ -37,7 +37,7 @@ const storeProfile = create((set) => ({
       const respuesta = await axios.get(url, getAuthHeaders());
       set({ user: respuesta.data });
       return { success: true, data: respuesta.data };
-    } catch (error) {
+    } catch {
       return { success: false, error: 'No se pudo obtener el perfil del usuario' };
     }
   },
@@ -77,7 +77,7 @@ const storeProfile = create((set) => ({
     }
   },
 
-  // 👇 NUEVO: subir foto de perfil (multipart)
+  // 👇 NUEVO: subir foto de perfil (multipart; no fijamos Content-Type)
   updateProfilePhoto: async (fileOrUrl, id) => {
     try {
       const { rol } = getStoredAuth();
@@ -85,20 +85,14 @@ const storeProfile = create((set) => ({
       if (!prefix) return { success: false, error: 'Rol no reconocido' };
 
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
-
-      // Construir FormData
       const fd = new FormData();
-      if (fileOrUrl instanceof File) {
-        fd.append('foto', fileOrUrl);
-      } else if (typeof fileOrUrl === 'string') {
-        fd.append('foto', fileOrUrl);
-      } else {
-        return { success: false, error: 'Entrada inválida para foto' };
-      }
+
+      if (fileOrUrl instanceof File) fd.append('foto', fileOrUrl);
+      else if (typeof fileOrUrl === 'string') fd.append('foto', fileOrUrl);
+      else return { success: false, error: 'Entrada inválida para foto' };
 
       const respuesta = await axios.put(url, fd, getAuthHeaders());
       const admin = respuesta.data?.admin || respuesta.data;
-
       set({ user: admin });
       return { success: true, data: admin, msg: respuesta.data?.msg || 'Foto actualizada' };
     } catch (error) {
@@ -106,7 +100,7 @@ const storeProfile = create((set) => ({
     }
   },
 
-  // 👇 NUEVO: eliminar foto de perfil
+  // 👇 NUEVO: eliminar foto
   deleteProfilePhoto: async (id) => {
     try {
       const { rol } = getStoredAuth();
@@ -117,7 +111,9 @@ const storeProfile = create((set) => ({
       const respuesta = await axios.delete(url, getAuthHeaders());
       const admin = respuesta.data?.admin || null;
 
-      set({ user: admin || (await storeProfile.getState().profile()).data });
+      // refresca el perfil tras eliminar
+      const prof = await storeProfile.getState().profile();
+      set({ user: prof?.data || admin });
       return { success: true, msg: respuesta.data?.msg || 'Foto eliminada' };
     } catch (error) {
       return { success: false, error: error.response?.data?.msg || 'Error al eliminar foto' };
