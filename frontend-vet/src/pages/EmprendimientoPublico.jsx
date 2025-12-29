@@ -699,15 +699,6 @@ export default function EmprendimientoPublico() {
                           <p className="text-sm font-semibold text-gray-700 mb-1">
                             Stock: {producto.stock ?? '—'}
                           </p>
-
-                          <p className="text-sm text-gray-600 mb-1">
-                            <strong>Emprendimiento:</strong> {empr?.nombreComercial ?? '—'}
-                          </p>
-
-                          <p className="text-sm text-gray-600">
-                            <strong>Emprendedor:</strong>{' '}
-                            {dueño ? `${dueño.nombre ?? ''} ${dueño.apellido ?? ''}`.trim() : '—'}
-                          </p>
                         </div>
 
                         {/* BOTONES PRODUCTOS */}
