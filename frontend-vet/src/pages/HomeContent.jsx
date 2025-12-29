@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
+import CommentsSection from '../components/CommentsSection'; // ✅ Import de comentarios
 
 /* -------------------- Config UX: Mostrar más (client-side) -------------------- */
 const PRODUCTS_PAGE_SIZE = 8; // cantidad a mostrar por bloque en Productos
@@ -320,9 +322,7 @@ const SearchBar = ({
 
       {/* Dropdown de sugerencias */}
       {open && (
-        <div
-          className="relative"
-        >
+        <div className="relative">
           <div
             className="absolute mt-2 w-full bg-white border border-[#E0C7B6] rounded-md shadow-lg z-50"
             role="listbox"
@@ -503,9 +503,6 @@ const SearchResults = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Reutiliza tu lógica de contactar desde resultados
-                            // Se necesita p.emprendimiento para id; si no llega en respuesta de búsqueda,
-                            // puedes abrir login para el flujo actual:
                             navigate('/login?rol=cliente');
                           }}
                           className="w-full bg-[#AA4A44] text-white py-2 rounded-md text-sm hover:bg-[#933834] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AA4A44]"
@@ -1295,6 +1292,14 @@ const HomeContent = () => {
                     variant="outline"
                   />
                 </div>
+
+                {/* ✅ Sección de comentarios para PRODUCTO */}
+                <CommentsSection
+                  API_BASE={API_BASE}
+                  destinoTipo="Producto"
+                  destinoId={productoSeleccionado?._id}
+                  className="mt-8"
+                />
               </div>
             </div>
           )}
@@ -1397,6 +1402,14 @@ const HomeContent = () => {
                     showLabelOnMobile
                   />
                 </div>
+
+                {/* ✅ Sección de comentarios para EMPRENDIMIENTO */}
+                <CommentsSection
+                  API_BASE={API_BASE}
+                  destinoTipo="Emprendimiento"
+                  destinoId={emprendimientoSeleccionado?._id}
+                  className="mt-8"
+                />
               </div>
             </div>
           )}
