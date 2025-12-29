@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -7,29 +8,53 @@ import storeAuth from '../context/storeAuth';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import panecillo from '../pages/Imagenes/panecillo.jpg';
 
+/** Derivación segura en caso de que el backend no mande estadoUI */
+function deriveEstadoUIFront(status, estado_Emprendedor) {
+  if (status === false) return 'Suspendido';
+  const e = estado_Emprendedor || 'Activo';
+  return ['Advertencia1', 'Advertencia2', 'Advertencia3', 'Suspendido'].includes(e) ? e : 'Correcto';
+}
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const { token, setToken, setRol, setId } = storeAuth();
+
+  // 👇 AÑADE setters de estado desde el store
+  const {
+    token, setToken, setRol, setId,
+    setEstadoUI, setEstadoInterno, setStatus,
+    clearToken
+  } = storeAuth();
+
   const navigate = useNavigate();
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Capturar datos desde Google OAuth
+  // Capturar datos desde Google OAuth (si vienen por URL)
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
-    const rolFromUrl = query.get('rol');
-    const idFromUrl = query.get('id');
+    const rolFromUrl   = query.get('rol');
+    const idFromUrl    = query.get('id');
 
     if (tokenFromUrl && rolFromUrl && idFromUrl) {
       setToken(tokenFromUrl);
       setRol(rolFromUrl);
       setId(idFromUrl);
+
+      // ⚠️ Nota: en OAuth no recibimos estadoUI/estado_Emprendedor por query.
+      // Si lo agregas en el futuro, acá podrás setearlos igual:
+      // const estadoUIFromUrl = query.get('estadoUI');
+      // const estadoInternoFromUrl = query.get('estado_Emprendedor');
+      // const statusFromUrl = query.get('status');
+      // setEstadoUI(estadoUIFromUrl ?? null);
+      // setEstadoInterno(estadoInternoFromUrl ?? null);
+      // setStatus(typeof statusFromUrl === 'string' ? statusFromUrl === 'true' : true);
+
       navigate('/dashboard');
     }
   }, [location.search, setToken, setRol, setId, navigate]);
 
-  // Redirigir si ya tiene token
+  // Redirigir si ya hay token (sesión previa)
   useEffect(() => {
     if (token) navigate('/dashboard');
   }, [token, navigate]);
@@ -41,10 +66,10 @@ const Login = () => {
         case 'admin':
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
           break;
-        case 'user':
+        case 'user':   // Cliente
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
           break;
-        case 'editor':
+        case 'editor': // Emprendedor
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
           break;
         default:
@@ -59,50 +84,64 @@ const Login = () => {
       });
 
       const contentType = response.headers.get('content-type');
-      let result;
-      if (contentType?.includes('application/json')) {
-        result = await response.json();
-      } else {
+      if (!contentType?.includes('application/json')) {
         throw new Error('No existen estos datos para el rol seleccionado');
       }
 
-      if (!response.ok) throw new Error(result.msg || 'Credenciales incorrectas');
+      const result = await response.json();
+      // 👇 Útil para verificar nombres exactos de campos que envía el backend:
+      // console.log('LOGIN response:', result);
 
-      const roleMap = {
-        admin: 'Administrador',
-        editor: 'Emprendedor',
-        user: 'Cliente'
-      };
+      // 🚫 Manejo de suspensión (403)
+      if (!response.ok) {
+        if (response.status === 403 && (result?.estadoUI === 'Suspendido' || result?.status === false)) {
+          clearToken(); // Limpia store persistido
+          toast.error(result?.msg || 'Cuenta suspendida. Contacta soporte.');
+          return;
+        }
+        throw new Error(result?.msg || 'Credenciales incorrectas');
+      }
 
+      // ✅ Persistir credenciales base
+      const roleMap = { admin: 'Administrador', editor: 'Emprendedor', user: 'Cliente' };
       setToken(result.token);
       setRol(roleMap[data.role] || result.rol);
       setId(result._id);
 
-      toast.success('Inicio de sesión exitoso');
-      setTimeout(() => navigate('/dashboard'), 1500);
+      // ✅ Persistir estado (usa lo que venga; si no viene, deriva en frontend)
+      const estadoUIResp       = result?.estadoUI ?? deriveEstadoUIFront(result?.status, result?.estado_Emprendedor);
+      const estadoInternoResp  = result?.estado_Emprendedor ?? 'Activo';
+      const statusResp         = typeof result?.status === 'boolean' ? result.status : true;
+
+      setEstadoUI(estadoUIResp);
+      setEstadoInterno(estadoInternoResp);
+      setStatus(statusResp);
+
+      // ℹ️ Aviso no bloqueante si tiene advertencias
+      if (['Advertencia1', 'Advertencia2', 'Advertencia3'].includes(estadoUIResp)) {
+        toast.warn(`Tu cuenta tiene ${estadoUIResp}. Algunas acciones podrían estar limitadas.`);
+      } else {
+        toast.success('Inicio de sesión exitoso');
+      }
+
+      setTimeout(() => navigate('/dashboard'), 800);
     } catch (error) {
       toast.error(error.message || 'Ocurrió un error inesperado');
     }
   };
 
-  const GOOGLE_CLIENT_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
+  const GOOGLE_CLIENT_URL      = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
   return (
     <div style={containerStyle}>
       <ToastContainer />
-      
+
       {/* Animación burbujas */}
       <style>{`
         @keyframes rise {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 0.7;
-          }
-          100% {
-            transform: translateY(-110vh) scale(1.3);
-            opacity: 0;
-          }
+          0% { transform: translateY(0) scale(1); opacity: 0.7; }
+          100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
         }
       `}</style>
 
@@ -127,7 +166,6 @@ const Login = () => {
         {/* Formulario */}
         <div style={formContainerStyle}>
           <form onSubmit={handleSubmit(loginUser)} style={formStyle}>
-
             <h1 style={{ fontSize: '1.8rem', fontWeight: '600', textAlign: 'center', marginBottom: '0.3rem', color: '#3B2F2F' }}>
               Bienvenido(a) de nuevo
             </h1>
@@ -193,26 +231,30 @@ const Login = () => {
               Iniciar sesión
             </button>
 
-
-
-
             <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Link to="/" style={{ color: '#AA4A44', fontSize: '0.9rem', textDecoration: 'underline' }}>
                 Regresar
               </Link>
-              <Link to="/register" style={{
-                backgroundColor: '#AA4A44',
-                padding: '0.5rem 1.2rem',
-                borderRadius: '20px',
-                color: 'white',
-                fontWeight: '600',
-                textDecoration: 'none',
-                fontSize: '0.9rem',
-              }}>
+              <Link
+                to="/register"
+                style={{
+                  backgroundColor: '#AA4A44',
+                  padding: '0.5rem 1.2rem',
+                  borderRadius: '20px',
+                  color: 'white',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  fontSize: '0.9rem',
+                }}
+              >
                 Registrarse
               </Link>
             </div>
 
+            {/* Si en el futuro quieres login con Google:
+                <a href={GOOGLE_CLIENT_URL} style={googleButtonStyleBlue}>Login con Google (Cliente)</a>
+                <a href={GOOGLE_EMPRENDEDOR_URL} style={googleButtonStyleGray}>Login con Google (Emprendedor)</a>
+            */}
           </form>
         </div>
       </div>
