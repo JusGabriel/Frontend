@@ -19,6 +19,37 @@ function getInitials(nombre = '', apellido = '') {
   return chars.toUpperCase();
 }
 
+/** Obtiene el ID del autor desde varias posibles formas del objeto */
+function getAuthorId(comment) {
+  const u = comment?.usuario;
+  return (
+    u?._id ??
+    comment?.autor?._id ??
+    comment?.usuarioId ??
+    comment?.autorId ??
+    comment?.userId ??
+    null
+  );
+}
+
+/** Normaliza rol para comparar */
+function isAdminRole(rol) {
+  const r = (rol || '').toString().trim().toLowerCase();
+  return r === 'admin' || r === 'administrador' || r === 'superadmin';
+}
+
+/** Regla de visibilidad del botón Eliminar */
+function canDeleteComment(comment, currentUserId, rol) {
+  // Si el backend ya manda un flag explícito, úsalo.
+  if (typeof comment?.puedeEliminar === 'boolean') {
+    return comment.puedeEliminar;
+  }
+  const authorId = getAuthorId(comment);
+  const isOwner =
+    currentUserId && authorId && String(currentUserId) === String(authorId);
+  return isOwner || isAdminRole(rol);
+}
+
 /**
  * CommentsSection
  * Props:
@@ -26,8 +57,14 @@ function getInitials(nombre = '', apellido = '') {
  * - destinoTipo: 'Producto' | 'Emprendimiento'
  * - destinoId: string (ObjectId del backend)
  */
-export default function CommentsSection({ API_BASE, destinoTipo, destinoId, className = '' }) {
-  const { token, rol } = storeAuth() || {};
+export default function CommentsSection({
+  API_BASE,
+  destinoTipo,
+  destinoId,
+  className = '',
+}) {
+  // ✅ con tu storeAuth: id, rol y token están disponibles
+  const { id: usuarioId, token, rol } = storeAuth() || {};
   const [comentarios, setComentarios] = useState([]);
   const [texto, setTexto] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,9 +112,9 @@ export default function CommentsSection({ API_BASE, destinoTipo, destinoId, clas
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ destinoTipo, destinoId, texto: text })
+        body: JSON.stringify({ destinoTipo, destinoId, texto: text }),
       });
 
       const data = await res.json();
@@ -107,7 +144,7 @@ export default function CommentsSection({ API_BASE, destinoTipo, destinoId, clas
     try {
       const res = await fetch(`${API_BASE}/api/comentarios/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.msg || 'No se pudo eliminar');
@@ -168,8 +205,12 @@ export default function CommentsSection({ API_BASE, destinoTipo, destinoId, clas
             const u = c.usuario || {}; // poblado por refPath
             const nombre = [u.nombre, u.apellido].filter(Boolean).join(' ').trim();
             const badge = c.usuarioTipo || u.rol || 'Usuario';
+
+            // ✅ Solo mostrar Eliminar al autor o a un admin
+            const showDelete = token && canDeleteComment(c, usuarioId, rol);
+
             return (
-              <li key={c._id} className="p-3 border border-[#E0C7B6] rounded-md bg-white">
+              <li key={c._id} className="p-3 border border-[#E0C7B6] rounded-md bg-white group">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-[#F7E5D2] flex items-center justify-center text-[#AA4A44] font-bold">
@@ -183,17 +224,19 @@ export default function CommentsSection({ API_BASE, destinoTipo, destinoId, clas
                       <p className="text-xs text-gray-500">{formatDate(c.createdAt)}</p>
                     </div>
                   </div>
-                  {/* Botón eliminar: el backend valida autor o administrador */}
-                  {token && (
+
+                  {/* Botón eliminar: SOLO autor o administrador */}
+                  {showDelete && (
                     <button
                       onClick={() => handleDelete(c._id)}
-                      className="text-xs text-red-600 hover:text-red-700 underline"
+                      className="text-xs text-red-600 hover:text-red-700 underline opacity-70 hover:opacity-100"
                       title="Eliminar comentario"
                     >
                       Eliminar
                     </button>
                   )}
                 </div>
+
                 <p className="mt-2 text-sm text-gray-800 leading-relaxed">{c.texto}</p>
               </li>
             );
