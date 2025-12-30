@@ -3,12 +3,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
-import CommentsSection from '../components/CommentsSection';
-import politicasPdf from '../assets/Politicas_QuitoEmprende.pdf';
+import CommentsSection from '../components/CommentsSection'; // ✅ Import de comentarios
 
 /* -------------------- Config UX: Mostrar más (client-side) -------------------- */
-const PRODUCTS_PAGE_SIZE = 8;
-const EMPS_PAGE_SIZE = 8;
+const PRODUCTS_PAGE_SIZE = 8; // cantidad a mostrar por bloque en Productos
+const EMPS_PAGE_SIZE = 8;     // cantidad a mostrar por bloque en Emprendimientos
 
 /* -------------------- Icon / HeartButton -------------------- */
 const IconHeartSvg = ({ filled = false, size = 16 }) => (
@@ -48,6 +47,7 @@ const HeartButton = ({
 
   const handleClick = (e) => {
     e.stopPropagation();
+    // If uncontrolled, toggle locally
     if (!isControlled) setLocalFilled((s) => !s);
     onClick(e, !filled);
   };
@@ -90,6 +90,8 @@ const HeartButton = ({
 };
 
 /* ===================== Helpers de búsqueda / highlight ===================== */
+
+/** Normaliza texto para comparaciones locales (quita acentos, baja a minúsculas) */
 function normalize(str = '') {
   return str
     .toString()
@@ -97,6 +99,8 @@ function normalize(str = '') {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, ''); // remove diacritics
 }
+
+/** Resalta el término en el texto con <mark> */
 function highlight(text, term) {
   if (!text || !term) return text;
   const safe = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -105,47 +109,6 @@ function highlight(text, term) {
     re.test(chunk) ? <mark key={i} className="bg-yellow-200">{chunk}</mark> : <span key={i}>{chunk}</span>
   );
 }
-
-/* ===================== Banner de Estado (sencillo y responsivo) ===================== */
-const estadoMensajes = {
-  Advertencia1:
-    'Tu cuenta tiene una advertencia. Por favor revisa las políticas y evita futuras infracciones.',
-  Advertencia2:
-    'Tu cuenta tiene dos advertencias. Si reincides, podrías ser suspendido.',
-  Advertencia3:
-    'Tu cuenta está en advertencia grave. Estás a un paso de la suspensión.',
-  Suspendido:
-    'Tu cuenta está suspendida. No puedes acceder. Contacta a soporte para más información.',
-};
-
-const BannerEstado = ({ estadoUI }) => {
-  if (!estadoUI || estadoUI === 'Correcto') return null;
-  const isSuspendido = estadoUI === 'Suspendido';
-  return (
-    <div
-      className={`w-full px-4 py-3 mb-6 rounded-lg text-center font-semibold text-base
-        ${isSuspendido
-          ? 'bg-red-100 border border-red-400 text-red-800'
-          : 'bg-yellow-100 border border-yellow-400 text-yellow-800'
-        }`}
-      style={{ wordBreak: 'break-word', maxWidth: 700, margin: '1.5rem auto 0 auto' }}
-    >
-      {estadoMensajes[estadoUI] || 'Estado de cuenta especial.'}
-      {!isSuspendido && (
-        <div className="mt-2 text-sm">
-          <a
-            href={politicasPdf}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#AA4A44] underline"
-          >
-            Ver políticas de uso (PDF)
-          </a>
-        </div>
-      )}
-    </div>
-  );
-};
 
 /* ===================== Barra de Búsqueda con sugerencias ===================== */
 const SearchBar = ({
@@ -176,7 +139,7 @@ const SearchBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Debounce de sugerencias
+  // Debounce de sugerencias (solo para términos >= 2)
   useEffect(() => {
     if (abortRef.current) abortRef.current.abort();
     const ac = new AbortController();
@@ -221,7 +184,7 @@ const SearchBar = ({
     ...suggestions.emprendedores.map(s => ({ type: 'emprendedor', value: s })),
   ];
 
-  /** Filtro local para términos cortos */
+  /** Filtro local para términos cortos (instantáneo) */
   const localSearch = (q) => {
     const nq = normalize(q);
     const prods = productos.filter(p => {
@@ -242,7 +205,7 @@ const SearchBar = ({
       return nombreComercial.includes(nq) || desc.includes(nq) || ciudad.includes(nq) || owner.includes(nq);
     }).slice(0, 12);
 
-    // Derivar "emprendedores" localmente
+    // Derivar "emprendedores" desde emprendimientos localmente (sin backend)
     const ownersMap = new Map();
     emps.forEach(emp => {
       const ownerId = emp?.emprendedor?._id || emp?.emprendedorId;
@@ -281,6 +244,7 @@ const SearchBar = ({
       return;
     }
 
+    // Caso ≥ 2: buscar en backend
     try {
       const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&types=productos,emprendimientos,emprendedores&limit=12&page=1`);
       const data = await res.json();
@@ -341,6 +305,7 @@ const SearchBar = ({
             aria-label="Buscar"
             className="w-full px-4 py-2 rounded-md border border-[#E0C7B6] bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#AA4A44]"
           />
+          {/* Estado de carga de sugerencias */}
           {loadingSuggest && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">Buscando…</span>
           )}
@@ -355,6 +320,7 @@ const SearchBar = ({
         </button>
       </form>
 
+      {/* Dropdown de sugerencias */}
       {open && (
         <div className="relative">
           <div
@@ -442,7 +408,7 @@ const SearchResults = ({
   handleFavoriteEmprendimiento,
   favoritesSet
 }) => {
-  const [activeTab, setActiveTab] = useState('todos');
+  const [activeTab, setActiveTab] = useState('todos'); // todos | productos | emprendimientos | emprendedores
 
   if (!data) return null;
   if (data?.error) {
@@ -504,7 +470,6 @@ const SearchResults = ({
           ))}
         </div>
 
-        {/* Productos */}
         {(activeTab === 'todos' || activeTab === 'productos') && (
           <>
             <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Productos</h3>
@@ -563,7 +528,6 @@ const SearchResults = ({
           </>
         )}
 
-        {/* Emprendimientos */}
         {(activeTab === 'todos' || activeTab === 'emprendimientos') && (
           <>
             <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Emprendimientos</h3>
@@ -624,7 +588,6 @@ const SearchResults = ({
           </>
         )}
 
-        {/* Emprendedores */}
         {(activeTab === 'todos' || activeTab === 'emprendedores') && (
           <>
             <h3 className="text-xl font-bold text-[#AA4A44] mb-3">Emprendedores</h3>
@@ -658,7 +621,7 @@ const SearchResults = ({
 /* -------------------- HomeContent -------------------- */
 const HomeContent = () => {
   const navigate = useNavigate();
-  const { id: usuarioId, token, estadoUI, status } = storeAuth() || {};
+  const { id: usuarioId, token } = storeAuth() || {};
   const [section] = useState('inicio');
   const [emprendimientos, setEmprendimientos] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -667,20 +630,21 @@ const HomeContent = () => {
   const [emprendimientoSeleccionado, setEmprendimientoSeleccionado] = useState(null);
 
   // favoritos
-  const [favoritesSet, setFavoritesSet] = useState(new Set());
-  const [favoriteDocsByItem, setFavoriteDocsByItem] = useState({});
+  const [favoritesSet, setFavoritesSet] = useState(new Set()); // set de itemId
+  const [favoriteDocsByItem, setFavoriteDocsByItem] = useState({}); // map itemId -> favorito doc
 
   const API_BASE = 'https://backend-production-bd1d.up.railway.app';
   const FRONTEND_BASE = window.location.origin;
 
-  // ====== Paginación ======
+  // ====== Estados de UX/Paginación (client-side) ======
   const [prodVisibleCount, setProdVisibleCount] = useState(PRODUCTS_PAGE_SIZE);
   const [empVisibleCount, setEmpVisibleCount] = useState(EMPS_PAGE_SIZE);
 
-  // ====== Buscador ======
+  // ====== Estados de búsqueda (resultados y query) ======
   const [searchData, setSearchData] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // helpers
   const generarSlug = (texto) =>
     texto
       ?.toString()
@@ -717,13 +681,13 @@ const HomeContent = () => {
     }
   };
 
-  // Fetch data públicos
+  // Fetch data: emprendimientos y productos (sin auth)
   useEffect(() => {
     fetch(`${API_BASE}/api/emprendimientos/publicos`)
       .then((res) => res.json())
       .then((data) => {
         setEmprendimientos(Array.isArray(data) ? data : []);
-        setEmpVisibleCount(EMPS_PAGE_SIZE);
+        setEmpVisibleCount(EMPS_PAGE_SIZE); // reinicia visible ante nueva carga
       })
       .catch((err) => console.error('Error emprendimientos:', err));
   }, [API_BASE]);
@@ -738,12 +702,12 @@ const HomeContent = () => {
           ? data.productos
           : [];
         setProductos(productosArray);
-        setProdVisibleCount(PRODUCTS_PAGE_SIZE);
+        setProdVisibleCount(PRODUCTS_PAGE_SIZE); // reinicia visible ante nueva carga
       })
       .catch((err) => console.error('Error productos:', err));
   }, [API_BASE]);
 
-  // Cargar favoritos del usuario (si hay auth)
+  // Cargar favoritos del usuario (si está autenticado)
   const fetchMyFavorites = useCallback(async () => {
     if (!token) {
       setFavoritesSet(new Set());
@@ -780,7 +744,7 @@ const HomeContent = () => {
     fetchMyFavorites();
   }, [fetchMyFavorites]);
 
-  // Construir meta
+  // Construir meta mínimo para producto/emprendimiento
   const buildMetaFromProduct = (producto) => ({
     nombre: producto.nombre,
     descripcion: producto.descripcion,
@@ -800,7 +764,7 @@ const HomeContent = () => {
     slug: emp.slug || generarSlug(emp.nombreComercial),
   });
 
-  // toggle favorito
+  // toggle favorito (unifica producto y emprendimiento)
   const toggleFavorite = async ({ itemId, itemModel, meta, optimistic = true }) => {
     if (!token) {
       navigate('/login?rol=cliente');
@@ -809,6 +773,7 @@ const HomeContent = () => {
 
     const idStr = String(itemId);
 
+    // optimista: aplicar cambio localmente
     const wasFavorite = favoritesSet.has(idStr);
     const newSet = new Set(favoritesSet);
     const newDocs = { ...favoriteDocsByItem };
@@ -817,6 +782,7 @@ const HomeContent = () => {
       delete newDocs[idStr];
     } else {
       newSet.add(idStr);
+      // placeholder doc until server returns
       newDocs[idStr] = { item: itemId, itemModel, meta, activo: true };
     }
     if (optimistic) {
@@ -922,20 +888,20 @@ const HomeContent = () => {
     }
   };
 
-  // ====== Derivados visibles ======
+  // ====== Derivados visibles (client-side) ======
   const productosVisibles = productos.slice(0, prodVisibleCount);
-  const emprVisibles     = emprendimientos.slice(0, empVisibleCount);
+  const emprVisibles = emprendimientos.slice(0, empVisibleCount);
 
-  // Contadores
+  // Contadores “del 1 al X de Y”
   const prodStart = 1;
   const prodEnd = Math.min(prodVisibleCount, productos.length);
   const empStart = 1;
   const empEnd = Math.min(empVisibleCount, emprendimientos.length);
 
-  // Formateador local
+  // Formateador local de precios
   const fmtUSD = new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' });
 
-  // Callbacks buscador
+  // Callbacks de buscador
   const handleSearchResults = (payload) => {
     if (payload?.error) {
       setSearchData(payload);
@@ -944,6 +910,7 @@ const HomeContent = () => {
     }
     setSearchData(payload);
     setSearchQuery(payload?.q || '');
+    // Scroll a resultados
     try {
       const el = document.getElementById('search-results-anchor');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -955,23 +922,6 @@ const HomeContent = () => {
     setSearchQuery('');
   };
 
-  /* ========= BLOQUEO POR SUSPENSIÓN EN HOME ========= */
-  if (estadoUI === 'Suspendido' || status === false) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 px-4">
-        <BannerEstado estadoUI="Suspendido" />
-        <div className="mt-4 text-center">
-          <a
-            href="mailto:sebasj@outlook.com.ar?subject=Revisión%20de%20suspensión%20QuitoEmprende"
-            className="text-[#AA4A44] underline font-semibold"
-          >
-            Contactar soporte
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Barra de búsqueda global */}
@@ -982,9 +932,6 @@ const HomeContent = () => {
         productos={productos}
         emprendimientos={emprendimientos}
       />
-
-      {/* Banner de estado (advertencias) */}
-      <BannerEstado estadoUI={estadoUI} />
 
       {/* Anchor para scroll automático a resultados */}
       <div id="search-results-anchor" />
@@ -1003,7 +950,6 @@ const HomeContent = () => {
         />
       )}
 
-      {/* HOME PRINCIPAL */}
       {section === 'inicio' && (
         <>
           {/* PRODUCTOS DESTACADOS */}
@@ -1013,6 +959,7 @@ const HomeContent = () => {
                 Productos Destacados
               </h2>
 
+              {/* Contador UX */}
               <p className="text-sm text-gray-600 mb-6">
                 Mostrando del <strong>{prodStart}</strong> al <strong>{prodEnd}</strong> de{' '}
                 <strong>{productos.length}</strong> productos
@@ -1062,9 +1009,7 @@ const HomeContent = () => {
                               {producto.descripcion}
                             </p>
 
-                            <p className="text-lg font-bold text-[#28a745] mb-2">
-                              {fmtUSD.format(Number(producto.precio ?? 0))}
-                            </p>
+                            <p className="text-lg font-bold text-[#28a745] mb-2">{fmtUSD.format(Number(producto.precio ?? 0))}</p>
 
                             <p className="text-sm font-semibold text-gray-700 mb-1">
                               Stock: {producto.stock ?? '—'}
@@ -1080,7 +1025,7 @@ const HomeContent = () => {
                             </p>
                           </div>
 
-                          {/* BOTONES PRODUCTOS */}
+                          {/* BOTONES PRODUCTOS: columna, dentro de la card */}
                           <div className="mt-auto grid grid-cols-1 gap-2">
                             <button
                               onClick={(e) => handleContactarProducto(e, producto)}
@@ -1103,7 +1048,7 @@ const HomeContent = () => {
                     })}
                   </div>
 
-                  {/* Botón "Mostrar más" */}
+                  {/* Botón "Mostrar más" (progresivo) */}
                   <div className="w-full mt-8 flex items-center justify-center">
                     <button
                       type="button"
@@ -1144,6 +1089,7 @@ const HomeContent = () => {
                 Explora Emprendimientos
               </h2>
 
+              {/* Contador UX */}
               <p className="text-sm text-gray-600 mb-6">
                 Mostrando del <strong>{empStart}</strong> al <strong>{empEnd}</strong> de{' '}
                 <strong>{emprendimientos.length}</strong> emprendimientos
@@ -1180,6 +1126,7 @@ const HomeContent = () => {
                           loading="lazy"
                         />
 
+                        {/* Contenido principal */}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-xl font-bold text-[#AA4A44] truncate mb-2">
                             {emp.nombreComercial}
@@ -1198,6 +1145,7 @@ const HomeContent = () => {
                           </p>
                         </div>
 
+                        {/* BOTONES EMPRENDIMIENTOS */}
                         <div className="mt-6 grid grid-cols-1 gap-2">
                           <button
                             onClick={(e) => {
@@ -1232,7 +1180,7 @@ const HomeContent = () => {
                 )}
               </div>
 
-              {/* Botón "Mostrar más" */}
+              {/* Botón "Mostrar más" (progresivo) */}
               <div className="w-full mt-8 flex items-center justify-center">
                 <button
                   type="button"
@@ -1256,7 +1204,7 @@ const HomeContent = () => {
             </div>
           </section>
 
-          {/* MODAL PRODUCTO */}
+          {/* MODALES */}
           {productoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -1345,7 +1293,7 @@ const HomeContent = () => {
                   />
                 </div>
 
-                {/* Sección de comentarios para PRODUCTO */}
+                {/* ✅ Sección de comentarios para PRODUCTO */}
                 <CommentsSection
                   API_BASE={API_BASE}
                   destinoTipo="Producto"
@@ -1356,7 +1304,6 @@ const HomeContent = () => {
             </div>
           )}
 
-          {/* MODAL EMPRENDIMIENTO */}
           {emprendimientoSeleccionado && (
             <div
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
@@ -1456,7 +1403,7 @@ const HomeContent = () => {
                   />
                 </div>
 
-                {/* Sección de comentarios para EMPRENDIMIENTO */}
+                {/* ✅ Sección de comentarios para EMPRENDIMIENTO */}
                 <CommentsSection
                   API_BASE={API_BASE}
                   destinoTipo="Emprendimiento"
