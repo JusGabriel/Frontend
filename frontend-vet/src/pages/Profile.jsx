@@ -1,3 +1,4 @@
+
 // src/pages/Profile.jsx
 import React, { useEffect, useState, useCallback } from 'react';
 import CardPassword from '../components/profile/CardPassword';
@@ -5,6 +6,7 @@ import { CardProfile } from '../components/profile/CardProfile';
 import FormProfile from '../components/profile/FormProfile';
 import fondoBlanco from '../assets/fondoblanco.jpg';
 import storeAuth from '../context/storeAuth';
+import storeProfile from '../context/storeProfile'; // 👈 importar el store de perfil
 import { useNavigate } from 'react-router-dom';
 
 const API_BASE = 'https://backend-production-bd1d.up.railway.app';
@@ -12,12 +14,17 @@ const API_BASE = 'https://backend-production-bd1d.up.railway.app';
 const Profile = () => {
   const navigate = useNavigate();
   const { id: usuarioId, token } = storeAuth() || {};
-  const [favorites, setFavorites] = useState([]); // array de docs de Favorito
+  const { profile } = storeProfile();            // 👈 acción para traer el perfil
+  const [favorites, setFavorites] = useState([]);
   const [loadingFavs, setLoadingFavs] = useState(false);
+  const [productoModal, setProductoModal] = useState(null);
 
-  // Para mostrar modal/card de producto favorito
-  const [productoModal, setProductoModal] = useState(null); // { fav, meta } o null
+  // 1) Traer perfil al montar
+  useEffect(() => {
+    profile(); // obtiene /api/<prefix>/perfil y setea storeProfile.user
+  }, [profile]);
 
+  // 2) Favoritos (tal cual)
   const fetchFavorites = useCallback(async () => {
     if (!token) {
       setFavorites([]);
@@ -66,33 +73,25 @@ const Profile = () => {
     } catch (err) {
       console.error('Error toggleFavorite:', err);
     } finally {
-      // refrescar la lista (mantenemos simple y consistente)
       fetchFavorites();
-      // cerrar modal si era el mismo item
       if (productoModal?.fav?._id === favDoc._id) setProductoModal(null);
     }
   };
 
   const openItem = (fav) => {
-    // Si es Producto -> abrir modal/card con info
     if (fav.itemModel === 'Producto') {
       setProductoModal({ fav, meta: fav.meta || {} });
       return;
     }
-
-    // Emprendimiento: si slug -> abrir sitio público; si no, navegar a detalle interno
     if (fav.itemModel === 'Emprendimiento') {
       if (fav.meta?.slug) {
         const url = `${window.location.origin}/${fav.meta.slug}`;
         window.open(url, '_blank', 'noopener,noreferrer');
         return;
       }
-      // fallback interno (ajusta ruta si la tuya es distinta)
       navigate(`/emprendimiento/${fav.item}`);
       return;
     }
-
-    // fallback genérico
     if (fav.meta?.slug) {
       const url = `${window.location.origin}/${fav.meta.slug}`;
       window.open(url, '_blank', 'noopener,noreferrer');
@@ -101,24 +100,12 @@ const Profile = () => {
     }
   };
 
-  // Helpers para el modal producto
   const handleContactarDesdeModal = (meta) => {
-    // intentamos obtener id del emprendedor desde meta.emprendimiento._id
     const emprId = meta?.emprendimiento?._id || meta?.emprendimientoId || null;
-    if (!emprId) {
-      // si no hay id de emprendedor, solo cerrar modal
-      setProductoModal(null);
-      return;
-    }
-    if (!usuarioId) {
-      navigate('/login?rol=cliente');
-      return;
-    }
-    // ejemplo: ruta de chat con query productoId y productoNombre (ajusta a tu app)
+    if (!emprId) { setProductoModal(null); return; }
+    if (!usuarioId) { navigate('/login?rol=cliente'); return; }
     navigate(
-      `/dashboard/chat?user=${emprId}&productoId=${productoModal.fav.item}&productoNombre=${encodeURIComponent(
-        meta.nombre || ''
-      )}`
+      `/dashboard/chat?user=${emprId}&productoId=${productoModal.fav.item}&productoNombre=${encodeURIComponent(meta.nombre || '')}`
     );
     setProductoModal(null);
   };
@@ -142,27 +129,21 @@ const Profile = () => {
       </main>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main
-        className="flex-grow px-6 md:px-16 py-10 relative z-10 w-full"
-        style={{ minHeight: 'calc(100vh - 80px)' }}
-      >
-        {/* FILA SUPERIOR: dos columnas (formulario | profile+password) */}
+      <main className="flex-grow px-6 md:px-16 py-10 relative z-10 w-full" style={{ minHeight: 'calc(100vh - 80px)' }}>
         <div className="w-full mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Columna izquierda: FormProfile */}
             <div className="w-full">
               <FormProfile />
             </div>
 
-            {/* Columna derecha: CardProfile + CardPassword */}
             <div className="w-full flex flex-col gap-6">
-              <CardProfile />
+              <CardProfile />     {/* 👈 aquí ya estará conectado al store para subir/borrar foto */}
               <CardPassword />
             </div>
           </div>
         </div>
 
-        {/* FILA INFERIOR: Favoritos centrado */}
+        {/* Favoritos */}
         <div className="w-full">
           <div className="mx-auto w-full md:w-3/4 lg:w-2/3">
             <section className="bg-white rounded-xl shadow-md p-6">
@@ -175,16 +156,12 @@ const Profile = () => {
               ) : (
                 <div className="grid grid-cols-1 gap-3">
                   {favorites.map((fav) => (
-                    <div
-                      key={fav._id}
-                      className="flex flex-col sm:flex-row sm:items-center gap-3 border p-3 rounded-lg"
-                    >
+                    <div key={fav._id} className="flex flex-col sm:flex-row sm:items-center gap-3 border p-3 rounded-lg">
                       <img
                         src={fav.meta?.imagen || '/placeholder.png'}
                         alt={fav.meta?.nombre || 'Item favorito'}
                         className="w-full sm:w-20 h-20 object-cover rounded-md flex-shrink-0"
                       />
-
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-gray-800 truncate">{fav.meta?.nombre || '—'}</p>
                         <p className="text-xs text-gray-500">
@@ -202,7 +179,6 @@ const Profile = () => {
                         >
                           Ver
                         </button>
-
                         <button
                           onClick={() => toggleFavorite(fav)}
                           className="text-sm px-3 py-2 bg-[#AA4A44] text-white rounded-md hover:bg-[#933834] transition"
@@ -219,27 +195,12 @@ const Profile = () => {
         </div>
       </main>
 
-      {/* MODAL / CARD PRODUCTO FAVORITO */}
+      {/* MODAL PRODUCTO */}
       {productoModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          aria-modal="true"
-          role="dialog"
-          onClick={() => setProductoModal(null)}
-        >
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            aria-hidden
-          />
-          <div
-            className="relative bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl z-10 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setProductoModal(null)}
-              className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl font-bold"
-              aria-label="Cerrar"
-            >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog" onClick={() => setProductoModal(null)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden />
+          <div className="relative bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl z-10 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setProductoModal(null)} className="absolute top-4 right-4 text-gray-600 hover:text-gray-800 text-2xl font-bold" aria-label="Cerrar">
               ✕
             </button>
 
@@ -249,14 +210,12 @@ const Profile = () => {
                 alt={productoModal.meta?.nombre || 'Producto'}
                 className="w-full md:w-56 h-48 object-cover rounded-xl flex-shrink-0"
               />
-
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-[#AA4A44] mb-2">{productoModal.meta?.nombre || '—'}</h2>
                 {productoModal.meta?.precio && (
                   <p className="text-3xl font-extrabold text-[#28a745] mb-3">${productoModal.meta.precio}</p>
                 )}
                 <p className="text-gray-700 mb-4">{productoModal.meta?.descripcion || 'Sin descripción.'}</p>
-
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => handleContactarDesdeModal(productoModal.meta)}
@@ -264,14 +223,12 @@ const Profile = () => {
                   >
                     💬 Contactar
                   </button>
-
                   <button
                     onClick={() => toggleFavorite(productoModal.fav)}
                     className="px-5 py-3 bg-white border border-[#AA4A44] text-[#AA4A44] rounded-xl font-semibold hover:bg-[#AA4A44] hover:text-white transition"
                   >
                     Quitar de favoritos
                   </button>
-
                   <button
                     onClick={() => setProductoModal(null)}
                     className="px-5 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 transition"
