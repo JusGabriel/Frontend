@@ -1,14 +1,12 @@
-
 // src/components/profile/CardProfile.jsx
 import React, { useState } from "react";
 import storeProfile from "../../context/storeProfile";
 import storeAuth from "../../context/storeAuth";
 
 export const CardProfile = () => {
-  const { user, updateProfilePhotoFile, updateProfilePhotoUrl, deleteProfilePhoto } = storeProfile();
+  const { user, updateProfilePhotoFile, deleteProfilePhoto } = storeProfile();
   const { id: authId } = storeAuth();
   const [preview, setPreview] = useState(null);
-  const [fotoUrl, setFotoUrl] = useState("");
   const [busy, setBusy] = useState(false);
 
   // ID del usuario (del store del perfil si existe; si no, usamos el persistido en auth)
@@ -40,26 +38,6 @@ export const CardProfile = () => {
     }
   };
 
-  const onApplyUrl = async () => {
-    if (!fotoUrl || !userId || busy) return;
-    setBusy(true);
-    try {
-      const res = await updateProfilePhotoUrl(fotoUrl, userId);
-      if (!res.success) {
-        alert(res.error || "Error al actualizar la foto (URL)");
-      } else {
-        alert(res.msg || "Foto actualizada (URL)");
-        setPreview(null);
-        setFotoUrl("");
-      }
-    } catch (err) {
-      console.error("onApplyUrl error:", err);
-      alert("Error inesperado al actualizar por URL");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const onDeletePhoto = async () => {
     if (!userId || busy) return;
     setBusy(true);
@@ -79,7 +57,8 @@ export const CardProfile = () => {
     }
   };
 
-  const currentPhoto = preview ?? user?.foto ?? "https://cdn-icons-png.flaticon.com/512/4715/4715329.png";
+  const currentPhoto =
+    preview ?? user?.foto ?? "https://cdn-icons-png.flaticon.com/512/4715/4715329.png";
 
   return (
     <div className="card-profile">
@@ -183,29 +162,10 @@ export const CardProfile = () => {
               type="file"
               accept="image/*"
               aria-label="Seleccionar nueva foto de perfil"
-              onChange={onFileChange}   // 👈 ahora sí sube al backend
+              onChange={onFileChange}
               disabled={busy}
             />
           </label>
-        </div>
-
-        {/* Actualizar por URL */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-          <input
-            type="url"
-            placeholder="https://... (URL de imagen)"
-            value={fotoUrl}
-            onChange={(e) => setFotoUrl(e.target.value)}
-            style={{ width: 260, padding: '0.4rem', border: '1px solid #ccc', borderRadius: 8 }}
-            disabled={busy}
-          />
-          <button
-            onClick={onApplyUrl}
-            disabled={busy || !fotoUrl}
-            style={{ padding: '0.4rem 0.8rem', background: '#AA4A44', color: '#fff', borderRadius: 8 }}
-          >
-            Usar URL
-          </button>
         </div>
 
         {/* Eliminar foto */}
