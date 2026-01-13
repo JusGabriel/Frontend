@@ -1,4 +1,5 @@
 
+// src/context/storeProfile.js
 import { create } from "zustand";
 import axios from "axios";
 
@@ -17,28 +18,22 @@ const getAuthHeaders = () => {
   };
 };
 
-// 👇 Para multipart: no seteamos Content-Type manualmente (lo manejará axios/FormData)
+// Para multipart: dejamos que axios gestione el boundary automáticamente
 const getAuthHeadersMultipart = () => {
   const { token } = getStoredAuth();
   return {
     headers: {
       Authorization: `Bearer ${token}`,
-      // Si quieres, puedes incluir 'Content-Type': 'multipart/form-data'
-      // pero axios lo resolverá solo cuando el body sea FormData.
     },
   };
 };
 
 const getEndpointPrefix = (rol) => {
   switch (rol) {
-    case "Administrador":
-      return "administradores";
-    case "Cliente":
-      return "clientes";
-    case "Emprendedor":
-      return "emprendedores";
-    default:
-      return null;
+    case "Administrador": return "administradores";
+    case "Cliente":       return "clientes";
+    case "Emprendedor":   return "emprendedores";
+    default:              return null;
   }
 };
 
@@ -68,7 +63,6 @@ const storeProfile = create((set) => ({
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // /api/administradores/administradore/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       set({ user: respuesta.data });
@@ -84,10 +78,9 @@ const storeProfile = create((set) => ({
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // /api/administradores/administradore/actualizarpassword/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/actualizarpassword/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
-      return { success: true, msg: respuesta?.data?.msg || "Contraseña actualizada" };
+      return { success: true, msg: respuesta?.data?.msg || "Contraseña actualizado" };
     } catch (error) {
       return { success: false, error: error.response?.data?.msg || "Error al actualizar contraseña" };
     }
@@ -98,7 +91,7 @@ const storeProfile = create((set) => ({
      Igual que Emprendimientos
   ============================ */
 
-  // 1) Subir archivo desde <input type="file" />
+  // Subir archivo (FormData campo "foto")
   updateProfilePhotoFile: async (file, id) => {
     try {
       if (!file) return { success: false, error: "No se seleccionó archivo" };
@@ -107,15 +100,12 @@ const storeProfile = create((set) => ({
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // Endpoint: /api/administradores/administradore/foto/:id  (PUT)
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
-
       const fd = new FormData();
-      fd.append("foto", file); // 👈 el backend espera el campo "foto"
+      fd.append("foto", file);
 
       const respuesta = await axios.put(url, fd, getAuthHeadersMultipart());
 
-      // El backend responde { msg, admin } → actualizamos user con 'admin' si viene
       const updatedUser = respuesta.data?.admin ?? respuesta.data;
       set({ user: updatedUser });
 
@@ -125,24 +115,18 @@ const storeProfile = create((set) => ({
     }
   },
 
-  // 2) Actualizar con URL directa
+  // Actualizar con URL
   updateProfilePhotoUrl: async (fotoUrl, id) => {
     try {
       if (!fotoUrl || !String(fotoUrl).trim()) {
         return { success: false, error: "URL de foto inválida" };
       }
-
       const { rol } = getStoredAuth();
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
-
-      const respuesta = await axios.put(
-        url,
-        { foto: fotoUrl },
-        getAuthHeaders()
-      );
+      const respuesta = await axios.put(url, { foto: fotoUrl }, getAuthHeaders());
 
       const updatedUser = respuesta.data?.admin ?? respuesta.data;
       set({ user: updatedUser });
@@ -153,7 +137,7 @@ const storeProfile = create((set) => ({
     }
   },
 
-  // 3) Eliminar foto
+  // Eliminar foto
   deleteProfilePhoto: async (id) => {
     try {
       const { rol } = getStoredAuth();
