@@ -1,4 +1,5 @@
 
+// src/context/storeProfile.js
 import { create } from "zustand";
 import axios from "axios";
 
@@ -41,7 +42,6 @@ const storeProfile = create((set) => ({
 
   clearUser: () => set({ user: null }),
 
-  // Obtener mi perfil (usa el rol para armar el prefix)
   profile: async () => {
     try {
       const { rol } = getStoredAuth();
@@ -52,19 +52,17 @@ const storeProfile = create((set) => ({
       const respuesta = await axios.get(url, getAuthHeaders());
       set({ user: respuesta.data });
       return { success: true, data: respuesta.data };
-    } catch (_error) {
+    } catch (error) {
       return { success: false, error: "No se pudo obtener el perfil del usuario" };
     }
   },
 
-  // Actualizar datos básicos del perfil
   updateProfile: async (data, id) => {
     try {
       const { rol } = getStoredAuth();
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // /api/administradores/administradore/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
       set({ user: respuesta.data });
@@ -74,28 +72,26 @@ const storeProfile = create((set) => ({
     }
   },
 
-  // Actualizar contraseña
   updatePasswordProfile: async (data, id) => {
     try {
       const { rol } = getStoredAuth();
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // /api/administradores/administradore/actualizarpassword/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/actualizarpassword/${id}`;
       const respuesta = await axios.put(url, data, getAuthHeaders());
-      return { success: true, msg: respuesta?.data?.msg || "Contraseña actualizada" };
+      return { success: true, msg: respuesta?.data?.msg || "Contraseña actualizado" };
     } catch (error) {
       return { success: false, error: error.response?.data?.msg || "Error al actualizar contraseña" };
     }
   },
 
   /* ============================
-     📸 FOTO DE PERFIL (SOLO DISPOSITIVO)
-     Igual que Emprendimientos (Cloudinary)
+     📸 FOTO DE PERFIL (Cloudinary)
+     Igual que Emprendimientos
   ============================ */
 
-  // Subir/actualizar foto con archivo local (FormData campo "foto")
+  // Subir archivo (FormData campo "foto")
   updateProfilePhotoFile: async (file, id) => {
     try {
       if (!file) return { success: false, error: "No se seleccionó archivo" };
@@ -104,47 +100,57 @@ const storeProfile = create((set) => ({
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // Endpoint: PUT /api/<prefix>/<singular>/foto/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
-
       const fd = new FormData();
-      fd.append("foto", file); // 👈 el backend espera el campo "foto"
+      fd.append("foto", file);
 
       const respuesta = await axios.put(url, fd, getAuthHeadersMultipart());
 
-      // El backend puede responder { msg, admin } o el doc directamente
       const updatedUser = respuesta.data?.admin ?? respuesta.data;
       set({ user: updatedUser });
 
-      return {
-        success: true,
-        data: updatedUser,
-        msg: respuesta.data?.msg || "Foto actualizada",
-      };
+      return { success: true, data: updatedUser, msg: respuesta.data?.msg || "Foto actualizada" };
     } catch (error) {
       return { success: false, error: error.response?.data?.msg || "Error al actualizar foto" };
     }
   },
 
-  // Eliminar foto de perfil
+  // Actualizar con URL
+  updateProfilePhotoUrl: async (fotoUrl, id) => {
+    try {
+      if (!fotoUrl || !String(fotoUrl).trim()) {
+        return { success: false, error: "URL de foto inválida" };
+      }
+      const { rol } = getStoredAuth();
+      const prefix = getEndpointPrefix(rol);
+      if (!prefix) return { success: false, error: "Rol no reconocido" };
+
+      const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
+      const respuesta = await axios.put(url, { foto: fotoUrl }, getAuthHeaders());
+
+      const updatedUser = respuesta.data?.admin ?? respuesta.data;
+      set({ user: updatedUser });
+
+      return { success: true, data: updatedUser, msg: respuesta.data?.msg || "Foto actualizada (URL)" };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.msg || "Error al actualizar foto (URL)" };
+    }
+  },
+
+  // Eliminar foto
   deleteProfilePhoto: async (id) => {
     try {
       const { rol } = getStoredAuth();
       const prefix = getEndpointPrefix(rol);
       if (!prefix) return { success: false, error: "Rol no reconocido" };
 
-      // Endpoint: DELETE /api/<prefix>/<singular>/foto/:id
       const url = `${import.meta.env.VITE_BACKEND_URL}/api/${prefix}/${prefix.slice(0, -1)}/foto/${id}`;
       const respuesta = await axios.delete(url, getAuthHeaders());
 
       const updatedUser = respuesta.data?.admin ?? respuesta.data;
       set({ user: updatedUser });
 
-      return {
-        success: true,
-        data: updatedUser,
-        msg: respuesta.data?.msg || "Foto eliminada",
-      };
+      return { success: true, data: updatedUser, msg: respuesta.data?.msg || "Foto eliminada" };
     } catch (error) {
       return { success: false, error: error.response?.data?.msg || "Error al eliminar foto" };
     }
