@@ -5,6 +5,8 @@ import storeAuth from '../context/storeAuth';
 
 function formatDate(iso) {
   try {
+    // Si prefieres localización:
+    // return new Date(iso).toLocaleString('es-EC', { dateStyle: 'short', timeStyle: 'short' });
     return new Date(iso).toLocaleString();
   } catch {
     return '—';
@@ -122,7 +124,7 @@ export default function CommentsSection({
         throw new Error(data?.msg || 'Error al crear el comentario');
       }
 
-      // Insertar al inicio
+      // Insertar al inicio. El backend debe venir poblado con usuario + foto
       setComentarios(prev => [data, ...prev]);
       setTexto('');
     } catch (err) {
@@ -213,9 +215,20 @@ export default function CommentsSection({
               <li key={c._id} className="p-3 border border-[#E0C7B6] rounded-md bg-white group">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#F7E5D2] flex items-center justify-center text-[#AA4A44] font-bold">
-                      {getInitials(u.nombre, u.apellido)}
+                    {/* 👇 Avatar: foto si existe; si no, iniciales */}
+                    <div className="w-9 h-9 rounded-full border border-[#E0C7B6] overflow-hidden bg-[#F7E5D2] flex items-center justify-center text-[#AA4A44] font-bold">
+                      {u?.foto ? (
+                        <img
+                          src={u.foto}
+                          alt={nombre || 'Avatar'}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span>{getInitials(u.nombre, u.apellido)}</span>
+                      )}
                     </div>
+
                     <div>
                       <p className="text-sm font-semibold text-[#1E1E2F]">
                         {nombre || '—'}
