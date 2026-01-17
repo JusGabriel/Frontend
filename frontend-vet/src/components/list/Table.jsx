@@ -46,17 +46,28 @@ const deriveEstadoCliente = (item) => {
 /* Siguiente advertencia desde un estado visible */
 const siguienteAdvertencia = (estadoActual) => {
   switch (estadoActual) {
-    case "Correcto":      return "Advertencia1";
-    case "Advertencia1":  return "Advertencia2";
-    case "Advertencia2":  return "Advertencia3";
-    case "Advertencia3":  return "Suspendido";
-    default:              return "Suspendido";
+    case "Correcto": return "Advertencia1";
+    case "Advertencia1": return "Advertencia2";
+    case "Advertencia2": return "Advertencia3";
+    case "Advertencia3": return "Suspendido";
+    default: return "Suspendido";
   }
 };
 
 const isJsonResponse = (res) => {
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json');
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("application/json");
+};
+
+/* Mostrar nombre del actor que creó la advertencia (snapshot o populate o sistema) */
+const displayActorName = (a) => {
+  if (!a) return "—";
+  if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
+  if (a.creadoPor) {
+    const n = `${a.creadoPor?.nombre || ""} ${a.creadoPor?.apellido || ""}`.trim();
+    if (n) return n;
+  }
+  return a.origen === "sistema" ? "Sistema" : "—";
 };
 
 /* ===========================
@@ -548,7 +559,7 @@ const Table = () => {
       console.error(e);
       setMapAuditoria((prev) => ({
         ...prev,
-        [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: e.message || 'error' }
+        [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: e.message || "error" }
       }));
     }
   };
@@ -1112,7 +1123,7 @@ const Table = () => {
                                         tipo: a.tipo || "",
                                         motivo: a.motivo || "",
                                         origen: a.origen || "",
-                                        modificadoPor: a.creadoPorNombre || (a.origen === 'sistema' ? 'Sistema' : '—'),
+                                        modificadoPor: displayActorName(a),
                                         ip: a.ip || "",
                                         userAgent: a.userAgent || ""
                                       }));
@@ -1137,7 +1148,7 @@ const Table = () => {
                                               r.tipo || "",
                                               r.motivo || "",
                                               r.origen || "",
-                                              r.creadoPorNombre || (r.origen === 'sistema' ? 'Sistema' : '—') || "",
+                                              displayActorName(r) || "",
                                               r.ip || "",
                                               r.userAgent || ""
                                             ];
@@ -1186,7 +1197,7 @@ const Table = () => {
                                         <td style={styles.td}>{a.motivo || "—"}</td>
                                         <td style={styles.td}>{a.origen || "—"}</td>
                                         <td style={styles.td}>
-                                          {a.creadoPorNombre || (a.origen === 'sistema' ? 'Sistema' : '—')}
+                                          {displayActorName(a)}
                                         </td>
                                         <td style={styles.td}>{a.ip || "—"}</td>
                                         <td style={styles.td} title={a.userAgent || ""}>
