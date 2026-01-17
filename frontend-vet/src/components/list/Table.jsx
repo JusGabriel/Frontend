@@ -59,7 +59,7 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Mostrar nombre del actor que creó la advertencia (snapshot o populate o sistema) */
+/* Mostrar nombre del actor (snapshot o populate o sistema) */
 const displayActorName = (a) => {
   if (!a) return "—";
   if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
@@ -448,11 +448,7 @@ const Table = () => {
   const EstadoBadge = ({ estado }) => {
     const bg = ESTADO_COLORS[estado] || "#6b7280";
     return (
-      <span
-        aria-label={`Estado: ${estado}`}
-        className="pill"
-        style={{ backgroundColor: bg }}
-      >
+      <span aria-label={`Estado: ${estado}`} className="pill" style={{ backgroundColor: bg }}>
         {estado}
       </span>
     );
@@ -480,9 +476,7 @@ const Table = () => {
       }
     };
 
-    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${
-      from || to ? `?from=${from}&to=${to}` : ""
-    }`;
+    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
     let emps = await tryFetch(urlEmps);
     if (!Array.isArray(emps)) {
       emps = catalogoEmprendimientos.filter((e) => {
@@ -494,9 +488,7 @@ const Table = () => {
       });
     }
 
-    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${
-      from || to ? `?from=${from}&to=${to}` : ""
-    }`;
+    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
     let prods = await tryFetch(urlProds);
     if (!Array.isArray(prods)) {
       prods = catalogoProductos.filter((p) => {
@@ -519,6 +511,7 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    // set loading (✔ FIX: clave dinámica [clienteId])
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
@@ -529,6 +522,7 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
+      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
@@ -1362,7 +1356,7 @@ const Table = () => {
                       <div className="paginate">
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, -1)}>◀</button>
                         <span className="muted">
-                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10))}
+                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
                         </span>
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, +1)}>▶</button>
                       </div>
@@ -1464,9 +1458,7 @@ const Table = () => {
                 const esEmisor = m.emisorId === emisorId;
                 return (
                   <div key={m._id} style={{ marginBottom: 10, textAlign: esEmisor ? "right" : "left" }}>
-                    <span
-                      className={`chatBubble ${esEmisor ? "right" : "left"}`}
-                    >
+                    <span className={`chatBubble ${esEmisor ? "right" : "left"}`}>
                       {m.contenido}
                     </span>
                     <br />
