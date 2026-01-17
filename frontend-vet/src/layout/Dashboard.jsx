@@ -4,17 +4,23 @@ import storeAuth from '../context/storeAuth';
 import storeProfile from '../context/storeProfile';
 import politicasPdf from '../assets/Politicas_QuitoEmprende.pdf';
 
-// Mensajes por estado
+// Mensajes por estado (base)
 const estadoMensajes = {
   Advertencia1: 'Tu cuenta tiene una advertencia. Por favor revisa las políticas y evita futuras infracciones.',
   Advertencia2: 'Tu cuenta tiene dos advertencias. Si reincides, podrías ser suspendido.',
   Advertencia3: 'Tu cuenta está en advertencia grave. Estás a un paso de la suspensión.',
-  Suspendido: 'Tu cuenta está suspendida. No puedes acceder. Contacta a soporte para más información.',
+  Suspendido:   'Tu cuenta está suspendida. No puedes acceder. Contacta a soporte para más información.',
 };
 
-const BannerEstado = ({ estadoUI }) => {
+const BannerEstado = ({ estadoUI, ultimaAdvertencia }) => {
   if (!estadoUI || estadoUI === 'Correcto') return null;
+
   const isSuspendido = estadoUI === 'Suspendido';
+  const base = estadoMensajes[estadoUI] || 'Estado de cuenta especial.';
+  const motivoTxt = ultimaAdvertencia?.motivo ? ` Motivo: ${ultimaAdvertencia.motivo}.` : '';
+  const fechaTxt  = ultimaAdvertencia?.fecha ? ` (${new Date(ultimaAdvertencia.fecha).toLocaleString()})` : '';
+  const texto = `${base}${motivoTxt}${fechaTxt}`;
+
   return (
     <div
       className={`w-full px-4 py-3 mb-6 rounded-lg text-center font-semibold text-base
@@ -24,7 +30,7 @@ const BannerEstado = ({ estadoUI }) => {
         }`}
       style={{ wordBreak: 'break-word', maxWidth: 700, margin: '1.5rem auto 0 auto' }}
     >
-      {estadoMensajes[estadoUI] || 'Estado de cuenta especial.'}
+      {texto}
       {!isSuspendido && (
         <div className="mt-2 text-sm">
           <a
@@ -45,7 +51,7 @@ const Dashboard = () => {
   const location = useLocation();
   const urlActual = location.pathname;
 
-  const { clearToken, estadoUI, status } = storeAuth();
+  const { clearToken, estadoUI, status, ultimaAdvertencia } = storeAuth();
   const { user } = storeProfile();
 
   // Menú por Rol
@@ -71,19 +77,16 @@ const Dashboard = () => {
 
   const links = menuLinks[user?.rol] || [];
 
-  // Link activo
   const isActive = (to) => {
-    if (to === '/dashboard') {
-      return urlActual === '/dashboard' || urlActual === '/dashboard/';
-    }
+    if (to === '/dashboard') return urlActual === '/dashboard' || urlActual === '/dashboard/';
     return urlActual.startsWith(to);
   };
 
-  // Si está suspendido, solo muestra el banner y bloquea el contenido
+  // Si está suspendido, solo banner y bloqueo
   if (estadoUI === 'Suspendido' || status === false) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 px-4">
-        <BannerEstado estadoUI="Suspendido" />
+        <BannerEstado estadoUI="Suspendido" ultimaAdvertencia={ultimaAdvertencia} />
         <div className="mt-4 text-center">
           <a
             href="mailto:sebasj@outlook.com.ar?subject=Revisión%20de%20suspensión%20QuitoEmprende"
@@ -156,8 +159,8 @@ const Dashboard = () => {
         ))}
       </nav>
 
-      {/* BANNER DE ESTADO */}
-      <BannerEstado estadoUI={estadoUI} />
+      {/* BANNER DE ESTADO (ahora con motivo/fecha si existen) */}
+      <BannerEstado estadoUI={estadoUI} ultimaAdvertencia={ultimaAdvertencia} />
 
       {/* CONTENIDO */}
       <main className="flex-1 w-full overflow-auto p-4">
