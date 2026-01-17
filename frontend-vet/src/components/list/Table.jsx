@@ -29,18 +29,9 @@ const ESTADO_COLORS = {
   Suspendido: "#dc2626",
 };
 
-/* Estados permitidos (backend) */
+/* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
-
-/* Alias → valor backend */
-const aliasEstadoClienteOut = (estadoUI) => {
-  // "Baneado" (alias humano) → "Suspendido" (valor real esperado por backend)
-  if (!estadoUI) return estadoUI;
-  const s = String(estadoUI).toLowerCase();
-  if (s === "baneado" || s === "ban" || s === "bloqueado") return "Suspendido";
-  return estadoUI;
-};
 
 /* Derivar estado cliente visible */
 const deriveEstadoCliente = (item) => {
@@ -66,42 +57,6 @@ const siguienteAdvertencia = (estadoActual) => {
 const isJsonResponse = (res) => {
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json");
-};
-
-/* ==== Fechas robustas (EJSON, ISO string, number, Date) ==== */
-const parseFecha = (f) => {
-  if (!f) return null;
-  if (f instanceof Date) return isNaN(f) ? null : f;
-  if (typeof f === "string" || typeof f === "number") {
-    const d = new Date(f);
-    return isNaN(d) ? null : d;
-  }
-  if (typeof f === "object" && f.$date) {
-    const raw = f.$date;
-    if (typeof raw === "string" || typeof raw === "number") {
-      const d = new Date(raw);
-      return isNaN(d) ? null : d;
-    }
-    if (typeof raw === "object" && raw.$numberLong) {
-      const d = new Date(Number(raw.$numberLong));
-      return isNaN(d) ? null : d;
-    }
-  }
-  return null;
-};
-
-const fmtFechaLocal = (f, locale = "es-EC", opts) => {
-  const d = parseFecha(f);
-  const formatOpts = opts ?? {
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit"
-  };
-  return d ? d.toLocaleString(locale, formatOpts) : "—";
-};
-
-const fmtHoraLocal = (f, locale = "es-EC") => {
-  const d = parseFecha(f);
-  return d ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—";
 };
 
 /* Mostrar nombre del actor (snapshot o populate o sistema) */
@@ -362,30 +317,31 @@ const Table = () => {
     visible: false,
     item: null,
     nuevoEstado: null,
-    motivo: ""
+    motivo: "",
+    suspendidoHasta: ""
   });
 
-  const openEstadoModal = (item, nuevoEstadoUI) => {
-    // Acepta alias "Baneado" pero guarda internamente el real que espera el backend
-    const resolved = aliasEstadoClienteOut(nuevoEstadoUI);
+  const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
       setEstadoModal({
         visible: true,
         item,
-        nuevoEstado: resolved,
-        motivo: ""
+        nuevoEstado,
+        motivo: "",
+        suspendidoHasta: ""
       });
     } else {
-      updateEstadoEmprendedor(item, resolved);
+      // Emprendedor: no requiere motivo
+      updateEstadoEmprendedor(item, nuevoEstado);
     }
   };
 
   const closeEstadoModal = () => setEstadoModal({
-    visible: false, item: null, nuevoEstado: null, motivo: ""
+    visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
   const updateEstadoClienteConfirmed = async () => {
-    const { item, nuevoEstado, motivo } = estadoModal;
+    const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
       setMensaje(""); setError("");
 
@@ -399,15 +355,15 @@ const Table = () => {
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-      // Enviamos suspendidoHasta: null por detrás
       const payload = {
-        estado: aliasEstadoClienteOut(nuevoEstado),
+        estado: nuevoEstado,
         motivo: motivo.trim(),
-        suspendidoHasta: null
+        ...(nuevoEstado === "Suspendido" && suspendidoHasta
+          ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
+          : {})
       };
 
-      // ⚠️ Usamos SOLO el endpoint de estado (evita 500 de /actualizar)
-      const res = await fetch(urlEstado, {
+      let res = await fetch(urlEstado, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -416,13 +372,28 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
+      // Fallback
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado: nuevoEstado, motivo: payload.motivo }),
+        });
+      }
+
+      // Solo intentamos parsear JSON si el servidor responde JSON
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
+
       if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
 
-      setMensaje(`Estado actualizado a: ${payload.estado}`);
+      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       closeEstadoModal();
 
+      // Refrescar listado y, si corresponde, recargar auditoría visible
       await fetchLista();
       if (expandido === item._id && tipo === "cliente") {
         cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
@@ -433,10 +404,9 @@ const Table = () => {
     }
   };
 
-  const updateEstadoEmprendedor = async (item, nuevoEstadoUI) => {
+  const updateEstadoEmprendedor = async (item, nuevoEstado) => {
     try {
       setMensaje(""); setError("");
-      const nuevoEstado = aliasEstadoClienteOut(nuevoEstadoUI); // por si alguien usa "Baneado"
 
       if (!ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
         setError("Estado inválido para emprendedor.");
@@ -452,6 +422,17 @@ const Table = () => {
         },
         body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
       });
+
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
+        });
+      }
 
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
@@ -530,6 +511,7 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    // set loading (✔ FIX: clave dinámica [clienteId])
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
@@ -540,6 +522,7 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
+      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
@@ -1030,9 +1013,6 @@ const Table = () => {
                             {getEstadosPermitidos().map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
-                            {/* Alias visible (opcional): si eliges, puedes añadir “Baneado (alias)” que internamente mapeamos a Suspendido
-                            <option value="Baneado">Baneado (alias)</option>
-                            */}
                           </select>
                         </div>
                       </td>
@@ -1072,18 +1052,6 @@ const Table = () => {
                           >
                             ⚠️ Advertencia
                           </button>
-                          {/* Atajo directo a “Baneado” (alias) */}
-                          <button
-                            className={`btn tiny danger ${getEstado(item) === "Suspendido" ? "disabled" : ""}`}
-                            disabled={getEstado(item) === "Suspendido"}
-                            title="Marcar como Baneado (envía Suspendido)"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEstadoModal(item, "Baneado");
-                            }}
-                          >
-                            🚫 Baneado
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1108,11 +1076,11 @@ const Table = () => {
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Creado</div>
-                              <div className="detailValue">{fmtFechaLocal(item.createdAt)}</div>
+                              <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Actualizado</div>
-                              <div className="detailValue">{fmtFechaLocal(item.updatedAt)}</div>
+                              <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
                             </div>
                           </div>
 
@@ -1138,7 +1106,7 @@ const Table = () => {
                                       e.stopPropagation();
                                       const info = mapAuditoria[item._id] || { items: [] };
                                       const rows = (info.items || []).map((a) => ({
-                                        fecha: fmtFechaLocal(a.fecha),
+                                        fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
                                         tipo: a.tipo || "",
                                         motivo: a.motivo || "",
                                         origen: a.origen || "",
@@ -1163,7 +1131,7 @@ const Table = () => {
                                         r?.header
                                           ? ["Fecha", "Tipo", "Motivo", "Origen", "Modificado por", "IP", "UA"]
                                           : [
-                                              fmtFechaLocal(r.fecha),
+                                              r.fecha ? new Date(r.fecha).toLocaleString() : "",
                                               r.tipo || "",
                                               r.motivo || "",
                                               r.origen || "",
@@ -1210,7 +1178,7 @@ const Table = () => {
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).map((a, idx) => (
                                       <tr key={`${a._id || idx}`}>
-                                        <td className="td">{fmtFechaLocal(a.fecha)}</td>
+                                        <td className="td">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
                                         <td className="td">{a.tipo || "—"}</td>
                                         <td className="td">{a.motivo || "—"}</td>
                                         <td className="td">{a.origen || "—"}</td>
@@ -1294,7 +1262,6 @@ const Table = () => {
                   {getEstadosPermitidos().map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
-                  {/* <option value="Baneado">Baneado (alias)</option> */}
                 </select>
 
                 <div className="mActions">
@@ -1308,13 +1275,6 @@ const Table = () => {
                   >
                     ⚠️ Advertencia
                   </button>
-                  <button
-                    className={`btn tiny danger ${getEstado(item) === "Suspendido" ? "disabled" : ""}`}
-                    disabled={getEstado(item) === "Suspendido"}
-                    onClick={() => openEstadoModal(item, "Baneado")}
-                  >
-                    🚫 Baneado
-                  </button>
                 </div>
               </div>
 
@@ -1322,11 +1282,11 @@ const Table = () => {
                 <div className="mCardBody">
                   <div className="detailItem">
                     <div className="detailLabel">Creado</div>
-                    <div className="detailValue">{fmtFechaLocal(item.createdAt)}</div>
+                    <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
                   </div>
                   <div className="detailItem">
                     <div className="detailLabel">Actualizado</div>
-                    <div className="detailValue">{fmtFechaLocal(item.updatedAt)}</div>
+                    <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
                   </div>
 
                   {tipo === "cliente" && (
@@ -1348,7 +1308,7 @@ const Table = () => {
                             onClick={() => {
                               const info = mapAuditoria[item._id] || { items: [] };
                               const rows = (info.items || []).map((a) => ({
-                                fecha: fmtFechaLocal(a.fecha),
+                                fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
                                 tipo: a.tipo || "",
                                 motivo: a.motivo || "",
                                 origen: a.origen || "",
@@ -1378,7 +1338,7 @@ const Table = () => {
                           <div className="mHistoryItem" key={`${a._id || idx}`}>
                             <div className="mHistoryRow">
                               <span className="badge">{a.tipo || "—"}</span>
-                              <span className="muted">{fmtFechaLocal(a.fecha)}</span>
+                              <span className="muted">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</span>
                             </div>
                             <div className="mHistoryMeta">
                               <span className="muted">Motivo:</span> {a.motivo || "—"}
@@ -1432,6 +1392,21 @@ const Table = () => {
                   style={{ resize: "vertical" }}
                 />
               </div>
+
+              {estadoModal.nuevoEstado === "Suspendido" && (
+                <div className="formGroup">
+                  <label className="label">Suspensión hasta (opcional)</label>
+                  <input
+                    type="datetime-local"
+                    value={estadoModal.suspendidoHasta}
+                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
+                    className="input"
+                  />
+                  <small className="muted">
+                    Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.
+                  </small>
+                </div>
+              )}
             </div>
 
             <div className="modalFooter">
@@ -1487,7 +1462,7 @@ const Table = () => {
                       {m.contenido}
                     </span>
                     <br />
-                    <small className="muted">{fmtHoraLocal(m.createdAt)}</small>
+                    <small className="muted">{new Date(m.createdAt).toLocaleTimeString()}</small>
                   </div>
                 );
               })}
@@ -1726,4 +1701,3 @@ const css = `
 `;
 
 export default Table;
-
