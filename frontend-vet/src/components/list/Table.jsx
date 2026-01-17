@@ -21,12 +21,12 @@ const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "US
 
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
-  Correcto: "#28a745",
-  Activo: "#28a745",
-  Advertencia1: "#ffc107",
-  Advertencia2: "#fd7e14",
-  Advertencia3: "#dc3545",
-  Suspendido: "#dc3545",
+  Correcto: "#16a34a",
+  Activo: "#16a34a",
+  Advertencia1: "#f59e0b",
+  Advertencia2: "#ea580c",
+  Advertencia3: "#dc2626",
+  Suspendido: "#dc2626",
 };
 
 /* Estados permitidos */
@@ -91,16 +91,14 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   useEffect(() => {
     if (!error && !mensaje) return;
-    const t = setTimeout(() => {
-      setError("");
-      setMensaje("");
-    }, 3000);
+    const t = setTimeout(() => { setError(""); setMensaje(""); }, 3000);
     return () => clearTimeout(t);
   }, [error, mensaje]);
 
   /* --------- UI --------- */
   const [expandido, setExpandido] = useState(null);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState(""); // debounced
 
   /* --------- Confirm Delete --------- */
   const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
@@ -125,6 +123,12 @@ const Table = () => {
   /* --------- Auditoría (Cliente) --------- */
   // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
   const [mapAuditoria, setMapAuditoria] = useState({});
+
+  /* Debounce de búsqueda (300 ms) */
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   /* ---- Carga de listas ---- */
   const fetchLista = async () => {
@@ -166,8 +170,8 @@ const Table = () => {
       const productosArray = Array.isArray(dataProd)
         ? dataProd
         : Array.isArray(dataProd?.productos)
-        ? dataProd.productos
-        : [];
+          ? dataProd.productos
+          : [];
       const emprArray = Array.isArray(dataEmpr) ? dataEmpr : [];
 
       setCatalogoProductos(productosArray);
@@ -183,7 +187,7 @@ const Table = () => {
     setFormCrear(emptyForm);
     setFormEditar({ id: null, ...emptyForm });
     setExpandido(null);
-    setError(""); setMensaje(""); setSearch("");
+    setError(""); setMensaje("");
   }, [tipo]);
 
   /* ===========================
@@ -442,20 +446,12 @@ const Table = () => {
   };
 
   const EstadoBadge = ({ estado }) => {
-    const bg = ESTADO_COLORS[estado] || "#6c757d";
+    const bg = ESTADO_COLORS[estado] || "#6b7280";
     return (
       <span
         aria-label={`Estado: ${estado}`}
-        style={{
-          display: "inline-block",
-          marginLeft: 6,
-          padding: "2px 10px",
-          borderRadius: 999,
-          fontSize: 12,
-          color: "white",
-          backgroundColor: bg,
-          lineHeight: "18px",
-        }}
+        className="pill"
+        style={{ backgroundColor: bg }}
       >
         {estado}
       </span>
@@ -523,7 +519,6 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // set loading
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
@@ -534,7 +529,6 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
-      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
@@ -742,7 +736,7 @@ const Table = () => {
      FILTRO LOCAL
   ============================ */
   const listaFiltrada = lista.filter((x) => {
-    const q = search.toLowerCase().trim();
+    const q = search.toLowerCase();
     if (!q) return true;
     const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
     return campos.some((c) => c.includes(q));
@@ -752,83 +746,90 @@ const Table = () => {
      RENDER
   ============================ */
   return (
-    <div style={styles.container}>
+    <div className="wrap">
+      {/* CSS global del componente */}
+      <style>{css}</style>
+
       {/* ====== ENCABEZADO ====== */}
-      <header style={styles.header}>
+      <header className="hdr">
         <div>
-          <h1 style={styles.title}>Panel de Administración</h1>
-          <div style={styles.subTitle}>
+          <h1 className="ttl">Panel de Administración</h1>
+          <div className="subTtl">
             {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
           </div>
         </div>
 
-        <div style={styles.actionsBar}>
-          <div role="group" aria-label="Seleccionar tipo" style={styles.segmented}>
+        <div className="toolbar">
+          <div role="tablist" aria-label="Tipo de listado" className="segmented">
             <button
-              style={tipo === "cliente" ? styles.segmentedActive : styles.segmentedBtn}
+              role="tab"
+              aria-selected={tipo === "cliente"}
+              className={tipo === "cliente" ? "segBtn active" : "segBtn"}
               onClick={() => setTipo("cliente")}
             >
-              Clientes
+              👥 Clientes
             </button>
             <button
-              style={tipo === "emprendedor" ? styles.segmentedActive : styles.segmentedBtn}
+              role="tab"
+              aria-selected={tipo === "emprendedor"}
+              className={tipo === "emprendedor" ? "segBtn active" : "segBtn"}
               onClick={() => setTipo("emprendedor")}
             >
-              Emprendedores
+              🧑‍💼 Emprendedores
             </button>
           </div>
 
-          <div style={styles.searchBox}>
+          <div className="searchBox">
             <input
               aria-label="Buscar en el listado"
               type="search"
               placeholder={`Buscar ${capitalize(tipo)} por nombre, apellido, email o teléfono…`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={styles.searchInput}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="searchInput"
             />
-            <button style={styles.refreshBtn} onClick={fetchLista}>↻ Actualizar</button>
+            <button className="btn ghost" onClick={fetchLista} title="Actualizar listado">↻</button>
           </div>
         </div>
       </header>
 
       {/* Mensajes toast */}
-      <div style={styles.toastRegion} aria-live="polite" aria-atomic="true">
-        {error && <div style={{ ...styles.toast, backgroundColor: "#ffe8e6", color: "#a33" }}>⚠️ {error}</div>}
-        {mensaje && <div style={{ ...styles.toast, backgroundColor: "#e7f9ed", color: "#1e7e34" }}>✅ {mensaje}</div>}
+      <div className="toastRegion" aria-live="polite" aria-atomic="true">
+        {error && <div className="toast toastErr">⚠️ {error}</div>}
+        {mensaje && <div className="toast toastOk">✅ {mensaje}</div>}
       </div>
 
       {/* ====== FORM: CREAR ====== */}
-      <section style={styles.card} aria-label="Crear">
-        <div style={styles.cardHeader}>
-          <h2 style={styles.cardTitle}>Crear {capitalize(tipo)}</h2>
+      <section className="card" aria-label="Crear">
+        <div className="cardHeader">
+          <h2 className="cardTitle">Crear {capitalize(tipo)}</h2>
         </div>
         <form onSubmit={handleCrear}>
-          <div style={styles.grid2}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nombre</label>
+          <div className="grid2">
+            <div className="formGroup">
+              <label className="label">Nombre</label>
               <input
-                style={styles.input}
+                className="input"
                 placeholder="Ej. Ana"
                 value={formCrear.nombre}
                 onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Apellido</label>
+            <div className="formGroup">
+              <label className="label">Apellido</label>
               <input
-                style={styles.input}
+                className="input"
                 placeholder="Ej. Pérez"
                 value={formCrear.apellido}
                 onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Email</label>
+            <div className="formGroup">
+              <label className="label">Email</label>
               <input
-                style={styles.input}
+                className="input"
                 type="email"
                 placeholder="nombre@dominio.com"
                 value={formCrear.email}
@@ -836,10 +837,10 @@ const Table = () => {
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Password</label>
+            <div className="formGroup">
+              <label className="label">Password</label>
               <input
-                style={styles.input}
+                className="input"
                 type="password"
                 placeholder="••••••••"
                 value={formCrear.password}
@@ -847,10 +848,10 @@ const Table = () => {
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Teléfono</label>
+            <div className="formGroup">
+              <label className="label">Teléfono</label>
               <input
-                style={styles.input}
+                className="input"
                 placeholder="Ej. 0999999999"
                 value={formCrear.telefono}
                 onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
@@ -858,10 +859,10 @@ const Table = () => {
             </div>
           </div>
 
-          <div style={styles.cardFooter}>
-            <button style={styles.btnPrimary} type="submit">Crear</button>
+          <div className="cardFooter">
+            <button className="btn primary" type="submit">Crear</button>
             <button
-              style={styles.btnGhost}
+              className="btn ghost"
               type="button"
               onClick={() => setFormCrear(emptyForm)}
               title="Limpiar formulario"
@@ -874,63 +875,63 @@ const Table = () => {
 
       {/* ====== FORM: EDITAR ====== */}
       {formEditar.id && (
-        <section style={styles.card} aria-label="Editar">
-          <div style={styles.cardHeader}>
-            <h2 style={styles.cardTitle}>Editar {capitalize(tipo)}</h2>
+        <section className="card" aria-label="Editar">
+          <div className="cardHeader">
+            <h2 className="cardTitle">Editar {capitalize(tipo)}</h2>
           </div>
           <form onSubmit={handleActualizar}>
-            <div style={styles.grid2}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nombre</label>
+            <div className="grid2">
+              <div className="formGroup">
+                <label className="label">Nombre</label>
                 <input
-                  style={styles.input}
+                  className="input"
                   value={formEditar.nombre}
                   onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Apellido</label>
+              <div className="formGroup">
+                <label className="label">Apellido</label>
                 <input
-                  style={styles.input}
+                  className="input"
                   value={formEditar.apellido}
                   onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Email</label>
+              <div className="formGroup">
+                <label className="label">Email</label>
                 <input
-                  style={styles.input}
+                  className="input"
                   type="email"
                   value={formEditar.email}
                   onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Password (opcional)</label>
+              <div className="formGroup">
+                <label className="label">Password (opcional)</label>
                 <input
-                  style={styles.input}
+                  className="input"
                   type="password"
                   value={formEditar.password}
                   onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Teléfono</label>
+              <div className="formGroup">
+                <label className="label">Teléfono</label>
                 <input
-                  style={styles.input}
+                  className="input"
                   value={formEditar.telefono}
                   onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
                 />
               </div>
             </div>
 
-            <div style={styles.cardFooter}>
-              <button style={styles.btnPrimary} type="submit">Actualizar</button>
+            <div className="cardFooter">
+              <button className="btn primary" type="submit">Actualizar</button>
               <button
-                style={styles.btnSecondary}
+                className="btn secondary"
                 type="button"
                 onClick={() => setFormEditar({ id: null, ...emptyForm })}
               >
@@ -941,35 +942,46 @@ const Table = () => {
         </section>
       )}
 
-      {/* ====== TABLA PRINCIPAL ====== */}
-      <section aria-label="Listado principal" style={styles.card}>
-        <div style={styles.cardHeader}>
-          <h2 style={styles.cardTitle}>Listado de {capitalize(tipo)}s</h2>
+      {/* ====== LISTADO ====== */}
+      <section aria-label="Listado principal" className="card">
+        <div className="cardHeader">
+          <h2 className="cardTitle">Listado de {capitalize(tipo)}s</h2>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={styles.table}>
+        {/* Vista tabla (>=768px) */}
+        <div className="tableWrap hideOnMobile">
+          <table className="table">
             <thead>
               <tr>
-                <th style={styles.th}>#</th>
-                <th style={styles.th}>Nombre</th>
-                <th style={styles.th}>Apellido</th>
-                <th style={styles.th}>Email</th>
-                <th style={styles.th}>Teléfono</th>
-                <th style={styles.th}>Estado</th>
-                <th style={styles.th}>Acciones</th>
+                <th className="th">#</th>
+                <th className="th">Nombre</th>
+                <th className="th">Apellido</th>
+                <th className="th">Email</th>
+                <th className="th">Teléfono</th>
+                <th className="th">Estado</th>
+                <th className="th">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loadingLista && (
-                <tr>
-                  <td colSpan="7" style={styles.emptyCell}>Cargando datos…</td>
-                </tr>
+                <>
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`}>
+                      <td className="td"><div className="skl w40" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl w80" /></td>
+                      <td className="td"><div className="skl w80" /></td>
+                      <td className="td"><div className="skl w120" /></td>
+                    </tr>
+                  ))}
+                </>
               )}
 
               {!loadingLista && listaFiltrada.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={styles.emptyCell}>
+                  <td colSpan="7" className="emptyCell">
                     <div style={{ fontSize: 24 }}>🗂️</div>
                     <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
                   </td>
@@ -980,77 +992,62 @@ const Table = () => {
                 listaFiltrada.map((item, i) => (
                   <React.Fragment key={item._id}>
                     <tr
-                      style={{
-                        backgroundColor: expandido === item._id ? "#f5faff" : "white",
-                        cursor: "pointer",
-                      }}
+                      className={`row ${expandido === item._id ? "rowActive" : ""}`}
                       onClick={() => toggleExpandido(item._id, item)}
                       aria-expanded={expandido === item._id}
                     >
-                      <td style={styles.td}>{i + 1}</td>
-                      <td style={styles.td}>
-                        <span style={{ fontWeight: 600 }}>{item.nombre}</span>
+                      <td className="td">{i + 1}</td>
+                      <td className="td">
+                        <span className="nameStrong">{item.nombre}</span>
                         <EstadoBadge estado={getEstado(item)} />
                       </td>
-                      <td style={styles.td}>{item.apellido}</td>
-                      <td style={styles.td}>{item.email}</td>
-                      <td style={styles.td}>{item.telefono || "N/A"}</td>
+                      <td className="td">{item.apellido}</td>
+                      <td className="td">{item.email}</td>
+                      <td className="td">{item.telefono || "N/A"}</td>
 
-                      {/* ESTADO editable inline */}
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <td className="td">
+                        <div className="inline">
+                          <label htmlFor={`sel-${item._id}`} className="labelInlineSmall">Estado:</label>
                           <select
+                            id={`sel-${item._id}`}
                             aria-label="Cambiar estado/advertencia"
                             value={getEstado(item)}
                             onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value); }}
-                            style={styles.select}
+                            className="select"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {getEstadosPermitidos().map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
-                          <EstadoBadge estado={getEstado(item)} />
                         </div>
                       </td>
 
-                      {/* ACCIONES */}
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <td className="td">
+                        <div className="actions">
                           <button
-                            style={styles.btnTiny}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              prepararEditar(item);
-                            }}
+                            className="btn tiny"
+                            onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}
+                            title="Editar"
                           >
                             ✏️ Editar
                           </button>
                           <button
-                            style={styles.btnTinyDanger}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              solicitarEliminar(item);
-                            }}
+                            className="btn tiny danger"
+                            onClick={(e) => { e.stopPropagation(); solicitarEliminar(item); }}
+                            title="Eliminar"
                           >
                             🗑️ Eliminar
                           </button>
                           <button
-                            style={styles.btnTiny}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirChat(item);
-                            }}
+                            className="btn tiny"
+                            onClick={(e) => { e.stopPropagation(); abrirChat(item); }}
+                            title="Chatear"
                           >
-                            💬 Chatear
+                            💬 Chat
                           </button>
-                          {/* NUEVO: Agregar advertencia sin reemplazar el chat */}
                           <button
-                            style={{
-                              ...styles.btnTiny,
-                              backgroundColor: getEstado(item) === "Suspendido" ? "#9ca3af" : "#f59e0b",
-                              cursor: getEstado(item) === "Suspendido" ? "not-allowed" : "pointer"
-                            }}
+                            className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
                             disabled={getEstado(item) === "Suspendido"}
                             title={getEstado(item) === "Suspendido" ? "El cliente ya está suspendido" : "Agregar siguiente advertencia"}
                             onClick={(e) => {
@@ -1059,62 +1056,58 @@ const Table = () => {
                               openEstadoModal(item, next);
                             }}
                           >
-                            ⚠️ Agregar advertencia
+                            ⚠️ Advertencia
                           </button>
                         </div>
                       </td>
                     </tr>
 
-                    {/* DETALLES EXPANDIDOS */}
+                    {/* DETALLES EXPANDIDOS (desktop) */}
                     {expandido === item._id && (
-                      <>
-                        {/* Datos generales */}
-                        <tr>
-                          <td colSpan="7" style={styles.detailsCell}>
-                            <div style={styles.detailsGrid}>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Nombre completo</div>
-                                <div style={styles.detailValue}>{item.nombre} {item.apellido}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Email</div>
-                                <div style={styles.detailValue}>{item.email}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Teléfono</div>
-                                <div style={styles.detailValue}>{item.telefono || "N/A"}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Creado</div>
-                                <div style={styles.detailValue}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Actualizado</div>
-                                <div style={styles.detailValue}>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
-                              </div>
+                      <tr>
+                        <td colSpan="7" className="detailsCell">
+                          {/* Datos generales */}
+                          <div className="detailsGrid">
+                            <div className="detailItem">
+                              <div className="detailLabel">Nombre completo</div>
+                              <div className="detailValue">{item.nombre} {item.apellido}</div>
                             </div>
-                          </td>
-                        </tr>
+                            <div className="detailItem">
+                              <div className="detailLabel">Email</div>
+                              <div className="detailValue">{item.email}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Teléfono</div>
+                              <div className="detailValue">{item.telefono || "N/A"}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Creado</div>
+                              <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Actualizado</div>
+                              <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                            </div>
+                          </div>
 
-                        {/* PANEL HISTORIAL (solo CLIENTE) */}
-                        {tipo === "cliente" && (
-                          <tr>
-                            <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
-                              <div style={styles.sectionHeader}>
-                                <h4 style={styles.sectionTitle}>Historial de Advertencias / Suspensiones</h4>
-                                <div style={{ display: "flex", gap: 8 }}>
+                          {/* HISTORIAL (solo cliente) */}
+                          {tipo === "cliente" && (
+                            <div className="histWrap">
+                              <div className="sectionHeader">
+                                <h4 className="sectionTitle">Historial de Advertencias / Suspensiones</h4>
+                                <div className="inline">
                                   <button
-                                    style={styles.btnTiny}
+                                    className="btn tiny"
                                     onClick={async (e) => {
                                       e.stopPropagation();
                                       await cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
                                       setMensaje("Historial actualizado");
                                     }}
                                   >
-                                    ↻ Actualizar historial
+                                    ↻ Actualizar
                                   </button>
                                   <button
-                                    style={styles.btnTiny}
+                                    className="btn tiny"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       const info = mapAuditoria[item._id] || { items: [] };
@@ -1131,10 +1124,10 @@ const Table = () => {
                                       exportCSV(rows, `historial_${item.nombre}_${item.apellido}`);
                                     }}
                                   >
-                                    ⬇️ Exportar CSV
+                                    ⬇️ CSV
                                   </button>
                                   <button
-                                    style={styles.btnTiny}
+                                    className="btn tiny"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       const info = mapAuditoria[item._id] || { items: [] };
@@ -1155,33 +1148,32 @@ const Table = () => {
                                       exportPDF(`Historial de ${item.nombre} ${item.apellido}`, rows, mapper);
                                     }}
                                   >
-                                    🖨️ Exportar PDF
+                                    🖨️ PDF
                                   </button>
                                 </div>
                               </div>
 
-                              {/* Tabla historial */}
-                              <div style={{ marginTop: 10, overflowX: "auto" }}>
-                                <table style={{ ...styles.table, marginTop: 8 }}>
+                              <div className="tableWrap">
+                                <table className="table mt8">
                                   <thead>
                                     <tr>
-                                      <th style={styles.th}>Fecha</th>
-                                      <th style={styles.th}>Tipo</th>
-                                      <th style={styles.th}>Motivo</th>
-                                      <th style={styles.th}>Origen</th>
-                                      <th style={styles.th}>Modificado por</th>
-                                      <th style={styles.th}>IP</th>
-                                      <th style={styles.th}>User-Agent</th>
+                                      <th className="th">Fecha</th>
+                                      <th className="th">Tipo</th>
+                                      <th className="th">Motivo</th>
+                                      <th className="th">Origen</th>
+                                      <th className="th">Modificado por</th>
+                                      <th className="th">IP</th>
+                                      <th className="th">User-Agent</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {(mapAuditoria[item._id]?.loading) && (
-                                      <tr><td colSpan="7" style={styles.emptyCell}>Cargando historial…</td></tr>
+                                      <tr><td colSpan="7" className="emptyCell">Cargando historial…</td></tr>
                                     )}
 
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).length === 0 && (
-                                      <tr><td colSpan="7" style={styles.emptyCell}>
+                                      <tr><td colSpan="7" className="emptyCell">
                                         {mapAuditoria[item._id]?.lastError
                                           ? `No se pudo obtener el historial (${mapAuditoria[item._id].lastError}).`
                                           : "Sin registros."
@@ -1192,15 +1184,13 @@ const Table = () => {
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).map((a, idx) => (
                                       <tr key={`${a._id || idx}`}>
-                                        <td style={styles.td}>{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
-                                        <td style={styles.td}>{a.tipo || "—"}</td>
-                                        <td style={styles.td}>{a.motivo || "—"}</td>
-                                        <td style={styles.td}>{a.origen || "—"}</td>
-                                        <td style={styles.td}>
-                                          {displayActorName(a)}
-                                        </td>
-                                        <td style={styles.td}>{a.ip || "—"}</td>
-                                        <td style={styles.td} title={a.userAgent || ""}>
+                                        <td className="td">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
+                                        <td className="td">{a.tipo || "—"}</td>
+                                        <td className="td">{a.motivo || "—"}</td>
+                                        <td className="td">{a.origen || "—"}</td>
+                                        <td className="td">{displayActorName(a)}</td>
+                                        <td className="td">{a.ip || "—"}</td>
+                                        <td className="td" title={a.userAgent || ""}>
                                           {a.userAgent ? (a.userAgent.length > 24 ? a.userAgent.slice(0,24) + "…" : a.userAgent) : "—"}
                                         </td>
                                       </tr>
@@ -1209,307 +1199,225 @@ const Table = () => {
                                 </table>
                               </div>
 
-                              {/* Paginación */}
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                                <div style={{ color: "#475569", fontSize: 13 }}>
-                                  Total: <strong>{mapAuditoria[item._id]?.total || 0}</strong>
-                                </div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div className="paginate">
+                                <div className="muted">Total: <strong>{mapAuditoria[item._id]?.total || 0}</strong></div>
+                                <div className="inline">
                                   <button
-                                    style={styles.btnTiny}
+                                    className="btn tiny"
                                     onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, -1); }}
                                   >
                                     ◀ Anterior
                                   </button>
-                                  <span style={{ fontSize: 13 }}>
+                                  <span className="muted">
                                     Página {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
                                   </span>
                                   <button
-                                    style={styles.btnTiny}
+                                    className="btn tiny"
                                     onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, +1); }}
                                   >
                                     Siguiente ▶
                                   </button>
                                 </div>
                               </div>
-                            </td>
-                          </tr>
-                        )}
-
-                        {/* PANEL ANIDADO EMPRENDEDOR (se mantiene) */}
-                        {tipo === "emprendedor" && (
-                          <tr>
-                            <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
-                              {/* Filtros de fecha */}
-                              <div style={styles.filtersRow}>
-                                <div style={{ fontWeight: 600 }}>Filtrar por fecha</div>
-                                <div style={styles.filtersGroup}>
-                                  <label style={styles.labelInline}>
-                                    Desde
-                                    <input
-                                      type="date"
-                                      value={rangoFechas.from}
-                                      onChange={(e) => setRangoFechas((s) => ({ ...s, from: e.target.value }))}
-                                      style={styles.inputInline}
-                                    />
-                                  </label>
-                                  <label style={styles.labelInline}>
-                                    Hasta
-                                    <input
-                                      type="date"
-                                      value={rangoFechas.to}
-                                      onChange={(e) => setRangoFechas((s) => ({ ...s, to: e.target.value }))}
-                                      style={styles.inputInline}
-                                    />
-                                  </label>
-                                  <button
-                                    style={styles.btnTiny}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const emp = lista.find((x) => x._id === expandido);
-                                      if (emp) cargarNestedParaEmprendedor(emp);
-                                    }}
-                                  >
-                                    Aplicar
-                                  </button>
-                                  <button
-                                    style={styles.btnTiny}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRangoFechas({ from: "", to: "" });
-                                    }}
-                                  >
-                                    Limpiar
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Emprendimientos */}
-                              <div style={{ marginBottom: 18 }}>
-                                <div style={styles.sectionHeader}>
-                                  <h4 style={styles.sectionTitle}>Emprendimientos</h4>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const emps = mapEmpEmprendimientos[item._id] || [];
-                                        exportCSV(
-                                          emps.map((e) => ({
-                                            nombreComercial: e.nombreComercial || "",
-                                            ciudad: e?.ubicacion?.ciudad || "",
-                                            creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
-                                          })),
-                                          `emprendimientos_${item.nombre}_${item.apellido}`
-                                        );
-                                      }}
-                                    >
-                                      Exportar CSV
-                                    </button>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const emps = mapEmpEmprendimientos[item._id] || [];
-                                        const mapper = (r) =>
-                                          r?.header
-                                            ? ["Nombre Comercial", "Ciudad", "Creado"]
-                                            : [
-                                                r.nombreComercial || "",
-                                                r.ubicacion?.ciudad || "",
-                                                r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-                                              ];
-                                        exportPDF(`Emprendimientos de ${item.nombre} ${item.apellido}`, emps, mapper);
-                                      }}
-                                    >
-                                      Exportar PDF
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {loadingNested ? (
-                                  <div style={styles.emptyCell}>Cargando emprendimientos…</div>
-                                ) : (
-                                  <table style={{ ...styles.table, marginTop: 8 }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={styles.th}>Nombre Comercial</th>
-                                        <th style={styles.th}>Ciudad</th>
-                                        <th style={styles.th}>Creado</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
-                                        <tr><td colSpan="3" style={styles.emptyCell}>Sin emprendimientos en el rango.</td></tr>
-                                      ) : (
-                                        (mapEmpEmprendimientos[item._id] || []).map((e) => (
-                                          <tr key={e._id}>
-                                            <td style={styles.td}>{e.nombreComercial}</td>
-                                            <td style={styles.td}>{e?.ubicacion?.ciudad || "—"}</td>
-                                            <td style={styles.td}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}</td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                )}
-                              </div>
-
-                              {/* Productos */}
-                              <div>
-                                <div style={styles.sectionHeader}>
-                                  <h4 style={styles.sectionTitle}>Productos</h4>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const prods = mapEmpProductos[item._id] || [];
-                                        exportCSV(
-                                          prods.map((p) => ({
-                                            producto: p.nombre || "",
-                                            precio: typeof p.precio === "number" ? p.precio : "",
-                                            stock: p.stock ?? "",
-                                            emprendimiento: p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
-                                            creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
-                                          })),
-                                          `productos_${item.nombre}_${item.apellido}`
-                                        );
-                                      }}
-                                    >
-                                      Exportar CSV
-                                    </button>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const prods = mapEmpProductos[item._id] || [];
-                                        const mapper = (r) =>
-                                          r?.header
-                                            ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
-                                            : [
-                                                r.nombre || "",
-                                                typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
-                                                r.stock ?? "",
-                                                r.empNombreComercial || r?.emprendimiento?.nombreComercial || "",
-                                                r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-                                              ];
-                                        exportPDF(`Productos de ${item.nombre} ${item.apellido}`, prods, mapper);
-                                      }}
-                                    >
-                                      Exportar PDF
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {loadingNested ? (
-                                  <div style={styles.emptyCell}>Cargando productos…</div>
-                                ) : (
-                                  <table style={{ ...styles.table, marginTop: 8 }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={styles.th}>Producto</th>
-                                        <th style={styles.th}>Precio</th>
-                                        <th style={styles.th}>Stock</th>
-                                        <th style={styles.th}>Emprendimiento</th>
-                                        <th style={styles.th}>Creado</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(mapEmpProductos[item._id] || []).length === 0 ? (
-                                        <tr><td colSpan="5" style={styles.emptyCell}>Sin productos en el rango.</td></tr>
-                                      ) : (
-                                        (mapEmpProductos[item._id] || []).map((p) => (
-                                          <tr key={p._id}>
-                                            <td style={styles.td}>{p.nombre}</td>
-                                            <td style={styles.td}>
-                                              {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
-                                            </td>
-                                            <td style={styles.td}>{p.stock ?? "—"}</td>
-                                            <td style={styles.td}>
-                                              {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
-                                            </td>
-                                            <td style={styles.td}>
-                                              {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
-                                            </td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
                     )}
                   </React.Fragment>
                 ))}
             </tbody>
           </table>
         </div>
+
+        {/* Vista tarjetas (mobile <768px) */}
+        <div className="cardsWrap showOnMobile">
+          {loadingLista && (
+            <div className="mobileEmpty">Cargando…</div>
+          )}
+
+          {!loadingLista && listaFiltrada.length === 0 && (
+            <div className="mobileEmpty">
+              <div style={{ fontSize: 24 }}>🗂️</div>
+              <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
+            </div>
+          )}
+
+          {!loadingLista && listaFiltrada.map((item, i) => (
+            <div
+              key={item._id}
+              className={`mCard ${expandido === item._id ? "mCardActive" : ""}`}
+            >
+              <div className="mCardHeader" onClick={() => toggleExpandido(item._id, item)}>
+                <div className="mCardTitle">
+                  <span className="idx">#{i + 1}</span>
+                  <span className="nm">{item.nombre} {item.apellido}</span>
+                  <EstadoBadge estado={getEstado(item)} />
+                </div>
+                <div className="mCardMeta">{item.email}</div>
+                <div className="mCardMeta">{item.telefono || "N/A"}</div>
+              </div>
+
+              <div className="mCardToolbar">
+                <select
+                  aria-label="Cambiar estado/advertencia"
+                  value={getEstado(item)}
+                  onChange={(e) => openEstadoModal(item, e.target.value)}
+                  className="select full"
+                >
+                  {getEstadosPermitidos().map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+
+                <div className="mActions">
+                  <button className="btn tiny" onClick={() => prepararEditar(item)}>✏️ Editar</button>
+                  <button className="btn tiny danger" onClick={() => solicitarEliminar(item)}>🗑️ Eliminar</button>
+                  <button className="btn tiny" onClick={() => abrirChat(item)}>💬 Chat</button>
+                  <button
+                    className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
+                    disabled={getEstado(item) === "Suspendido"}
+                    onClick={() => openEstadoModal(item, siguienteAdvertencia(getEstado(item)))}
+                  >
+                    ⚠️ Advertencia
+                  </button>
+                </div>
+              </div>
+
+              {expandido === item._id && (
+                <div className="mCardBody">
+                  <div className="detailItem">
+                    <div className="detailLabel">Creado</div>
+                    <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                  </div>
+                  <div className="detailItem">
+                    <div className="detailLabel">Actualizado</div>
+                    <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                  </div>
+
+                  {tipo === "cliente" && (
+                    <div className="mt12">
+                      <div className="sectionHeader">
+                        <h4 className="sectionTitle">Historial</h4>
+                        <div className="inline">
+                          <button
+                            className="btn tiny"
+                            onClick={async () => {
+                              await cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+                              setMensaje("Historial actualizado");
+                            }}
+                          >
+                            ↻
+                          </button>
+                          <button
+                            className="btn tiny"
+                            onClick={() => {
+                              const info = mapAuditoria[item._id] || { items: [] };
+                              const rows = (info.items || []).map((a) => ({
+                                fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                tipo: a.tipo || "",
+                                motivo: a.motivo || "",
+                                origen: a.origen || "",
+                                modificadoPor: displayActorName(a),
+                                ip: a.ip || "",
+                                userAgent: a.userAgent || ""
+                              }));
+                              if (!rows.length) { setError("No hay registros para exportar."); return; }
+                              exportCSV(rows, `historial_${item.nombre}_${item.apellido}`);
+                            }}
+                          >
+                            ⬇️ CSV
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mHistory">
+                        {mapAuditoria[item._id]?.loading && (
+                          <div className="muted">Cargando historial…</div>
+                        )}
+                        {!mapAuditoria[item._id]?.loading &&
+                          (mapAuditoria[item._id]?.items || []).length === 0 && (
+                          <div className="muted">Sin registros.</div>
+                        )}
+                        {!mapAuditoria[item._id]?.loading &&
+                          (mapAuditoria[item._id]?.items || []).map((a, idx) => (
+                          <div className="mHistoryItem" key={`${a._id || idx}`}>
+                            <div className="mHistoryRow">
+                              <span className="badge">{a.tipo || "—"}</span>
+                              <span className="muted">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</span>
+                            </div>
+                            <div className="mHistoryMeta">
+                              <span className="muted">Motivo:</span> {a.motivo || "—"}
+                            </div>
+                            <div className="mHistoryMeta">
+                              <span className="muted">Origen:</span> {a.origen || "—"}
+                            </div>
+                            <div className="mHistoryMeta">
+                              <span className="muted">Modificado por:</span> {displayActorName(a)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="paginate">
+                        <button className="btn tiny" onClick={() => onPaginarAud(item._id, -1)}>◀</button>
+                        <span className="muted">
+                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10))}
+                        </span>
+                        <button className="btn tiny" onClick={() => onPaginarAud(item._id, +1)}>▶</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE ====== */}
       {estadoModal.visible && tipo === "cliente" && (
-        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
-            <div style={styles.modalHeader}>
-              <h3 style={{ margin: 0 }}>
-                Cambiar estado a {estadoModal.nuevoEstado}
+        <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
+            <div className="modalHeader">
+              <h3 className="modalTitle">
+                Cambiar estado a <span className="pill soft">{estadoModal.nuevoEstado}</span>
               </h3>
-              <button style={styles.btnClose} onClick={closeEstadoModal}>Cerrar</button>
+              <button className="btn close" onClick={closeEstadoModal} aria-label="Cerrar">✖</button>
             </div>
 
-            <div style={styles.modalBody}>
-              <div style={{ marginBottom: 10 }}>
-                <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
-                  Motivo <span style={{ color: "#dc2626" }}>*</span>
-                </label>
+            <div className="modalBody">
+              <div className="formGroup">
+                <label className="label">Motivo <span className="req">*</span></label>
                 <textarea
                   rows={4}
                   value={estadoModal.motivo}
                   onChange={(e) => setEstadoModal((s) => ({ ...s, motivo: e.target.value }))}
                   placeholder="Describe brevemente el motivo…"
-                  style={{
-                    width: "100%",
-                    marginTop: 6,
-                    padding: 10,
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    resize: "vertical"
-                  }}
+                  className="input"
+                  style={{ resize: "vertical" }}
                 />
               </div>
 
               {estadoModal.nuevoEstado === "Suspendido" && (
-                <div>
-                  <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
-                    Suspensión hasta (opcional)
-                  </label>
+                <div className="formGroup">
+                  <label className="label">Suspensión hasta (opcional)</label>
                   <input
                     type="datetime-local"
                     value={estadoModal.suspendidoHasta}
                     onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      marginTop: 6,
-                      padding: 10,
-                      borderRadius: 8,
-                      border: "1px solid #cbd5e1",
-                    }}
+                    className="input"
                   />
-                  <small style={{ color: "#6b7280" }}>
+                  <small className="muted">
                     Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.
                   </small>
                 </div>
               )}
             </div>
 
-            <div style={styles.modalFooter}>
-              <button style={styles.btnSecondary} onClick={closeEstadoModal}>Cancelar</button>
-              <button style={styles.btnPrimary} onClick={updateEstadoClienteConfirmed}>
+            <div className="modalFooter">
+              <button className="btn secondary" onClick={closeEstadoModal}>Cancelar</button>
+              <button className="btn primary" onClick={updateEstadoClienteConfirmed}>
                 Confirmar
               </button>
             </div>
@@ -1519,20 +1427,20 @@ const Table = () => {
 
       {/* ====== MODAL CONFIRM ELIMINACIÓN ====== */}
       {confirmDelete.visible && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
-            <div style={styles.modalHeader}>
-              <h3 style={{ margin: 0 }}>Confirmar eliminación</h3>
-              <button style={styles.btnClose} onClick={cancelarEliminar}>Cerrar</button>
+        <div className="modalOverlay">
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
+            <div className="modalHeader">
+              <h3 className="modalTitle">Confirmar eliminación</h3>
+              <button className="btn close" onClick={cancelarEliminar} aria-label="Cerrar">✖</button>
             </div>
-            <div style={styles.modalBody}>
-              <p style={{ marginTop: 0 }}>
+            <div className="modalBody">
+              <p className="p">
                 ¿Eliminar {capitalize(tipo)} <strong>{confirmDelete.nombre}</strong>? Esta acción no se puede deshacer.
               </p>
             </div>
-            <div style={styles.modalFooter}>
-              <button style={styles.btnSecondary} onClick={cancelarEliminar}>Cancelar</button>
-              <button style={styles.btnDanger} onClick={confirmarEliminar}>Eliminar</button>
+            <div className="modalFooter">
+              <button className="btn secondary" onClick={cancelarEliminar}>Cancelar</button>
+              <button className="btn danger" onClick={confirmarEliminar}>Eliminar</button>
             </div>
           </div>
         </div>
@@ -1540,53 +1448,43 @@ const Table = () => {
 
       {/* ====== MODAL CHAT ====== */}
       {modalChatVisible && chatUser && (
-        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && cerrarChat()}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label={`Chat con ${chatUser.nombre}`}>
-            <div style={styles.modalHeader}>
-              <h3 style={{ margin: 0 }}>
-                Chat con {chatUser.nombre} ({chatUser.rol})
+        <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && cerrarChat()}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label={`Chat con ${chatUser.nombre}`}>
+            <div className="modalHeader">
+              <h3 className="modalTitle">
+                Chat con <strong>{chatUser.nombre}</strong> <span className="muted">({chatUser.rol})</span>
               </h3>
-              <button style={styles.btnClose} onClick={cerrarChat}>Cerrar</button>
+              <button className="btn close" onClick={cerrarChat} aria-label="Cerrar">✖</button>
             </div>
-            <div style={{ ...styles.modalBody, minHeight: 150 }} ref={mensajesRef}>
+            <div className="modalBody" style={{ minHeight: 150 }} ref={mensajesRef}>
               {mensajes.length === 0 && (
-                <p style={{ textAlign: "center", color: "#666", margin: 0 }}>No hay mensajes aún.</p>
+                <p className="muted" style={{ textAlign: "center", margin: 0 }}>No hay mensajes aún.</p>
               )}
               {mensajes.map((m) => {
                 const esEmisor = m.emisorId === emisorId;
                 return (
                   <div key={m._id} style={{ marginBottom: 10, textAlign: esEmisor ? "right" : "left" }}>
                     <span
-                      style={{
-                        display: "inline-block",
-                        backgroundColor: esEmisor ? "#007bff" : "#e4e6eb",
-                        color: esEmisor ? "white" : "black",
-                        padding: "8px 12px",
-                        borderRadius: 15,
-                        maxWidth: "70%",
-                        wordWrap: "break-word",
-                      }}
+                      className={`chatBubble ${esEmisor ? "right" : "left"}`}
                     >
                       {m.contenido}
                     </span>
                     <br />
-                    <small style={{ fontSize: 10, color: "#999" }}>
-                      {new Date(m.createdAt).toLocaleTimeString()}
-                    </small>
+                    <small className="muted">{new Date(m.createdAt).toLocaleTimeString()}</small>
                   </div>
                 );
               })}
             </div>
-            <form style={styles.modalFooter} onSubmit={(e) => { e.preventDefault(); enviarMensaje(e); }}>
+            <form className="modalFooter" onSubmit={(e) => { e.preventDefault(); enviarMensaje(e); }}>
               <input
                 type="text"
                 placeholder="Escribe un mensaje…"
                 value={mensajeChat}
                 onChange={(e) => setMensajeChat(e.target.value)}
-                style={{ flexGrow: 1, padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", marginRight: 8, fontSize: 14, outline: "none" }}
+                className="input flexGrow"
                 autoFocus
               />
-              <button type="submit" style={styles.btnPrimary}>Enviar</button>
+              <button type="submit" className="btn primary">Enviar</button>
             </form>
           </div>
         </div>
@@ -1596,283 +1494,218 @@ const Table = () => {
 };
 
 /* ===========================
-   ESTILOS
+   CSS (Responsivo + UX mejorado)
 =========================== */
-const styles = {
-  container: {
-    maxWidth: 1080,
-    margin: "auto",
-    padding: 20,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    color: "#1f2937",
-  },
-  header: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 12,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: { margin: 0, fontSize: 24, fontWeight: 800 },
-  subTitle: { marginTop: 4, color: "#64748b", fontSize: 13 },
-  actionsBar: { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" },
+const css = `
+:root{
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --bd:#e2e8f0;
+  --bd-strong:#0ea5e9;
+  --txt:#1f2937;
+  --muted:#64748b;
+  --muted2:#475569;
+  --ok:#0ea5e9;
+  --ok-strong:#0284c7;
+  --warn:#f59e0b;
+  --danger:#dc2626;
+  --success:#16a34a;
+  --shadow:0 1px 4px rgba(0,0,0,0.05);
+  --shadow-lg:0 10px 25px rgba(0,0,0,0.15);
+  --radius:12px;
+  --radius-sm:8px;
+  --space:16px;
+}
 
-  segmented: {
-    display: "inline-flex",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    overflow: "hidden",
-    background: "#fff",
-  },
-  segmentedBtn: {
-    padding: "8px 12px",
-    backgroundColor: "#fff",
-    color: "#334155",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-  segmentedActive: {
-    padding: "8px 12px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
+*{box-sizing:border-box}
+.wrap{
+  max-width: 1100px;
+  margin: auto;
+  padding: 16px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--txt);
+}
+.hdr{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:12px;
+  align-items:center;
+  margin-bottom:16px;
+}
+.ttl{ margin:0; font-size:24px; font-weight:800; }
+.subTtl{ margin-top:4px; color:var(--muted); font-size:13px; }
+.toolbar{ display:flex; gap:12px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
 
-  searchBox: { display: "flex", gap: 8, alignItems: "center" },
-  searchInput: {
-    width: 280,
-    maxWidth: "60vw",
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    outline: "none",
-  },
-  refreshBtn: {
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
+.segmented{
+  display:inline-flex;
+  border:1px solid var(--bd);
+  border-radius: var(--radius-sm);
+  overflow:hidden;
+  background:#fff;
+}
+.segBtn{
+  padding:8px 12px;
+  background:#fff;
+  color:#334155;
+  border:none;
+  cursor:pointer;
+  font-weight:700;
+}
+.segBtn.active{ background:var(--ok); color:#fff; }
 
-  toastRegion: { position: "fixed", top: 14, right: 14, display: "grid", gap: 8, zIndex: 10000 },
-  toast: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-    fontSize: 13,
-    minWidth: 240,
-  },
+.searchBox{ display:flex; gap:8px; align-items:center; }
+.searchInput{
+  width:280px; max-width:60vw;
+  padding:8px 10px; border-radius: var(--radius-sm);
+  border:1px solid var(--bd); outline:none;
+}
+.toastRegion{ position:fixed; top:14px; right:14px; display:grid; gap:8px; z-index:10000; }
+.toast{
+  padding:10px 12px; border-radius:10px; box-shadow: var(--shadow);
+  font-size:13px; min-width:240px;
+}
+.toastErr{ background:#ffe8e6; color:#a33; }
+.toastOk{ background:#e7f9ed; color:#1e7e34; }
 
-  card: {
-    marginBottom: 20,
-    padding: 16,
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-  },
-  cardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  cardTitle: { margin: 0, fontSize: 18, fontWeight: 700 },
-  cardFooter: { display: "flex", gap: 8, marginTop: 8 },
+.card{
+  margin-bottom: 16px; padding: 16px;
+  border:1px solid var(--bd); border-radius: var(--radius);
+  background: var(--card); box-shadow: var(--shadow);
+}
+.cardHeader{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.cardTitle{ margin:0; font-size:18px; font-weight:800; }
+.cardFooter{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
 
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  formGroup: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, color: "#475569", fontWeight: 600 },
-  input: {
-    width: "100%",
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    boxSizing: "border-box",
-    outline: "none",
-  },
+.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+.formGroup{ display:flex; flex-direction:column; gap:6px; }
+.label{ font-size:13px; color:var(--muted2); font-weight:700; }
+.input{
+  width:100%; padding:10px; border-radius: var(--radius-sm);
+  border:1px solid var(--bd); outline:none; background:#fff;
+}
+.labelInlineSmall{ font-size:12px; color:var(--muted); margin-right:6px; }
 
-  btnPrimary: {
-    padding: "10px 16px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  btnSecondary: {
-    padding: "10px 16px",
-    backgroundColor: "#64748b",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  btnGhost: {
-    padding: "10px 16px",
-    backgroundColor: "#ffffff",
-    color: "#0ea5e9",
-    border: "1px solid #0ea5e9",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
+.btn{
+  padding:10px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-weight:700;
+  background:#fff; color:#0ea5e9; border:1px solid var(--ok);
+}
+.btn.primary{ background: var(--ok); color:#fff; border:none; }
+.btn.primary:hover{ background: var(--ok-strong); }
+.btn.secondary{ background:#64748b; color:#fff; }
+.btn.ghost{ background:#ffffff; color:var(--ok); border:1px solid var(--ok); }
+.btn.danger{ background: var(--danger); color:#fff; border:none; }
+.btn.warn{ background: var(--warn); color:#fff; border:none; }
+.btn.disabled{ opacity:.5; cursor:not-allowed; }
+.btn.tiny{ padding:6px 10px; border-radius:6px; font-size:13px; }
+.btn.close{ background:#ef4444; color:#fff; border:none; padding:6px 10px; border-radius:8px; font-weight:800; }
+.inline{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  th: {
-    borderBottom: "2px solid #0ea5e9",
-    padding: 10,
-    textAlign: "left",
-    backgroundColor: "#eaf7ff",
-    fontWeight: 700,
-    fontSize: 13,
-    color: "#1f2937",
-    position: "sticky",
-    top: 0,
-    zIndex: 1,
-  },
-  td: {
-    borderBottom: "1px solid #e5e7eb",
-    padding: 10,
-    verticalAlign: "top",
-    fontSize: 14,
-  },
+.tableWrap{ overflow-x:auto; }
+.table{ width:100%; border-collapse: collapse; }
+.th{
+  border-bottom: 2px solid var(--bd-strong); padding:10px; text-align:left; background:#eaf7ff;
+  font-weight:800; font-size:13px; color:var(--txt); position:sticky; top:0; z-index:1;
+}
+.td{ border-bottom:1px solid #e5e7eb; padding:10px; vertical-align: top; font-size:14px; }
+.row{ background:#fff; cursor:pointer; }
+.row:hover{ background:#f8fbff; }
+.rowActive{ background:#f5faff; }
 
-  select: {
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#fff",
-  },
+.nameStrong{ font-weight:800; margin-right:6px; }
+.select{
+  padding:8px 10px; border-radius: var(--radius-sm); border:1px solid var(--bd); background:#fff;
+}
+.actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
-  btnTiny: {
-    padding: "6px 10px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  btnTinyDanger: {
-    padding: "6px 10px",
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
+.emptyCell{ text-align:center; padding:20px; color:#666; font-size:14px; }
 
-  emptyCell: {
-    textAlign: "center",
-    padding: 20,
-    color: "#666",
-    fontSize: 14,
-  },
+.detailsCell{ padding:12px; background:#f7fbff; border-top:1px solid #e6eef8; }
+.detailsGrid{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
+.detailItem{ padding:10px; border:1px solid var(--bd); border-radius:10px; background:#fff; }
+.detailLabel{ font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px; }
+.detailValue{ font-size:14px; color:var(--txt); }
 
-  detailsCell: {
-    padding: 12,
-    backgroundColor: "#f7fbff",
-    borderTop: "1px solid #e6eef8",
-  },
-  detailsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: 12,
-  },
-  detailItem: {
-    padding: 10,
-    border: "1px solid #e2e8f0",
-    borderRadius: 10,
-    background: "#fff",
-  },
-  detailLabel: { fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 4 },
-  detailValue: { fontSize: 14, color: "#1f2937" },
+.sectionHeader{ display:flex; justify-content:space-between; align-items:center; }
+.sectionTitle{ margin:0; color:var(--ok); }
+.mt8{ margin-top:8px; }
+.mt12{ margin-top:12px; }
+.muted{ color:var(--muted); font-size:13px; }
 
-  filtersRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  filtersGroup: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  labelInline: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569", fontWeight: 600 },
-  inputInline: {
-    padding: "6px 8px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#fff",
-    outline: "none",
-  },
+.paginate{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
 
-  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  sectionTitle: { margin: 0, color: "#0ea5e9" },
+.pill{
+  display:inline-block; margin-left:6px; padding:2px 10px; border-radius:999px; font-size:12px; color:#fff; line-height:18px;
+}
+.pill.soft{
+  background:#0ea5e922; color:#0ea5e9; border:1px solid #0ea5e944;
+  padding:2px 8px;
+}
 
-  modalOverlay: {
-    position: "fixed",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999,
-    padding: 12,
-  },
-  modal: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    width: 520,
-    maxWidth: "95%",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  modalHeader: {
-    padding: "12px 16px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  btnClose: {
-    backgroundColor: "#dc3545",
-    border: "none",
-    color: "white",
-    fontWeight: "bold",
-    cursor: "pointer",
-    padding: "6px 10px",
-    borderRadius: 8,
-  },
-  modalBody: {
-    padding: 16,
-    minHeight: 120,
-    fontSize: 14,
-    color: "#333",
-    overflowY: "auto",
-  },
-  modalFooter: {
-    padding: 12,
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 8,
-  },
-  btnDanger: {
-    padding: "10px 16px",
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-};
+/* Skeletons */
+.skl{ height:14px; width:100%; background:linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
+.skl.w40{ width:40px; }
+.skl.w80{ width:80px; }
+.skl.w120{ width:120px; }
+@keyframes shimmer{ 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+/* Mobile Cards */
+.showOnMobile{ display:none; }
+.hideOnMobile{ display:block; }
+
+.mCard{
+  border:1px solid var(--bd); border-radius: var(--radius); background:#fff; box-shadow: var(--shadow);
+  padding:12px; margin-bottom:12px;
+}
+.mCardActive{ outline:2px solid var(--bd-strong); }
+.mCardHeader{ cursor:pointer; }
+.mCardTitle{ display:flex; align-items:center; gap:8px; font-weight:800; }
+.idx{ color:var(--muted); }
+.mCardMeta{ color:var(--muted); font-size:13px; margin-top:2px; }
+.mCardToolbar{ display:grid; grid-template-columns: 1fr; gap:8px; margin-top:10px; }
+.select.full{ width:100%; }
+.mActions{ display:flex; gap:6px; flex-wrap:wrap; }
+.mCardBody{ margin-top:10px; }
+
+.mHistory{ display:grid; gap:8px; }
+.mHistoryItem{ border:1px solid var(--bd); border-radius:10px; padding:10px; background:#fff; }
+.mHistoryRow{ display:flex; align-items:center; justify-content:space-between; }
+.badge{
+  background:#e2e8f0; color:#0f172a; padding:2px 8px; border-radius:999px; font-size:12px;
+}
+.mobileEmpty{ text-align:center; color:var(--muted); padding:16px; }
+
+.modalOverlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.45);
+  display:flex; justify-content:center; align-items:center; z-index:9999; padding:12px;
+}
+.modal{
+  background:#fff; border-radius: var(--radius); width:520px; max-width:95%;
+  box-shadow: var(--shadow-lg); display:flex; flex-direction:column; overflow:hidden;
+}
+.modalHeader{
+  padding:12px 16px; background: var(--ok); color:#fff; display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:16px;
+}
+.modalTitle{ margin:0; }
+.modalBody{ padding:16px; min-height:120px; font-size:14px; color:#333; overflow-y:auto; }
+.modalFooter{ padding:12px; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:8px; }
+.req{ color:#dc2626; }
+
+.chatBubble{
+  display:inline-block; padding:8px 12px; border-radius:15px; max-width:70%; word-wrap:break-word;
+  background:#e4e6eb; color:#111827;
+}
+.chatBubble.right{ background:#0284c7; color:#fff; }
+.flexGrow{ flex-grow:1; }
+
+/* RESPONSIVE */
+@media (max-width: 768px){
+  .hdr{ grid-template-columns: 1fr; }
+  .grid2{ grid-template-columns: 1fr; }
+  .showOnMobile{ display:block; }
+  .hideOnMobile{ display:none; }
+  .searchInput{ width:100%; max-width:100%; }
+  .detailsGrid{ grid-template-columns: 1fr; }
+}
+`;
 
 export default Table;
