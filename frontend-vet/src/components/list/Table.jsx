@@ -33,11 +33,32 @@ const ESTADO_COLORS = {
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
+/* Derivar estado cliente visible */
+const deriveEstadoCliente = (item) => {
+  if (!item) return "Correcto";
+  if (item.status === false) return "Suspendido";
+  const e = item.estado_Emprendedor;
+  if (e === "Activo") return "Correcto";
+  if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
+  return "Correcto";
+};
+
+/* Siguiente advertencia desde un estado visible */
+const siguienteAdvertencia = (estadoActual) => {
+  switch (estadoActual) {
+    case "Correcto":      return "Advertencia1";
+    case "Advertencia1":  return "Advertencia2";
+    case "Advertencia2":  return "Advertencia3";
+    case "Advertencia3":  return "Suspendido";
+    default:              return "Suspendido";
+  }
+};
+
 /* ===========================
    COMPONENTE
 =========================== */
 const Table = () => {
-  /* --------- Contexto Auth --------- */
+  /* --------- Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
 
   /* --------- Estado principal --------- */
@@ -45,7 +66,7 @@ const Table = () => {
   const [lista, setLista] = useState([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
-  /* --------- Form states --------- */
+  /* --------- Formularios --------- */
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
 
@@ -61,11 +82,11 @@ const Table = () => {
     return () => clearTimeout(t);
   }, [error, mensaje]);
 
-  /* --------- UI states --------- */
+  /* --------- UI --------- */
   const [expandido, setExpandido] = useState(null);
   const [search, setSearch] = useState("");
 
-  /* --------- Confirmación de eliminación --------- */
+  /* --------- Confirm Delete --------- */
   const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
 
   /* --------- Chat --------- */
@@ -75,33 +96,22 @@ const Table = () => {
   const [mensajeChat, setMensajeChat] = useState("");
   const mensajesRef = useRef(null);
 
-  /* --------- Sub-filtros por fecha para Emprendedor --------- */
+  /* --------- Sub-filtros Emprendedor --------- */
   const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
   const [mapEmpProductos, setMapEmpProductos] = useState({});
   const [loadingNested, setLoadingNested] = useState(false);
 
-  /* --------- Catálogos generales (fallback) --------- */
+  /* --------- Catálogos fallback --------- */
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= Derivar estado visible CLIENTE desde modelo ========= */
-  const deriveEstadoCliente = (item) => {
-    if (!item) return "Correcto";
-    if (item.status === false) return "Suspendido";
-    const e = item.estado_Emprendedor;
-    if (e === "Activo") return "Correcto";
-    if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
-    return "Correcto";
-  };
+  /* --------- Auditoría (Cliente) --------- */
+  const [mapAuditoria, setMapAuditoria] = useState({}); // { [clienteId]: { items, total, page, limit, loading } }
 
-  /* ===========================
-     CARGA DE LISTAS
-  ============================ */
+  /* ---- Carga de listas ---- */
   const fetchLista = async () => {
-    setError("");
-    setMensaje("");
-    setLoadingLista(true);
+    setError(""); setMensaje(""); setLoadingLista(true);
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/todos`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -114,10 +124,9 @@ const Table = () => {
           const estadoUI = deriveEstadoCliente(c);
           return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
         });
-      } else if (tipo === "emprendedor") {
+      } else {
         normalizados = normalizados.map((e) => ({ ...e, estado: e.estado_Emprendedor || "Activo" }));
       }
-
       setLista(normalizados);
     } catch (e) {
       console.error(e);
@@ -147,7 +156,7 @@ const Table = () => {
       setCatalogoProductos(productosArray);
       setCatalogoEmprendimientos(emprArray);
     } catch (e) {
-      console.warn("No se pudieron cargar catálogos generales (fallback):", e?.message);
+      console.warn("No se pudieron cargar catálogos de fallback:", e?.message);
     }
   };
 
@@ -157,18 +166,15 @@ const Table = () => {
     setFormCrear(emptyForm);
     setFormEditar({ id: null, ...emptyForm });
     setExpandido(null);
-    setError("");
-    setMensaje("");
-    setSearch("");
+    setError(""); setMensaje(""); setSearch("");
   }, [tipo]);
 
   /* ===========================
-     CRUD: CREAR / EDITAR / ELIMINAR
+     CRUD base
   ============================ */
   const handleCrear = async (e) => {
     e.preventDefault();
-    setError("");
-    setMensaje("");
+    setError(""); setMensaje("");
 
     if (!formCrear.nombre.trim() || !formCrear.apellido.trim()) {
       setError("Nombre y Apellido son obligatorios.");
@@ -210,15 +216,13 @@ const Table = () => {
       password: "",
       telefono: item.telefono || "",
     });
-    setMensaje("");
-    setError("");
+    setMensaje(""); setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleActualizar = async (e) => {
     e.preventDefault();
-    setError("");
-    setMensaje("");
+    setError(""); setMensaje("");
     const { id, nombre, apellido, email, password, telefono } = formEditar;
 
     if (!nombre.trim() || !apellido.trim()) {
@@ -252,16 +256,13 @@ const Table = () => {
     }
   };
 
-  const solicitarEliminar = (item) => {
-    setConfirmDelete({ visible: true, id: item._id, nombre: `${item.nombre} ${item.apellido}` });
-  };
+  const solicitarEliminar = (item) => setConfirmDelete({ visible: true, id: item._id, nombre: `${item.nombre} ${item.apellido}` });
   const cancelarEliminar = () => setConfirmDelete({ visible: false, id: null, nombre: "" });
 
   const confirmarEliminar = async () => {
     const id = confirmDelete.id;
     cancelarEliminar();
-    setError("");
-    setMensaje("");
+    setError(""); setMensaje("");
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
         method: "DELETE",
@@ -279,7 +280,7 @@ const Table = () => {
   };
 
   /* ===========================
-     ESTADO (Cliente/Emprendedor)
+     ESTADOS y MODALES
   ============================ */
 
   const getEstado = (item) =>
@@ -290,7 +291,7 @@ const Table = () => {
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
 
-  // --- Modal cambio de estado (Cliente) ---
+  // Modal de cambio de estado (Cliente)
   const [estadoModal, setEstadoModal] = useState({
     visible: false,
     item: null,
@@ -309,7 +310,7 @@ const Table = () => {
         suspendidoHasta: ""
       });
     } else {
-      // Emprendedor: comportamiento previo (sin motivo)
+      // Emprendedor: no requiere motivo
       updateEstadoEmprendedor(item, nuevoEstado);
     }
   };
@@ -321,8 +322,7 @@ const Table = () => {
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
-      setMensaje("");
-      setError("");
+      setMensaje(""); setError("");
 
       if (!ESTADOS_CLIENTE.includes(nuevoEstado)) {
         setError("Estado inválido para cliente.");
@@ -334,7 +334,6 @@ const Table = () => {
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-
       const payload = {
         estado: nuevoEstado,
         motivo: motivo.trim(),
@@ -343,7 +342,6 @@ const Table = () => {
           : {})
       };
 
-      // Llamada al endpoint dedicado (con token)
       let res = await fetch(urlEstado, {
         method: "PUT",
         headers: {
@@ -353,7 +351,7 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Fallback a actualizar/:id (enviando motivo también)
+      // Fallback
       if (!res.ok) {
         res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -370,7 +368,12 @@ const Table = () => {
 
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       closeEstadoModal();
-      fetchLista();
+
+      // Refrescar listado y, si corresponde, recargar auditoría visible
+      await fetchLista();
+      if (expandido === item._id && tipo === "cliente") {
+        cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+      }
     } catch (e) {
       console.error(e);
       setError(e.message || "Error al actualizar el estado.");
@@ -379,8 +382,7 @@ const Table = () => {
 
   const updateEstadoEmprendedor = async (item, nuevoEstado) => {
     try {
-      setMensaje("");
-      setError("");
+      setMensaje(""); setError("");
 
       if (!ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
         setError("Estado inválido para emprendedor.");
@@ -440,23 +442,14 @@ const Table = () => {
   };
 
   /* ===========================
-     ANIDADOS (Emprendedor)
+     ANIDADOS: Emprendedor
   ============================ */
-  const toggleExpandido = async (id, item) => {
-    const nuevo = expandido === id ? null : id;
-    setExpandido(nuevo);
-    if (nuevo && tipo === "emprendedor") {
-      await cargarNestedParaEmprendedor(item);
-    }
-  };
-
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
-    setLoadingNested(true);
-    setError("");
+    setLoadingNested(true); setError("");
 
     const from = rangoFechas.from || "";
-    const to = rangoFechas.to || "";
+    const to   = rangoFechas.to   || "";
 
     const tryFetch = async (url) => {
       try {
@@ -479,11 +472,7 @@ const Table = () => {
         const owner = String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
         const ts = e?.createdAt ? new Date(e.createdAt).getTime() : null;
         const inRange =
-          !from && !to
-            ? true
-            : (!!ts &&
-               (!from || ts >= new Date(from).getTime()) &&
-               (!to || ts <= new Date(to).getTime()));
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
         return owner && inRange;
       });
     }
@@ -499,11 +488,7 @@ const Table = () => {
           String(emprendedor._id);
         const ts = p?.createdAt ? new Date(p.createdAt).getTime() : null;
         const inRange =
-          !from && !to
-            ? true
-            : (!!ts &&
-               (!from || ts >= new Date(from).getTime()) &&
-               (!to || ts <= new Date(to).getTime()));
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
         return owner && inRange;
       });
     }
@@ -513,16 +498,61 @@ const Table = () => {
     setLoadingNested(false);
   };
 
-  useEffect(() => {
-    if (expandido && tipo === "emprendedor") {
-      const emp = lista.find((x) => x._id === expandido);
-      if (emp) cargarNestedParaEmprendedor(emp);
+  /* ===========================
+     AUDITORÍA: Cliente
+  ============================ */
+  const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    setMapAuditoria((prev) => ({
+      ...prev,
+      [clienteId]: { ...(prev[clienteId] || {}), loading: true }
+    }));
+    try {
+      const url = `${BASE_URLS["cliente"]}/estado/${clienteId}/auditoria?page=${page}&limit=${limit}`;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "No se pudo obtener auditoría");
+      setMapAuditoria((prev) => ({
+        ...prev,
+        [clienteId]: { items: data.items || [], total: data.total || 0, page: data.page || 1, limit: data.limit || 10, loading: false }
+      }));
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "Error al cargar auditoría.");
+      setMapAuditoria((prev) => ({
+        ...prev,
+        [clienteId]: { items: [], total: 0, page: 1, limit: 10, loading: false }
+      }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangoFechas]);
+  };
+
+  const onPaginarAud = (clienteId, dir = 0) => {
+    const info = mapAuditoria[clienteId] || { page: 1, limit: 10, total: 0 };
+    const totalPages = Math.max(1, Math.ceil((info.total || 0) / (info.limit || 10)));
+    let nextPage = info.page + dir;
+    if (nextPage < 1) nextPage = 1;
+    if (nextPage > totalPages) nextPage = totalPages;
+    if (nextPage !== info.page) cargarAuditoriaCliente(clienteId, nextPage, info.limit);
+  };
 
   /* ===========================
-     EXPORTS
+     TOGGLE expandido
+  ============================ */
+  const toggleExpandido = async (id, item) => {
+    const nuevo = expandido === id ? null : id;
+    setExpandido(nuevo);
+
+    if (nuevo && tipo === "emprendedor") {
+      await cargarNestedParaEmprendedor(item);
+    }
+    if (nuevo && tipo === "cliente") {
+      await cargarAuditoriaCliente(item._id, 1, 10);
+    }
+  };
+
+  /* ===========================
+     EXPORTS utilitarios
   ============================ */
   const exportCSV = (rows, filename) => {
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -592,26 +622,6 @@ const Table = () => {
     win.print();
     setMensaje("Exportación PDF lista.");
   };
-
-  const mapperEmprendimientos = (r) =>
-    r?.header
-      ? ["Nombre Comercial", "Ciudad", "Creado"]
-      : [
-          r.nombreComercial || "",
-          r.ubicacion?.ciudad || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-        ];
-
-  const mapperProductos = (r) =>
-    r?.header
-      ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
-      : [
-          r.nombre || "",
-          typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
-          r.stock ?? "",
-          r.empNombreComercial || r.emprendimiento?.nombreComercial || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-        ];
 
   /* ===========================
      CHAT
@@ -989,21 +999,29 @@ const Table = () => {
                             🗑️ Eliminar
                           </button>
                           <button
-                            style={styles.btnTinySuccess}
+                            style={{
+                              ...styles.btnTiny,
+                              backgroundColor: getEstado(item) === "Suspendido" ? "#9ca3af" : "#22c55e",
+                              cursor: getEstado(item) === "Suspendido" ? "not-allowed" : "pointer"
+                            }}
+                            disabled={getEstado(item) === "Suspendido"}
+                            title={getEstado(item) === "Suspendido" ? "El cliente ya está suspendido" : "Agregar siguiente advertencia"}
                             onClick={(e) => {
                               e.stopPropagation();
-                              abrirChat(item);
+                              const next = siguienteAdvertencia(getEstado(item));
+                              openEstadoModal(item, next);
                             }}
                           >
-                            💬 Chatear
+                            ⚠️ Agregar advertencia
                           </button>
                         </div>
                       </td>
                     </tr>
 
-                    {/* DETALLES */}
+                    {/* DETALLES EXPANDIDOS */}
                     {expandido === item._id && (
                       <>
+                        {/* Datos generales */}
                         <tr>
                           <td colSpan="7" style={styles.detailsCell}>
                             <div style={styles.detailsGrid}>
@@ -1031,6 +1049,140 @@ const Table = () => {
                           </td>
                         </tr>
 
+                        {/* PANEL HISTORIAL (solo CLIENTE) */}
+                        {tipo === "cliente" && (
+                          <tr>
+                            <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
+                              <div style={styles.sectionHeader}>
+                                <h4 style={styles.sectionTitle}>Historial de Advertencias / Suspensiones</h4>
+                                <div style={{ display: "flex", gap: 8 }}>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+                                      setMensaje("Historial actualizado");
+                                    }}
+                                  >
+                                    ↻ Actualizar historial
+                                  </button>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const info = mapAuditoria[item._id] || { items: [] };
+                                      const rows = (info.items || []).map((a) => ({
+                                        fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                        tipo: a.tipo || "",
+                                        motivo: a.motivo || "",
+                                        origen: a.origen || "",
+                                        creadoPor: a.creadoPor || "",
+                                        ip: a.ip || "",
+                                        userAgent: a.userAgent || ""
+                                      }));
+                                      if (!rows.length) { setError("No hay registros para exportar."); return; }
+                                      exportCSV(rows, `historial_${item.nombre}_${item.apellido}`);
+                                    }}
+                                  >
+                                    ⬇️ Exportar CSV
+                                  </button>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const info = mapAuditoria[item._id] || { items: [] };
+                                      const rows = info.items || [];
+                                      if (!rows.length) { setError("No hay registros para exportar."); return; }
+                                      const mapper = (r) =>
+                                        r?.header
+                                          ? ["Fecha", "Tipo", "Motivo", "Origen", "Creado por", "IP", "UA"]
+                                          : [
+                                              r.fecha ? new Date(r.fecha).toLocaleString() : "",
+                                              r.tipo || "",
+                                              r.motivo || "",
+                                              r.origen || "",
+                                              r.creadoPor || "",
+                                              r.ip || "",
+                                              r.userAgent || ""
+                                            ];
+                                      exportPDF(`Historial de ${item.nombre} ${item.apellido}`, rows, mapper);
+                                    }}
+                                  >
+                                    🖨️ Exportar PDF
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Tabla historial */}
+                              <div style={{ marginTop: 10, overflowX: "auto" }}>
+                                <table style={{ ...styles.table, marginTop: 8 }}>
+                                  <thead>
+                                    <tr>
+                                      <th style={styles.th}>Fecha</th>
+                                      <th style={styles.th}>Tipo</th>
+                                      <th style={styles.th}>Motivo</th>
+                                      <th style={styles.th}>Origen</th>
+                                      <th style={styles.th}>Creado por</th>
+                                      <th style={styles.th}>IP</th>
+                                      <th style={styles.th}>User-Agent</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(mapAuditoria[item._id]?.loading) && (
+                                      <tr><td colSpan="7" style={styles.emptyCell}>Cargando historial…</td></tr>
+                                    )}
+
+                                    {!mapAuditoria[item._id]?.loading &&
+                                      (mapAuditoria[item._id]?.items || []).length === 0 && (
+                                      <tr><td colSpan="7" style={styles.emptyCell}>Sin registros.</td></tr>
+                                    )}
+
+                                    {!mapAuditoria[item._id]?.loading &&
+                                      (mapAuditoria[item._id]?.items || []).map((a, idx) => (
+                                      <tr key={`${a._id || idx}`}>
+                                        <td style={styles.td}>{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
+                                        <td style={styles.td}>{a.tipo || "—"}</td>
+                                        <td style={styles.td}>{a.motivo || "—"}</td>
+                                        <td style={styles.td}>{a.origen || "—"}</td>
+                                        <td style={styles.td}>{a.creadoPor || "—"}</td>
+                                        <td style={styles.td}>{a.ip || "—"}</td>
+                                        <td style={styles.td} title={a.userAgent || ""}>
+                                          {a.userAgent ? (a.userAgent.length > 24 ? a.userAgent.slice(0,24) + "…" : a.userAgent) : "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              {/* Paginación */}
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                                <div style={{ color: "#475569", fontSize: 13 }}>
+                                  Total: <strong>{mapAuditoria[item._id]?.total || 0}</strong>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, -1); }}
+                                  >
+                                    ◀ Anterior
+                                  </button>
+                                  <span style={{ fontSize: 13 }}>
+                                    Página {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
+                                  </span>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, +1); }}
+                                  >
+                                    Siguiente ▶
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* PANEL ANIDADO EMPRENDEDOR (se mantiene) */}
                         {tipo === "emprendedor" && (
                           <tr>
                             <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
@@ -1105,11 +1257,15 @@ const Table = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         const emps = mapEmpEmprendimientos[item._id] || [];
-                                        exportPDF(
-                                          `Emprendimientos de ${item.nombre} ${item.apellido}`,
-                                          emps,
-                                          mapperEmprendimientos
-                                        );
+                                        const mapper = (r) =>
+                                          r?.header
+                                            ? ["Nombre Comercial", "Ciudad", "Creado"]
+                                            : [
+                                                r.nombreComercial || "",
+                                                r.ubicacion?.ciudad || "",
+                                                r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+                                              ];
+                                        exportPDF(`Emprendimientos de ${item.nombre} ${item.apellido}`, emps, mapper);
                                       }}
                                     >
                                       Exportar PDF
@@ -1174,11 +1330,17 @@ const Table = () => {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         const prods = mapEmpProductos[item._id] || [];
-                                        exportPDF(
-                                          `Productos de ${item.nombre} ${item.apellido}`,
-                                          prods,
-                                          mapperProductos
-                                        );
+                                        const mapper = (r) =>
+                                          r?.header
+                                            ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
+                                            : [
+                                                r.nombre || "",
+                                                typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
+                                                r.stock ?? "",
+                                                r.empNombreComercial || r?.emprendimiento?.nombreComercial || "",
+                                                r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+                                              ];
+                                        exportPDF(`Productos de ${item.nombre} ${item.apellido}`, prods, mapper);
                                       }}
                                     >
                                       Exportar PDF
@@ -1235,7 +1397,7 @@ const Table = () => {
         </div>
       </section>
 
-      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ====== */}
+      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE ====== */}
       {estadoModal.visible && tipo === "cliente" && (
         <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
           <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
@@ -1318,6 +1480,60 @@ const Table = () => {
               <button style={styles.btnSecondary} onClick={cancelarEliminar}>Cancelar</button>
               <button style={styles.btnDanger} onClick={confirmarEliminar}>Eliminar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL CHAT ====== */}
+      {modalChatVisible && chatUser && (
+        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && cerrarChat()}>
+          <div style={styles.modal} role="dialog" aria-modal="true" aria-label={`Chat con ${chatUser.nombre}`}>
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0 }}>
+                Chat con {chatUser.nombre} ({chatUser.rol})
+              </h3>
+              <button style={styles.btnClose} onClick={cerrarChat}>Cerrar</button>
+            </div>
+            <div style={{ ...styles.modalBody, minHeight: 150 }} ref={mensajesRef}>
+              {mensajes.length === 0 && (
+                <p style={{ textAlign: "center", color: "#666", margin: 0 }}>No hay mensajes aún.</p>
+              )}
+              {mensajes.map((m) => {
+                const esEmisor = m.emisorId === emisorId;
+                return (
+                  <div key={m._id} style={{ marginBottom: 10, textAlign: esEmisor ? "right" : "left" }}>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        backgroundColor: esEmisor ? "#007bff" : "#e4e6eb",
+                        color: esEmisor ? "white" : "black",
+                        padding: "8px 12px",
+                        borderRadius: 15,
+                        maxWidth: "70%",
+                        wordWrap: "break-word",
+                      }}
+                    >
+                      {m.contenido}
+                    </span>
+                    <br />
+                    <small style={{ fontSize: 10, color: "#999" }}>
+                      {new Date(m.createdAt).toLocaleTimeString()}
+                    </small>
+                  </div>
+                );
+              })}
+            </div>
+            <form style={styles.modalFooter} onSubmit={(e) => { e.preventDefault(); enviarMensaje(e); }}>
+              <input
+                type="text"
+                placeholder="Escribe un mensaje…"
+                value={mensajeChat}
+                onChange={(e) => setMensajeChat(e.target.value)}
+                style={{ flexGrow: 1, padding: 8, borderRadius: 8, border: "1px solid #cbd5e1", marginRight: 8, fontSize: 14, outline: "none" }}
+                autoFocus
+              />
+              <button type="submit" style={styles.btnPrimary}>Enviar</button>
+            </form>
           </div>
         </div>
       )}
@@ -1493,16 +1709,6 @@ const styles = {
   btnTinyDanger: {
     padding: "6px 10px",
     backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  btnTinySuccess: {
-    padding: "6px 10px",
-    backgroundColor: "#22c55e",
     color: "white",
     border: "none",
     borderRadius: 6,
