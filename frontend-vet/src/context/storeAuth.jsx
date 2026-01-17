@@ -9,7 +9,7 @@ const storeAuth = create(
       rol: null,
       id: null,
 
-      // 🆕 Estado del cliente + auditoría
+      // Estado del cliente + auditoría
       estadoUI: null,              // 'Correcto' | 'Advertencia1' | 'Advertencia2' | 'Advertencia3' | 'Suspendido'
       estado_Emprendedor: null,    // 'Activo' | 'AdvertenciaX' | 'Suspendido'
       status: true,                // boolean
