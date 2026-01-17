@@ -29,9 +29,18 @@ const ESTADO_COLORS = {
   Suspendido: "#dc2626",
 };
 
-/* Estados permitidos */
+/* Estados permitidos (backend) */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
+
+/* Alias → valor backend */
+const aliasEstadoClienteOut = (estadoUI) => {
+  // "Baneado" (alias humano) → "Suspendido" (valor real esperado por backend)
+  if (!estadoUI) return estadoUI;
+  const s = String(estadoUI).toLowerCase();
+  if (s === "baneado" || s === "ban" || s === "bloqueado") return "Suspendido";
+  return estadoUI;
+};
 
 /* Derivar estado cliente visible */
 const deriveEstadoCliente = (item) => {
@@ -356,17 +365,18 @@ const Table = () => {
     motivo: ""
   });
 
-  const openEstadoModal = (item, nuevoEstado) => {
+  const openEstadoModal = (item, nuevoEstadoUI) => {
+    // Acepta alias "Baneado" pero guarda internamente el real que espera el backend
+    const resolved = aliasEstadoClienteOut(nuevoEstadoUI);
     if (tipo === "cliente") {
       setEstadoModal({
         visible: true,
         item,
-        nuevoEstado,
+        nuevoEstado: resolved,
         motivo: ""
       });
     } else {
-      // Emprendedor: no requiere motivo
-      updateEstadoEmprendedor(item, nuevoEstado);
+      updateEstadoEmprendedor(item, resolved);
     }
   };
 
@@ -389,14 +399,15 @@ const Table = () => {
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-      // 👇 Si el backend requiere el campo, lo mandamos como null por detrás
+      // Enviamos suspendidoHasta: null por detrás
       const payload = {
-        estado: nuevoEstado,
+        estado: aliasEstadoClienteOut(nuevoEstado),
         motivo: motivo.trim(),
         suspendidoHasta: null
       };
 
-      let res = await fetch(urlEstado, {
+      // ⚠️ Usamos SOLO el endpoint de estado (evita 500 de /actualizar)
+      const res = await fetch(urlEstado, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -405,23 +416,11 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Fallback
-      if (!res.ok) {
-        res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ estado: nuevoEstado, motivo: payload.motivo }),
-        });
-      }
-
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
       if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
 
-      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      setMensaje(`Estado actualizado a: ${payload.estado}`);
       closeEstadoModal();
 
       await fetchLista();
@@ -434,9 +433,10 @@ const Table = () => {
     }
   };
 
-  const updateEstadoEmprendedor = async (item, nuevoEstado) => {
+  const updateEstadoEmprendedor = async (item, nuevoEstadoUI) => {
     try {
       setMensaje(""); setError("");
+      const nuevoEstado = aliasEstadoClienteOut(nuevoEstadoUI); // por si alguien usa "Baneado"
 
       if (!ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
         setError("Estado inválido para emprendedor.");
@@ -452,17 +452,6 @@ const Table = () => {
         },
         body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
       });
-
-      if (!res.ok) {
-        res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
-        });
-      }
 
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
@@ -1041,6 +1030,9 @@ const Table = () => {
                             {getEstadosPermitidos().map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
+                            {/* Alias visible (opcional): si eliges, puedes añadir “Baneado (alias)” que internamente mapeamos a Suspendido
+                            <option value="Baneado">Baneado (alias)</option>
+                            */}
                           </select>
                         </div>
                       </td>
@@ -1079,6 +1071,18 @@ const Table = () => {
                             }}
                           >
                             ⚠️ Advertencia
+                          </button>
+                          {/* Atajo directo a “Baneado” (alias) */}
+                          <button
+                            className={`btn tiny danger ${getEstado(item) === "Suspendido" ? "disabled" : ""}`}
+                            disabled={getEstado(item) === "Suspendido"}
+                            title="Marcar como Baneado (envía Suspendido)"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEstadoModal(item, "Baneado");
+                            }}
+                          >
+                            🚫 Baneado
                           </button>
                         </div>
                       </td>
@@ -1290,6 +1294,7 @@ const Table = () => {
                   {getEstadosPermitidos().map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
+                  {/* <option value="Baneado">Baneado (alias)</option> */}
                 </select>
 
                 <div className="mActions">
@@ -1302,6 +1307,13 @@ const Table = () => {
                     onClick={() => openEstadoModal(item, siguienteAdvertencia(getEstado(item)))}
                   >
                     ⚠️ Advertencia
+                  </button>
+                  <button
+                    className={`btn tiny danger ${getEstado(item) === "Suspendido" ? "disabled" : ""}`}
+                    disabled={getEstado(item) === "Suspendido"}
+                    onClick={() => openEstadoModal(item, "Baneado")}
+                  >
+                    🚫 Baneado
                   </button>
                 </div>
               </div>
@@ -1714,3 +1726,4 @@ const css = `
 `;
 
 export default Table;
+
