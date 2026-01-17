@@ -159,7 +159,7 @@ const Dashboard = () => {
         ))}
       </nav>
 
-      {/* BANNER DE ESTADO (ahora con motivo/fecha si existen) */}
+      {/* BANNER DE ESTADO */}
       <BannerEstado estadoUI={estadoUI} ultimaAdvertencia={ultimaAdvertencia} />
 
       {/* CONTENIDO */}
