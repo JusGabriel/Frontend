@@ -54,6 +54,11 @@ const siguienteAdvertencia = (estadoActual) => {
   }
 };
 
+const isJsonResponse = (res) => {
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json');
+};
+
 /* ===========================
    COMPONENTE
 =========================== */
@@ -107,7 +112,8 @@ const Table = () => {
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
   /* --------- Auditoría (Cliente) --------- */
-  const [mapAuditoria, setMapAuditoria] = useState({}); // { [clienteId]: { items, total, page, limit, loading } }
+  // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
+  const [mapAuditoria, setMapAuditoria] = useState({});
 
   /* ---- Carga de listas ---- */
   const fetchLista = async () => {
@@ -363,7 +369,10 @@ const Table = () => {
         });
       }
 
-      const data = await res.json();
+      // Solo intentamos parsear JSON si el servidor responde JSON
+      let data = null;
+      if (isJsonResponse(res)) data = await res.json();
+
       if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
 
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
@@ -410,7 +419,8 @@ const Table = () => {
         });
       }
 
-      const data = await res.json();
+      let data = null;
+      if (isJsonResponse(res)) data = await res.json();
       if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       fetchLista();
@@ -502,27 +512,43 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    // set loading
     setMapAuditoria((prev) => ({
       ...prev,
-      [clienteId]: { ...(prev[clienteId] || {}), loading: true }
+      [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
     }));
     try {
       const url = `${BASE_URLS["cliente"]}/estado/${clienteId}/auditoria?page=${page}&limit=${limit}`;
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+
+      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
+      if (!res.ok || !isJsonResponse(res)) {
+        setMapAuditoria((prev) => ({
+          ...prev,
+          [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: res.ok ? null : `HTTP ${res.status}` }
+        }));
+        return;
+      }
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.msg || "No se pudo obtener auditoría");
       setMapAuditoria((prev) => ({
         ...prev,
-        [clienteId]: { items: data.items || [], total: data.total || 0, page: data.page || 1, limit: data.limit || 10, loading: false }
+        [clienteId]: {
+          items: Array.isArray(data.items) ? data.items : [],
+          total: Number(data.total || 0),
+          page: Number(data.page || page),
+          limit: Number(data.limit || limit),
+          loading: false,
+          lastError: null
+        }
       }));
     } catch (e) {
       console.error(e);
-      setError(e.message || "Error al cargar auditoría.");
       setMapAuditoria((prev) => ({
         ...prev,
-        [clienteId]: { items: [], total: 0, page: 1, limit: 10, loading: false }
+        [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: e.message || 'error' }
       }));
     }
   };
@@ -755,7 +781,7 @@ const Table = () => {
         </div>
       </header>
 
-      {/* Mensajes */}
+      {/* Mensajes toast */}
       <div style={styles.toastRegion} aria-live="polite" aria-atomic="true">
         {error && <div style={{ ...styles.toast, backgroundColor: "#ffe8e6", color: "#a33" }}>⚠️ {error}</div>}
         {mensaje && <div style={{ ...styles.toast, backgroundColor: "#e7f9ed", color: "#1e7e34" }}>✅ {mensaje}</div>}
@@ -999,9 +1025,19 @@ const Table = () => {
                             🗑️ Eliminar
                           </button>
                           <button
+                            style={styles.btnTiny}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirChat(item);
+                            }}
+                          >
+                            💬 Chatear
+                          </button>
+                          {/* NUEVO: Agregar advertencia sin reemplazar el chat */}
+                          <button
                             style={{
                               ...styles.btnTiny,
-                              backgroundColor: getEstado(item) === "Suspendido" ? "#9ca3af" : "#22c55e",
+                              backgroundColor: getEstado(item) === "Suspendido" ? "#9ca3af" : "#f59e0b",
                               cursor: getEstado(item) === "Suspendido" ? "not-allowed" : "pointer"
                             }}
                             disabled={getEstado(item) === "Suspendido"}
@@ -1076,7 +1112,7 @@ const Table = () => {
                                         tipo: a.tipo || "",
                                         motivo: a.motivo || "",
                                         origen: a.origen || "",
-                                        creadoPor: a.creadoPor || "",
+                                        modificadoPor: a.creadoPorNombre || (a.origen === 'sistema' ? 'Sistema' : '—'),
                                         ip: a.ip || "",
                                         userAgent: a.userAgent || ""
                                       }));
@@ -1095,13 +1131,13 @@ const Table = () => {
                                       if (!rows.length) { setError("No hay registros para exportar."); return; }
                                       const mapper = (r) =>
                                         r?.header
-                                          ? ["Fecha", "Tipo", "Motivo", "Origen", "Creado por", "IP", "UA"]
+                                          ? ["Fecha", "Tipo", "Motivo", "Origen", "Modificado por", "IP", "UA"]
                                           : [
                                               r.fecha ? new Date(r.fecha).toLocaleString() : "",
                                               r.tipo || "",
                                               r.motivo || "",
                                               r.origen || "",
-                                              r.creadoPor || "",
+                                              r.creadoPorNombre || (r.origen === 'sistema' ? 'Sistema' : '—') || "",
                                               r.ip || "",
                                               r.userAgent || ""
                                             ];
@@ -1122,7 +1158,7 @@ const Table = () => {
                                       <th style={styles.th}>Tipo</th>
                                       <th style={styles.th}>Motivo</th>
                                       <th style={styles.th}>Origen</th>
-                                      <th style={styles.th}>Creado por</th>
+                                      <th style={styles.th}>Modificado por</th>
                                       <th style={styles.th}>IP</th>
                                       <th style={styles.th}>User-Agent</th>
                                     </tr>
@@ -1134,7 +1170,12 @@ const Table = () => {
 
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).length === 0 && (
-                                      <tr><td colSpan="7" style={styles.emptyCell}>Sin registros.</td></tr>
+                                      <tr><td colSpan="7" style={styles.emptyCell}>
+                                        {mapAuditoria[item._id]?.lastError
+                                          ? `No se pudo obtener el historial (${mapAuditoria[item._id].lastError}).`
+                                          : "Sin registros."
+                                        }
+                                      </td></tr>
                                     )}
 
                                     {!mapAuditoria[item._id]?.loading &&
@@ -1144,7 +1185,9 @@ const Table = () => {
                                         <td style={styles.td}>{a.tipo || "—"}</td>
                                         <td style={styles.td}>{a.motivo || "—"}</td>
                                         <td style={styles.td}>{a.origen || "—"}</td>
-                                        <td style={styles.td}>{a.creadoPor || "—"}</td>
+                                        <td style={styles.td}>
+                                          {a.creadoPorNombre || (a.origen === 'sistema' ? 'Sistema' : '—')}
+                                        </td>
                                         <td style={styles.td}>{a.ip || "—"}</td>
                                         <td style={styles.td} title={a.userAgent || ""}>
                                           {a.userAgent ? (a.userAgent.length > 24 ? a.userAgent.slice(0,24) + "…" : a.userAgent) : "—"}
