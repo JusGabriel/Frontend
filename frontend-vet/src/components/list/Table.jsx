@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -19,21 +20,17 @@ const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : 
 const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
 
 /* Paleta de estados (para badges) */
-
 const ESTADO_COLORS = {
   Correcto: "#28a745",
-  Activo: "#28a745",        // <<< añadir esta línea
+  Activo: "#28a745",
   Advertencia1: "#ffc107",
   Advertencia2: "#fd7e14",
   Advertencia3: "#dc3545",
   Suspendido: "#dc3545",
-}
-
+};
 
 /* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
-
-// *** CLIENTE: EXACTAMENTE los que necesitas ***
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
 /* ===========================
@@ -88,11 +85,7 @@ const Table = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= Derivar estado visible CLIENTE desde modelo =========
-     - Activo + status:true      => Correcto
-     - AdvertenciaX              => AdvertenciaX
-     - Suspendido OR status:false => Suspendido
-  */
+  /* ========= Derivar estado visible CLIENTE desde modelo ========= */
   const deriveEstadoCliente = (item) => {
     if (!item) return "Correcto";
     if (item.status === false) return "Suspendido";
@@ -115,7 +108,6 @@ const Table = () => {
       });
       const data = await res.json();
 
-      // Normaliza para que select y badge muestren los labels pedidos.
       let normalizados = Array.isArray(data) ? data : [];
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
@@ -136,7 +128,6 @@ const Table = () => {
     }
   };
 
-  // Catálogos para fallback (panel anidado de emprendedor)
   const fetchCatalogosGenerales = async () => {
     try {
       const [resProd, resEmpr] = await Promise.all([
@@ -179,7 +170,6 @@ const Table = () => {
     setError("");
     setMensaje("");
 
-    // Validaciones simples
     if (!formCrear.nombre.trim() || !formCrear.apellido.trim()) {
       setError("Nombre y Apellido son obligatorios.");
       return;
@@ -291,6 +281,7 @@ const Table = () => {
   /* ===========================
      ESTADO (Cliente/Emprendedor)
   ============================ */
+
   const getEstado = (item) =>
     tipo === "emprendedor"
       ? item.estado || item.estado_Emprendedor || "Activo"
@@ -299,42 +290,121 @@ const Table = () => {
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
 
-  const updateEstado = async (item, nuevoEstado) => {
+  // --- Modal cambio de estado (Cliente) ---
+  const [estadoModal, setEstadoModal] = useState({
+    visible: false,
+    item: null,
+    nuevoEstado: null,
+    motivo: "",
+    suspendidoHasta: ""
+  });
+
+  const openEstadoModal = (item, nuevoEstado) => {
+    if (tipo === "cliente") {
+      setEstadoModal({
+        visible: true,
+        item,
+        nuevoEstado,
+        motivo: "",
+        suspendidoHasta: ""
+      });
+    } else {
+      // Emprendedor: comportamiento previo (sin motivo)
+      updateEstadoEmprendedor(item, nuevoEstado);
+    }
+  };
+
+  const closeEstadoModal = () => setEstadoModal({
+    visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
+  });
+
+  const updateEstadoClienteConfirmed = async () => {
+    const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
       setMensaje("");
       setError("");
 
-      // Validación rápida para clientes
-      if (tipo === "cliente" && !ESTADOS_CLIENTE.includes(nuevoEstado)) {
+      if (!ESTADOS_CLIENTE.includes(nuevoEstado)) {
         setError("Estado inválido para cliente.");
         return;
       }
+      if (!motivo.trim()) {
+        setError("Debes ingresar un motivo para el cambio de estado.");
+        return;
+      }
 
-      const urlEstado = `${BASE_URLS[tipo]}/estado/${item._id}`;
-      const bodyPayload =
-        tipo === "emprendedor"
-          ? { estado_Emprendedor: nuevoEstado }
-          : { estado: nuevoEstado }; // CLIENTE: Correcto/Advertencia/Suspendido
+      const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
 
-      // Intento #1: endpoint dedicado
+      const payload = {
+        estado: nuevoEstado,
+        motivo: motivo.trim(),
+        ...(nuevoEstado === "Suspendido" && suspendidoHasta
+          ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
+          : {})
+      };
+
+      // Llamada al endpoint dedicado (con token)
       let res = await fetch(urlEstado, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(bodyPayload),
+        body: JSON.stringify(payload),
       });
 
-      // Fallback actualizar/:id
+      // Fallback a actualizar/:id (enviando motivo también)
       if (!res.ok) {
-        res = await fetch(`${BASE_URLS[tipo]}/actualizar/${item._id}`, {
+        res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify(bodyPayload),
+          body: JSON.stringify({ estado: nuevoEstado, motivo: payload.motivo }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
+
+      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      closeEstadoModal();
+      fetchLista();
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "Error al actualizar el estado.");
+    }
+  };
+
+  const updateEstadoEmprendedor = async (item, nuevoEstado) => {
+    try {
+      setMensaje("");
+      setError("");
+
+      if (!ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
+        setError("Estado inválido para emprendedor.");
+        return;
+      }
+
+      const urlEstado = `${BASE_URLS["emprendedor"]}/estado/${item._id}`;
+      let res = await fetch(urlEstado, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
+      });
+
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
         });
       }
 
@@ -396,7 +466,7 @@ const Table = () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json();
       } catch {
-        return null; // fallback
+        return null;
       }
     };
 
@@ -885,7 +955,7 @@ const Table = () => {
                           <select
                             aria-label="Cambiar estado/advertencia"
                             value={getEstado(item)}
-                            onChange={(e) => updateEstado(item, e.target.value)}
+                            onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value); }}
                             style={styles.select}
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -961,7 +1031,6 @@ const Table = () => {
                           </td>
                         </tr>
 
-                        {/* PANEL ANIDADO SOLO para EMPRENDEDORES */}
                         {tipo === "emprendedor" && (
                           <tr>
                             <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
@@ -991,7 +1060,8 @@ const Table = () => {
                                     style={styles.btnTiny}
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      cargarNestedParaEmprendedor(item);
+                                      const emp = lista.find((x) => x._id === expandido);
+                                      if (emp) cargarNestedParaEmprendedor(emp);
                                     }}
                                   >
                                     Aplicar
@@ -1165,62 +1235,68 @@ const Table = () => {
         </div>
       </section>
 
-      {/* ====== MODAL CHAT ====== */}
-      {modalChatVisible && chatUser && (
-        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && cerrarChat()}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label={`Chat con ${chatUser.nombre}`}>
+      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ====== */}
+      {estadoModal.visible && tipo === "cliente" && (
+        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
+          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
             <div style={styles.modalHeader}>
               <h3 style={{ margin: 0 }}>
-                Chat con {chatUser.nombre} ({chatUser.rol})
+                Cambiar estado a {estadoModal.nuevoEstado}
               </h3>
-              <button style={styles.btnClose} onClick={cerrarChat}>Cerrar</button>
+              <button style={styles.btnClose} onClick={closeEstadoModal}>Cerrar</button>
             </div>
-            <div style={styles.modalBody} ref={mensajesRef}>
-              {mensajes.length === 0 && (
-                <p style={{ textAlign: "center", color: "#666", margin: 0 }}>No hay mensajes aún.</p>
-              )}
-              {mensajes.map((m) => {
-                const esEmisor = m.emisorId === emisorId;
-                return (
-                  <div
-                    key={m._id}
+
+            <div style={styles.modalBody}>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
+                  Motivo <span style={{ color: "#dc2626" }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={estadoModal.motivo}
+                  onChange={(e) => setEstadoModal((s) => ({ ...s, motivo: e.target.value }))}
+                  placeholder="Describe brevemente el motivo…"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    resize: "vertical"
+                  }}
+                />
+              </div>
+
+              {estadoModal.nuevoEstado === "Suspendido" && (
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
+                    Suspensión hasta (opcional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={estadoModal.suspendidoHasta}
+                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
                     style={{
-                      marginBottom: 10,
-                      textAlign: esEmisor ? "right" : "left",
+                      width: "100%",
+                      marginTop: 6,
+                      padding: 10,
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
                     }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        backgroundColor: esEmisor ? "#007bff" : "#e4e6eb",
-                        color: esEmisor ? "white" : "black",
-                        padding: "8px 12px",
-                        borderRadius: 15,
-                        maxWidth: "70%",
-                        wordWrap: "break-word",
-                      }}
-                    >
-                      {m.contenido}
-                    </span>
-                    <br />
-                    <small style={{ fontSize: 10, color: "#999" }}>
-                      {new Date(m.createdAt).toLocaleTimeString()}
-                    </small>
-                  </div>
-                );
-              })}
+                  />
+                  <small style={{ color: "#6b7280" }}>
+                    Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.
+                  </small>
+                </div>
+              )}
             </div>
-            <form style={styles.modalFooter} onSubmit={enviarMensaje}>
-              <input
-                type="text"
-                placeholder="Escribe un mensaje…"
-                value={mensajeChat}
-                onChange={(e) => setMensajeChat(e.target.value)}
-                style={styles.modalInput}
-                autoFocus
-              />
-              <button type="submit" style={styles.btnPrimarySmall}>Enviar</button>
-            </form>
+
+            <div style={styles.modalFooter}>
+              <button style={styles.btnSecondary} onClick={closeEstadoModal}>Cancelar</button>
+              <button style={styles.btnPrimary} onClick={updateEstadoClienteConfirmed}>
+                Confirmar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1488,7 +1564,7 @@ const styles = {
   modal: {
     backgroundColor: "white",
     borderRadius: 12,
-    width: 420,
+    width: 520,
     maxWidth: "95%",
     boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
     display: "flex",
@@ -1516,7 +1592,7 @@ const styles = {
   },
   modalBody: {
     padding: 16,
-    minHeight: 150,
+    minHeight: 120,
     fontSize: 14,
     color: "#333",
     overflowY: "auto",
@@ -1527,24 +1603,6 @@ const styles = {
     display: "flex",
     justifyContent: "flex-end",
     gap: 8,
-  },
-  modalInput: {
-    flexGrow: 1,
-    padding: 8,
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    marginRight: 8,
-    fontSize: 14,
-    outline: "none",
-  },
-  btnPrimarySmall: {
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    padding: "8px 14px",
-    borderRadius: 8,
-    fontWeight: "bold",
-    cursor: "pointer",
   },
   btnDanger: {
     padding: "10px 16px",
@@ -1558,5 +1616,3 @@ const styles = {
 };
 
 export default Table;
-
-
