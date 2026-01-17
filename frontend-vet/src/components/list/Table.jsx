@@ -59,6 +59,42 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
+/* ==== Fechas robustas (EJSON, ISO string, number, Date) ==== */
+const parseFecha = (f) => {
+  if (!f) return null;
+  if (f instanceof Date) return isNaN(f) ? null : f;
+  if (typeof f === "string" || typeof f === "number") {
+    const d = new Date(f);
+    return isNaN(d) ? null : d;
+  }
+  if (typeof f === "object" && f.$date) {
+    const raw = f.$date;
+    if (typeof raw === "string" || typeof raw === "number") {
+      const d = new Date(raw);
+      return isNaN(d) ? null : d;
+    }
+    if (typeof raw === "object" && raw.$numberLong) {
+      const d = new Date(Number(raw.$numberLong));
+      return isNaN(d) ? null : d;
+    }
+  }
+  return null;
+};
+
+const fmtFechaLocal = (f, locale = "es-EC", opts) => {
+  const d = parseFecha(f);
+  const formatOpts = opts ?? {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit"
+  };
+  return d ? d.toLocaleString(locale, formatOpts) : "—";
+};
+
+const fmtHoraLocal = (f, locale = "es-EC") => {
+  const d = parseFecha(f);
+  return d ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : "—";
+};
+
 /* Mostrar nombre del actor (snapshot o populate o sistema) */
 const displayActorName = (a) => {
   if (!a) return "—";
@@ -317,8 +353,7 @@ const Table = () => {
     visible: false,
     item: null,
     nuevoEstado: null,
-    motivo: "",
-    suspendidoHasta: ""
+    motivo: ""
   });
 
   const openEstadoModal = (item, nuevoEstado) => {
@@ -327,8 +362,7 @@ const Table = () => {
         visible: true,
         item,
         nuevoEstado,
-        motivo: "",
-        suspendidoHasta: ""
+        motivo: ""
       });
     } else {
       // Emprendedor: no requiere motivo
@@ -337,11 +371,11 @@ const Table = () => {
   };
 
   const closeEstadoModal = () => setEstadoModal({
-    visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
+    visible: false, item: null, nuevoEstado: null, motivo: ""
   });
 
   const updateEstadoClienteConfirmed = async () => {
-    const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
+    const { item, nuevoEstado, motivo } = estadoModal;
     try {
       setMensaje(""); setError("");
 
@@ -355,12 +389,11 @@ const Table = () => {
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
+      // 👇 Si el backend requiere el campo, lo mandamos como null por detrás
       const payload = {
         estado: nuevoEstado,
         motivo: motivo.trim(),
-        ...(nuevoEstado === "Suspendido" && suspendidoHasta
-          ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
-          : {})
+        suspendidoHasta: null
       };
 
       let res = await fetch(urlEstado, {
@@ -384,16 +417,13 @@ const Table = () => {
         });
       }
 
-      // Solo intentamos parsear JSON si el servidor responde JSON
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
-
       if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
 
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       closeEstadoModal();
 
-      // Refrescar listado y, si corresponde, recargar auditoría visible
       await fetchLista();
       if (expandido === item._id && tipo === "cliente") {
         cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
@@ -511,7 +541,6 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // set loading (✔ FIX: clave dinámica [clienteId])
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
@@ -522,7 +551,6 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
-      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
@@ -1076,11 +1104,11 @@ const Table = () => {
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Creado</div>
-                              <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                              <div className="detailValue">{fmtFechaLocal(item.createdAt)}</div>
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Actualizado</div>
-                              <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                              <div className="detailValue">{fmtFechaLocal(item.updatedAt)}</div>
                             </div>
                           </div>
 
@@ -1106,7 +1134,7 @@ const Table = () => {
                                       e.stopPropagation();
                                       const info = mapAuditoria[item._id] || { items: [] };
                                       const rows = (info.items || []).map((a) => ({
-                                        fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                        fecha: fmtFechaLocal(a.fecha),
                                         tipo: a.tipo || "",
                                         motivo: a.motivo || "",
                                         origen: a.origen || "",
@@ -1131,7 +1159,7 @@ const Table = () => {
                                         r?.header
                                           ? ["Fecha", "Tipo", "Motivo", "Origen", "Modificado por", "IP", "UA"]
                                           : [
-                                              r.fecha ? new Date(r.fecha).toLocaleString() : "",
+                                              fmtFechaLocal(r.fecha),
                                               r.tipo || "",
                                               r.motivo || "",
                                               r.origen || "",
@@ -1178,7 +1206,7 @@ const Table = () => {
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).map((a, idx) => (
                                       <tr key={`${a._id || idx}`}>
-                                        <td className="td">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
+                                        <td className="td">{fmtFechaLocal(a.fecha)}</td>
                                         <td className="td">{a.tipo || "—"}</td>
                                         <td className="td">{a.motivo || "—"}</td>
                                         <td className="td">{a.origen || "—"}</td>
@@ -1282,11 +1310,11 @@ const Table = () => {
                 <div className="mCardBody">
                   <div className="detailItem">
                     <div className="detailLabel">Creado</div>
-                    <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                    <div className="detailValue">{fmtFechaLocal(item.createdAt)}</div>
                   </div>
                   <div className="detailItem">
                     <div className="detailLabel">Actualizado</div>
-                    <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                    <div className="detailValue">{fmtFechaLocal(item.updatedAt)}</div>
                   </div>
 
                   {tipo === "cliente" && (
@@ -1308,7 +1336,7 @@ const Table = () => {
                             onClick={() => {
                               const info = mapAuditoria[item._id] || { items: [] };
                               const rows = (info.items || []).map((a) => ({
-                                fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                fecha: fmtFechaLocal(a.fecha),
                                 tipo: a.tipo || "",
                                 motivo: a.motivo || "",
                                 origen: a.origen || "",
@@ -1338,7 +1366,7 @@ const Table = () => {
                           <div className="mHistoryItem" key={`${a._id || idx}`}>
                             <div className="mHistoryRow">
                               <span className="badge">{a.tipo || "—"}</span>
-                              <span className="muted">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</span>
+                              <span className="muted">{fmtFechaLocal(a.fecha)}</span>
                             </div>
                             <div className="mHistoryMeta">
                               <span className="muted">Motivo:</span> {a.motivo || "—"}
@@ -1392,21 +1420,6 @@ const Table = () => {
                   style={{ resize: "vertical" }}
                 />
               </div>
-
-              {estadoModal.nuevoEstado === "Suspendido" && (
-                <div className="formGroup">
-                  <label className="label">Suspensión hasta (opcional)</label>
-                  <input
-                    type="datetime-local"
-                    value={estadoModal.suspendidoHasta}
-                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
-                    className="input"
-                  />
-                  <small className="muted">
-                    Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.
-                  </small>
-                </div>
-              )}
             </div>
 
             <div className="modalFooter">
@@ -1462,7 +1475,7 @@ const Table = () => {
                       {m.contenido}
                     </span>
                     <br />
-                    <small className="muted">{new Date(m.createdAt).toLocaleTimeString()}</small>
+                    <small className="muted">{fmtHoraLocal(m.createdAt)}</small>
                   </div>
                 );
               })}
