@@ -16,7 +16,7 @@ function deriveEstadoUIFront(status, estado_Emprendedor) {
   return ['Advertencia1', 'Advertencia2', 'Advertencia3', 'Suspendido'].includes(e) ? e : 'Correcto';
 }
 
-const estadoMensajes = {
+const estadoMensajesBase = {
   Advertencia1:
     'Tu cuenta tiene una advertencia. Por favor revisa las políticas y evita futuras infracciones.',
   Advertencia2:
@@ -34,7 +34,7 @@ const Login = () => {
   const {
     token, setToken, setRol, setId,
     setEstadoUI, setEstadoInterno, setStatus,
-    clearToken
+    setUltimaAdvertencia, clearToken
   } = storeAuth();
 
   const navigate = useNavigate();
@@ -97,8 +97,14 @@ const Login = () => {
       if (!response.ok) {
         if (response.status === 403 && (result?.estadoUI === 'Suspendido' || result?.status === false)) {
           clearToken();
-          setEstadoBanner({ tipo: 'Suspendido', msg: estadoMensajes['Suspendido'] });
-          toast.error(result?.msg || estadoMensajes['Suspendido']);
+          const ultima = result?.ultimaAdvertencia;
+          const motivoTxt = ultima?.motivo ? ` Motivo: ${ultima.motivo}.` : '';
+          const fechaTxt  = ultima?.fecha ? ` (${new Date(ultima.fecha).toLocaleString()})` : '';
+          setEstadoBanner({
+            tipo: 'Suspendido',
+            msg: `${estadoMensajesBase['Suspendido']}${motivoTxt}${fechaTxt}`
+          });
+          toast.error(result?.msg || estadoMensajesBase['Suspendido']);
           return;
         }
         throw new Error(result?.msg || 'Credenciales incorrectas');
@@ -111,17 +117,23 @@ const Login = () => {
       setId(result._id);
 
       // ✅ Persistir estado (usa lo que venga; si no, deriva)
-      const estadoUIResp       = result?.estadoUI ?? deriveEstadoUIFront(result?.status, result?.estado_Emprendedor);
-      const estadoInternoResp  = result?.estado_Emprendedor ?? 'Activo';
-      const statusResp         = typeof result?.status === 'boolean' ? result.status : true;
+      const estadoUIResp      = result?.estadoUI ?? deriveEstadoUIFront(result?.status, result?.estado_Emprendedor);
+      const estadoInternoResp = result?.estado_Emprendedor ?? 'Activo';
+      const statusResp        = typeof result?.status === 'boolean' ? result.status : true;
 
       setEstadoUI(estadoUIResp);
       setEstadoInterno(estadoInternoResp);
       setStatus(statusResp);
 
-      // Banner si advertencia/suspensión
+      // 🆕 Persistir y mostrar última advertencia si aplica
+      const ultima = result?.ultimaAdvertencia || null;
+      setUltimaAdvertencia(ultima || null);
+
       if (['Advertencia1', 'Advertencia2', 'Advertencia3', 'Suspendido'].includes(estadoUIResp)) {
-        setEstadoBanner({ tipo: estadoUIResp, msg: estadoMensajes[estadoUIResp] });
+        const base = estadoMensajesBase[estadoUIResp];
+        const motivoTxt = ultima?.motivo ? ` Motivo: ${ultima.motivo}.` : '';
+        const fechaTxt  = ultima?.fecha ? ` (${new Date(ultima.fecha).toLocaleString()})` : '';
+        setEstadoBanner({ tipo: estadoUIResp, msg: `${base}${motivoTxt}${fechaTxt}` });
       }
 
       // Bloqueo si suspendido (no guardar sesión efectiva)
@@ -376,3 +388,4 @@ const googleButtonStyleGray = {
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
+``
