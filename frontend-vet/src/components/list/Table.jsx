@@ -339,7 +339,7 @@ const Table = () => {
   };
 
   /* ===========================
-     ESTADOS y MODALES
+     ESTADOS y MODALES (SOLO ADMIN)
   ============================ */
 
   const getEstado = (item) =>
@@ -373,7 +373,7 @@ const Table = () => {
         item,
         nuevoEstado: proximo,
         motivo: "",
-        suspendidoHasta: "" // limpiar siempre; si no es Suspendido, no se enviará
+        suspendidoHasta: "" // limpiar siempre
       });
     } else {
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
@@ -388,7 +388,7 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // Flujo robusto: /estado/:id y, si falla, /actualizar/:id. Enviamos suspendidoHasta solo si es válido.
+  // SOLO /estado/:id (sin fallback). Enviamos suspendidoHasta sólo si es válido.
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -403,7 +403,7 @@ const Table = () => {
         return;
       }
 
-      // Normalizar y decidir si enviamos 'suspendidoHasta'
+      // Normalizar/decidir si enviamos 'suspendidoHasta'
       let untilISO;
       if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
         const d = new Date(suspendidoHasta);
@@ -419,33 +419,18 @@ const Table = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      // 1) Intento principal: /estado/:id
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-      let bodyEstado = { estado: nuevoEstado, motivo: motivo.trim() };
-      if (untilISO) bodyEstado.suspendidoHasta = untilISO;
+      const body = {
+        estado: nuevoEstado,
+        motivo: motivo.trim(),
+        ...(untilISO ? { suspendidoHasta: untilISO } : {}),
+      };
 
-      let res = await fetch(urlEstado, {
+      const res = await fetch(urlEstado, {
         method: "PUT",
         headers,
-        body: JSON.stringify(bodyEstado),
+        body: JSON.stringify(body),
       });
-
-      // 2) Fallback: /actualizar/:id (enviar lo mismo, + estado_Cliente para compatibilidad)
-      if (!res.ok) {
-        const urlAlt = `${BASE_URLS["cliente"]}/actualizar/${item._id}`;
-        let bodyAlt = {
-          estado: nuevoEstado,
-          estado_Cliente: nuevoEstado,
-          motivo: motivo.trim()
-        };
-        if (untilISO) bodyAlt.suspendidoHasta = untilISO;
-
-        res = await fetch(urlAlt, {
-          method: "PUT",
-          headers,
-          body: JSON.stringify(bodyAlt),
-        });
-      }
 
       const ct = res.headers.get("content-type") || "";
       const data = ct.includes("application/json") ? await res.json() : null;
@@ -488,20 +473,14 @@ const Table = () => {
       });
 
       if (!res.ok) {
-        const urlAlt = `${BASE_URLS["emprendedor"]}/actualizar/${item._id}`;
-        res = await fetch(urlAlt, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
-        });
+        let data = null;
+        if (isJsonResponse(res)) data = await res.json();
+        const detail = data?.msg || `HTTP ${res.status}`;
+        throw new Error(detail);
       }
 
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
-      if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       fetchLista();
     } catch (e) {
@@ -1556,7 +1535,6 @@ const Table = () => {
    CSS (Responsivo + UX mejorado)
 =========================== */
 const css = `
-:root{
   --bg:#f8fafc;
   --card:#ffffff;
   --bd:#e2e8f0;
