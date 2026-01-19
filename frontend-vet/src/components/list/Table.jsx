@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import storeAuth from "../../context/storeAuth";
 
 /* CONFIG */
@@ -65,6 +64,37 @@ const displayActorName = (a) => {
   return a.origen === "sistema" ? "Sistema" : "—";
 };
 
+/* Convertir ISO|Date|ObjectId → valor aceptado por <input type="datetime-local"> (local timezone) */
+/* devuelve "" si no hay fecha válida */
+const toDateTimeLocalValue = (valOrOid) => {
+  if (!valOrOid) return "";
+  // si es un ObjectId
+  const maybeFromOid = fromObjectIdDate(valOrOid);
+  let d = null;
+  if (maybeFromOid) d = maybeFromOid;
+  else {
+    d = new Date(valOrOid);
+    if (!isValidDate(d)) return "";
+  }
+  // preparar YYYY-MM-DDTHH:MM (sin segundos) en hora local
+  const pad = (n) => String(n).padStart(2, "0");
+  const YYYY = d.getFullYear();
+  const MM = pad(d.getMonth() + 1);
+  const DD = pad(d.getDate());
+  const HH = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${YYYY}-${MM}-${DD}T${HH}:${mm}`;
+};
+
+/* parsea valor de datetime-local (string) a ISO (UTC) para enviar al backend. Si invalido devuelve null */
+const parseDateTimeLocalToISO = (val) => {
+  if (!val || typeof val !== "string") return null;
+  // val viene como "YYYY-MM-DDTHH:MM" (sin zona). new Date(val) interpreta como local.
+  const d = new Date(val);
+  if (!isValidDate(d)) return null;
+  return d.toISOString();
+};
+
 const Table = () => {
   const { token } = storeAuth() || {};
   const [tipo, setTipo] = useState("cliente");
@@ -106,7 +136,9 @@ const Table = () => {
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
           const estadoUI = deriveEstadoCliente(c);
-          return { ...c, _id: String(c._id || c.id || ""), estado: estadoUI, estado_Cliente: estadoUI };
+          // normalizamos suspendidoHasta para usarlo en el UI
+          const suspendidoHasta = c.suspendidoHasta ? String(c.suspendidoHasta) : null;
+          return { ...c, _id: String(c._id || c.id || ""), estado: estadoUI, estado_Cliente: estadoUI, suspendidoHasta };
         });
       } else {
         normalizados = normalizados.map((e) => ({ ...e, _id: String(e._id || e.id || ""), estado: e.estado_Emprendedor || "Activo" }));
@@ -207,7 +239,9 @@ const Table = () => {
     if (tipo === "cliente") {
       const actual = getEstado(item);
       const proximo = (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado)) ? nuevoEstado : siguienteAdvertencia(actual);
-      setEstadoModal({ visible: true, item, nuevoEstado: proximo, motivo: "", suspendidoHasta: "" });
+      // prefill suspendidoHasta si el item tiene uno
+      const prefill = toDateTimeLocalValue(item?.suspendidoHasta || item?.suspendidoHasta);
+      setEstadoModal({ visible: true, item, nuevoEstado: proximo, motivo: "", suspendidoHasta: prefill });
     } else {
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) return setError("Estado no válido para emprendedor.");
       updateEstadoEmprendedor(item, nuevoEstado);
@@ -221,22 +255,30 @@ const Table = () => {
     if (!ESTADOS_CLIENTE.includes(nuevoEstado)) return setError("Estado inválido para cliente.");
     if (!motivo.trim()) return setError("Debes ingresar un motivo para el cambio de estado.");
 
-    let untilISO;
-    if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
-      const d = new Date(suspendidoHasta);
-      if (isNaN(d.getTime())) return setError("La fecha/hora de suspensión no es válida.");
-      untilISO = d.toISOString();
+    // parseamos suspendidoHasta a ISO (o null). Siempre enviaremos el campo suspendidoHasta (null si no aplica)
+    let untilISO = null;
+    if (nuevoEstado === "Suspendido") {
+      if (suspendidoHasta && suspendidoHasta.trim()) {
+        const parsed = parseDateTimeLocalToISO(suspendidoHasta);
+        if (!parsed) return setError("La fecha/hora de suspensión no es válida.");
+        untilISO = parsed;
+      } else {
+        untilISO = null; // usuario dejó vacío -> suspensión indefinida
+      }
+    } else {
+      // Si no es suspendido, enviamos explícitamente null para que el backend lo borre/cleree
+      untilISO = null;
     }
 
     try {
       const res = await fetch(`${BASE_URLS["cliente"]}/estado/${item._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ estado: nuevoEstado, motivo: motivo.trim(), ...(untilISO ? { suspendidoHasta: untilISO } : {}) }),
+        // ahora enviamos siempre suspendidoHasta (ISO o null)
+        body: JSON.stringify({ estado: nuevoEstado, motivo: motivo.trim(), suspendidoHasta: untilISO }),
       });
       const data = isJsonResponse(res) ? await res.json() : null;
       if (!res.ok) {
-        // ✅ no lanzamos throw; solo mostramos
         setError((data && (data.msg || data.error)) || `HTTP ${res.status}` || "No se pudo actualizar el estado.");
         return;
       }
@@ -284,10 +326,17 @@ const Table = () => {
         return;
       }
       const data = await res.json();
+
+      // Aseguramos fechas en cada item (fallback a ObjectId si es necesario)
+      const items = Array.isArray(data.items) ? data.items.map(a => ({
+        ...a,
+        fecha: (a.fecha && !isNaN(new Date(a.fecha))) ? a.fecha : (a._id ? fromObjectIdDate(a._id)?.toISOString() : null)
+      })) : [];
+
       setMapAuditoria(prev => ({
         ...prev,
         [clienteId]: {
-          items: Array.isArray(data.items) ? data.items : [],
+          items,
           total: Number(data.total || 0),
           page: Number(data.page || page),
           limit: Number(data.limit || limit),
@@ -410,6 +459,7 @@ const Table = () => {
                           <div className="detailItem"><div className="detailLabel">Teléfono</div><div className="detailValue">{item.telefono || "N/A"}</div></div>
                           <div className="detailItem"><div className="detailLabel">Creado</div><div className="detailValue">{safeDateStrWithFallback(item.createdAt, item._id)}</div></div>
                           <div className="detailItem"><div className="detailLabel">Actualizado</div><div className="detailValue">{safeDateStrWithFallback(item.updatedAt, item._id)}</div></div>
+                          <div className="detailItem"><div className="detailLabel">Suspendido hasta</div><div className="detailValue">{item.suspendidoHasta ? safeDateStr(item.suspendidoHasta) : "—"}</div></div>
                         </div>
 
                         {/* Historial */}
@@ -472,7 +522,12 @@ const Table = () => {
               {estadoModal.nuevoEstado === "Suspendido" && (
                 <div className="formGroup">
                   <label className="label">Suspensión hasta (opcional)</label>
-                  <input type="datetime-local" value={estadoModal.suspendidoHasta} onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))} className="input" />
+                  <input
+                    type="datetime-local"
+                    value={estadoModal.suspendidoHasta}
+                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
+                    className="input"
+                  />
                   <small className="muted">Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.</small>
                 </div>
               )}
