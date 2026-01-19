@@ -59,11 +59,28 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras para evitar "Invalid Date" */
+/* Fechas seguras para evitar "Invalid Date" y mostrar “Creado/Actualizado” siempre */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
+const fromObjectIdDate = (_id) => {
+  if (!_id) return null;
+  const s = String(_id);
+  if (s.length >= 8) {
+    const ts = parseInt(s.slice(0, 8), 16) * 1000;
+    const d = new Date(ts);
+    return isValidDate(d) ? d : null;
+  }
+  return null;
+};
 const safeDateStr = (val) => {
   if (!val) return "—";
   const d = new Date(val);
+  return isValidDate(d) ? d.toLocaleString() : "—";
+};
+const safeDateStrWithFallback = (val, oid) => {
+  let d = val ? new Date(val) : null;
+  if (!isValidDate(d)) {
+    d = fromObjectIdDate(oid);
+  }
   return isValidDate(d) ? d.toLocaleString() : "—";
 };
 
@@ -264,6 +281,15 @@ const Table = () => {
       return;
     }
 
+    // ✅ Construir payload solo con campos presentes (evitar password: "")
+    const payload = {
+      nombre: nombre.trim(),
+      apellido: apellido.trim(),
+      email: email.trim(),
+    };
+    if (telefono !== undefined) payload.telefono = telefono;
+    if (password && password.trim()) payload.password = password;
+
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/actualizar/${id}`, {
         method: "PUT",
@@ -271,16 +297,23 @@ const Table = () => {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ nombre, apellido, email, password, telefono }),
+        body: JSON.stringify(payload),
       });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "No se pudo actualizar.");
-      else {
-        setMensaje(`${capitalize(tipo)} actualizado correctamente.`);
-        setFormEditar({ id: null, ...emptyForm });
-        fetchLista();
+
+      let data = null;
+      if (isJsonResponse(res)) data = await res.json();
+
+      if (!res.ok) {
+        // Mostrar detalle del backend si viene (p. ej. E11000 duplicate key)
+        const detail = data?.error || data?.msg || `HTTP ${res.status}`;
+        setError(detail);
+        return;
       }
-    } catch {
+
+      setMensaje(`${capitalize(tipo)} actualizado correctamente.`);
+      setFormEditar({ id: null, ...emptyForm });
+      fetchLista();
+    } catch (err) {
       setError("Error de red al actualizar.");
     }
   };
@@ -1118,11 +1151,11 @@ const Table = () => {
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Creado</div>
-                              <div className="detailValue">{safeDateStr(item.createdAt)}</div>
+                              <div className="detailValue">{safeDateStrWithFallback(item.createdAt, item._id)}</div>
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Actualizado</div>
-                              <div className="detailValue">{safeDateStr(item.updatedAt)}</div>
+                              <div className="detailValue">{safeDateStrWithFallback(item.updatedAt, item._id)}</div>
                             </div>
                           </div>
 
@@ -1324,11 +1357,11 @@ const Table = () => {
                 <div className="mCardBody">
                   <div className="detailItem">
                     <div className="detailLabel">Creado</div>
-                    <div className="detailValue">{safeDateStr(item.createdAt)}</div>
+                    <div className="detailValue">{safeDateStrWithFallback(item.createdAt, item._id)}</div>
                   </div>
                   <div className="detailItem">
                     <div className="detailLabel">Actualizado</div>
-                    <div className="detailValue">{safeDateStr(item.updatedAt)}</div>
+                    <div className="detailValue">{safeDateStrWithFallback(item.updatedAt, item._id)}</div>
                   </div>
 
                   {tipo === "cliente" && (
