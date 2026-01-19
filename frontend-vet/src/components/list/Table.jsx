@@ -1,6 +1,6 @@
 
 // src/components/Table.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
 /* ===========================
@@ -43,7 +43,7 @@ const deriveEstadoCliente = (item) => {
   return "Correcto";
 };
 
-/* Siguiente advertencia */
+/* Siguiente advertencia desde un estado visible */
 const siguienteAdvertencia = (estadoActual) => {
   switch (estadoActual) {
     case "Correcto": return "Advertencia1";
@@ -54,20 +54,54 @@ const siguienteAdvertencia = (estadoActual) => {
   }
 };
 
+const isJsonResponse = (res) => {
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("application/json");
+};
+
+/* Fechas seguras */
+const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
+const fromObjectIdDate = (_id) => {
+  if (!_id) return null;
+  const s = String(_id);
+  if (s.length >= 8) {
+    const ts = parseInt(s.slice(0, 8), 16) * 1000;
+    const d = new Date(ts);
+    return isValidDate(d) ? d : null;
+  }
+  return null;
+};
 const safeDateStr = (val) => {
   if (!val) return "—";
   const d = new Date(val);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+  return isValidDate(d) ? d.toLocaleString() : "—";
+};
+const safeDateStrWithFallback = (val, oid) => {
+  let d = val ? new Date(val) : null;
+  if (!isValidDate(d)) d = fromObjectIdDate(oid);
+  return isValidDate(d) ? d.toLocaleString() : "—";
+};
+
+/* Mostrar nombre del actor */
+const displayActorName = (a) => {
+  if (!a) return "—";
+  if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
+  if (a.creadoPor) {
+    const n = `${a.creadoPor?.nombre || ""} ${a.creadoPor?.apellido || ""}`.trim();
+    if (n) return n;
+  }
+  return a.origen === "sistema" ? "Sistema" : "—";
 };
 
 /* ===========================
    COMPONENTE
 =========================== */
 const Table = () => {
-  const { token } = storeAuth() || {};
+  /* --------- Auth --------- */
+  const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
 
   /* --------- Estado principal --------- */
-  const [tipo, setTipo] = useState("cliente");
+  const [tipo, setTipo] = useState("cliente"); // 'cliente' | 'emprendedor'
   const [lista, setLista] = useState([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
@@ -78,8 +112,8 @@ const Table = () => {
   /* --------- Mensajes --------- */
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
-
   useEffect(() => {
+    if (!error && !mensaje) return;
     const t = setTimeout(() => { setError(""); setMensaje(""); }, 3000);
     return () => clearTimeout(t);
   }, [error, mensaje]);
@@ -87,10 +121,35 @@ const Table = () => {
   /* --------- UI --------- */
   const [expandido, setExpandido] = useState(null);
   const [searchInput, setSearchInput] = useState("");
-  const search = searchInput.trim().toLowerCase();
+  const [search, setSearch] = useState(""); // debounced
+
+  /* --------- Confirm Delete --------- */
+  const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
+
+  /* --------- Chat (opcional UI minimal) --------- */
+  const [modalChatVisible, setModalChatVisible] = useState(false);
+  const [chatUser, setChatUser] = useState(null);
+  const [mensajes, setMensajes] = useState([]);
+  const [mensajeChat, setMensajeChat] = useState("");
+  const mensajesRef = useRef(null);
+
+  /* --------- Sub-filtros Emprendedor --------- */
+  const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
+  const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
+  const [mapEmpProductos, setMapEmpProductos] = useState({});
+
+  /* --------- Catálogos fallback --------- */
+  const [catalogoProductos, setCatalogoProductos] = useState([]);
+  const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
   /* --------- Auditoría (Cliente) --------- */
   const [mapAuditoria, setMapAuditoria] = useState({});
+
+  /* Debounce de búsqueda (300 ms) */
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   /* ---- Carga de listas ---- */
   const fetchLista = async () => {
@@ -120,8 +179,32 @@ const Table = () => {
     }
   };
 
+  const fetchCatalogosGenerales = async () => {
+    try {
+      const [resProd, resEmpr] = await Promise.all([
+        fetch(`${API_PRODUCTOS}/todos`),
+        fetch(`${API_EMPRENDIMIENTOS}/publicos`),
+      ]);
+      const dataProd = await resProd.json();
+      const dataEmpr = await resEmpr.json();
+
+      const productosArray = Array.isArray(dataProd)
+        ? dataProd
+        : Array.isArray(dataProd?.productos)
+          ? dataProd.productos
+          : [];
+      const emprArray = Array.isArray(dataEmpr) ? dataEmpr : [];
+
+      setCatalogoProductos(productosArray);
+      setCatalogoEmprendimientos(emprArray);
+    } catch (e) {
+      console.warn("No se pudieron cargar catálogos de fallback:", e?.message);
+    }
+  };
+
   useEffect(() => {
     fetchLista();
+    fetchCatalogosGenerales();
     setFormCrear(emptyForm);
     setFormEditar({ id: null, ...emptyForm });
     setExpandido(null);
@@ -217,8 +300,7 @@ const Table = () => {
       });
 
       let data = null;
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) data = await res.json();
+      if (isJsonResponse(res)) data = await res.json();
 
       if (!res.ok) {
         const detail = data?.error || data?.msg || `HTTP ${res.status}`;
@@ -234,12 +316,12 @@ const Table = () => {
     }
   };
 
-  const solicitarEliminar = (item) => {
-    if (!window.confirm(`¿Eliminar ${capitalize(tipo)} ${item.nombre} ${item.apellido}?`)) return;
-    confirmarEliminar(item._id);
-  };
+  const solicitarEliminar = (item) => setConfirmDelete({ visible: true, id: item._id, nombre: `${item.nombre} ${item.apellido}` });
+  const cancelarEliminar = () => setConfirmDelete({ visible: false, id: null, nombre: "" });
 
-  const confirmarEliminar = async (id) => {
+  const confirmarEliminar = async () => {
+    const id = confirmDelete.id;
+    cancelarEliminar();
     setError(""); setMensaje("");
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
@@ -258,8 +340,9 @@ const Table = () => {
   };
 
   /* ===========================
-     ESTADOS y MODAL
+     ESTADOS y MODALES
   ============================ */
+
   const getEstado = (item) =>
     tipo === "emprendedor"
       ? item.estado || item.estado_Emprendedor || "Activo"
@@ -268,6 +351,7 @@ const Table = () => {
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
 
+  // Modal de cambio de estado (Cliente) + modo advertir
   const [estadoModal, setEstadoModal] = useState({
     visible: false,
     mode: 'estado',          // 'estado' | 'advertir'
@@ -306,6 +390,7 @@ const Table = () => {
     visible: false, mode: 'estado', item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
+  // Confirmar (estado o advertir)
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta, mode } = estadoModal;
     try {
@@ -321,8 +406,8 @@ const Table = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      // Modo ADVERTIR (progresión Adv1->Adv2->Adv3->Suspendido)
       if (mode === 'advertir') {
+        // Progresión de advertencia -> si llega a Suspendido se puede fijar fecha
         let untilISO;
         if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
           const d = new Date(suspendidoHasta);
@@ -346,10 +431,13 @@ const Table = () => {
         setMensaje(`Advertencia aplicada${data?.estadoUI ? `: ${data.estadoUI}` : ""}`);
         closeEstadoModal();
         await fetchLista();
+        if (expandido === item._id && tipo === "cliente") {
+          cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+        }
         return;
       }
 
-      // Modo CAMBIO DE ESTADO manual
+      // Cambio manual de estado (UI -> back)
       const actualUI = getEstado(item);
       const estadoToSend =
         (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
@@ -380,6 +468,9 @@ const Table = () => {
       setMensaje(`Estado actualizado a: ${estadoToSend}`);
       closeEstadoModal();
       await fetchLista();
+      if (expandido === item._id && tipo === "cliente") {
+        cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+      }
     } catch (e) {
       console.error(e);
       setError(e.message || "Error al actualizar el estado.");
@@ -407,8 +498,7 @@ const Table = () => {
 
       if (!res.ok) {
         let data = null;
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) data = await res.json();
+        if (isJsonResponse(res)) data = await res.json();
         const detail = data?.msg || `HTTP ${res.status}`;
         throw new Error(detail);
       }
@@ -421,13 +511,77 @@ const Table = () => {
     }
   };
 
+  const EstadoBadge = ({ estado }) => {
+    const bg = ESTADO_COLORS[estado] || "#6b7280";
+    return (
+      <span aria-label={`Estado: ${estado}`} className="pill" style={{ backgroundColor: bg }}>
+        {estado}
+      </span>
+    );
+  };
+
   /* ===========================
-     AUDITORÍA (carga para detalles si quieres expandir)
+     ANIDADOS: Emprendedor
+  ============================ */
+  const cargarNestedParaEmprendedor = async (emprendedor) => {
+    if (!emprendedor?._id) return;
+
+    const from = rangoFechas.from || "";
+    const to   = rangoFechas.to   || "";
+
+    const tryFetch = async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+
+    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    let emps = await tryFetch(urlEmps);
+    if (!Array.isArray(emps)) {
+      emps = catalogoEmprendimientos.filter((e) => {
+        const owner = String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
+        const ts = e?.createdAt ? new Date(e.createdAt).getTime() : null;
+        const inRange =
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+        return owner && inRange;
+      });
+    }
+
+    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    let prods = await tryFetch(urlProds);
+    if (!Array.isArray(prods)) {
+      prods = catalogoProductos.filter((p) => {
+        const owner =
+          String(p?.emprendimiento?.emprendedor?._id || p?.emprendimiento?.emprendedorId || "") ===
+          String(emprendedor._id);
+        const ts = p?.createdAt ? new Date(p.createdAt).getTime() : null;
+        const inRange =
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+        return owner && inRange;
+      });
+    }
+
+    setMapEmpEmprendimientos((prev) => ({ ...prev, [emprendedor._id]: emps || [] }));
+    setMapEmpProductos((prev) => ({ ...prev, [emprendedor._id]: prods || [] }));
+  };
+
+  /* ===========================
+     AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
     setMapAuditoria((prev) => ({
       ...prev,
-      [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null },
+      [clienteId]: {
+        ...(prev[clienteId] || {}),
+        loading: true,
+        lastError: null,
+      },
     }));
     try {
       const url = `${BASE_URLS["cliente"]}/estado/${clienteId}/auditoria?page=${page}&limit=${limit}`;
@@ -435,10 +589,18 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
-      if (!res.ok) {
+      if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
-          [clienteId]: { ...(prev[clienteId] || {}), items: [], total: 0, page, limit, loading: false, lastError: `HTTP ${res.status}` },
+          [clienteId]: {
+            ...(prev[clienteId] || {}),
+            items: [],
+            total: 0,
+            page,
+            limit,
+            loading: false,
+            lastError: res.ok ? null : `HTTP ${res.status}`,
+          },
         }));
         return;
       }
@@ -447,6 +609,7 @@ const Table = () => {
       setMapAuditoria((prev) => ({
         ...prev,
         [clienteId]: {
+          ...(prev[clienteId] || {}),
           items: Array.isArray(data.items) ? data.items : [],
           total: Number(data.total || 0),
           page: Number(data.page || page),
@@ -459,19 +622,42 @@ const Table = () => {
       console.error(e);
       setMapAuditoria((prev) => ({
         ...prev,
-        [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: e.message || "error" },
+        [clienteId]: {
+          ...(prev[clienteId] || {}),
+          items: [],
+          total: 0,
+          page,
+          limit,
+          loading: false,
+          lastError: e.message || "error",
+        },
       }));
     }
   };
 
+  const onPaginarAud = (clienteId, dir = 0) => {
+    const info = mapAuditoria[clienteId] || { page: 1, limit: 10, total: 0 };
+    const totalPages = Math.max(1, Math.ceil((info.total || 0) / (info.limit || 10)));
+    let nextPage = info.page + dir;
+    if (nextPage < 1) nextPage = 1;
+    if (nextPage > totalPages) nextPage = totalPages;
+    if (nextPage !== info.page) cargarAuditoriaCliente(clienteId, nextPage, info.limit);
+  };
+
   /* ===========================
-     LISTA FILTRADA
+     TOGGLE expandido
   ============================ */
-  const listaFiltrada = lista.filter((x) => {
-    if (!search) return true;
-    const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
-    return campos.some((c) => c.includes(search));
-  });
+  const toggleExpandido = async (id, item) => {
+    const nuevo = expandido === id ? null : id;
+    setExpandido(nuevo);
+
+    if (nuevo && tipo === "emprendedor") {
+      await cargarNestedParaEmprendedor(item);
+    }
+    if (nuevo && tipo === "cliente") {
+      await cargarAuditoriaCliente(item._id, 1, 10);
+    }
+  };
 
   /* ===========================
      RENDER
@@ -480,11 +666,17 @@ const Table = () => {
     <div className="wrap">
       <style>{css}</style>
 
+      {/* ====== ENCABEZADO ====== */}
       <header className="hdr">
         <div>
           <h1 className="ttl">Panel de Administración</h1>
           <div className="subTtl">
-            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
+            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${lista.filter((x) => {
+              const q = search.toLowerCase();
+              if (!q) return true;
+              const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
+              return campos.some((c) => c.includes(q));
+            }).length} resultados`}
           </div>
         </div>
 
@@ -522,12 +714,13 @@ const Table = () => {
         </div>
       </header>
 
+      {/* Mensajes toast */}
       <div className="toastRegion" aria-live="polite" aria-atomic="true">
         {error && <div className="toast toastErr">⚠️ {error}</div>}
         {mensaje && <div className="toast toastOk">✅ {mensaje}</div>}
       </div>
 
-      {/* ====== FORM: CREAR (clientes) ====== */}
+      {/* ====== FORM: CREAR ====== */}
       {tipo === "cliente" && (
         <section className="card" aria-label="Crear">
           <div className="cardHeader">
@@ -537,29 +730,67 @@ const Table = () => {
             <div className="grid2">
               <div className="formGroup">
                 <label className="label">Nombre</label>
-                <input className="input" value={formCrear.nombre} onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })} required />
+                <input
+                  className="input"
+                  placeholder="Ej. Ana"
+                  value={formCrear.nombre}
+                  onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Apellido</label>
-                <input className="input" value={formCrear.apellido} onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })} required />
+                <input
+                  className="input"
+                  placeholder="Ej. Pérez"
+                  value={formCrear.apellido}
+                  onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Email</label>
-                <input className="input" type="email" value={formCrear.email} onChange={(e) => setFormCrear({ ...formCrear, email: e.target.value })} required />
+                <input
+                  className="input"
+                  type="email"
+                  placeholder="nombre@dominio.com"
+                  value={formCrear.email}
+                  onChange={(e) => setFormCrear({ ...formCrear, email: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Password</label>
-                <input className="input" type="password" value={formCrear.password} onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })} required />
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formCrear.password}
+                  onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Teléfono</label>
-                <input className="input" value={formCrear.telefono} onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })} />
+                <input
+                  className="input"
+                  placeholder="Ej. 0999999999"
+                  value={formCrear.telefono}
+                  onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
+                />
               </div>
             </div>
 
             <div className="cardFooter">
               <button className="btn primary" type="submit">Crear</button>
-              <button className="btn ghost" type="button" onClick={() => setFormCrear(emptyForm)}>Limpiar</button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => setFormCrear(emptyForm)}
+                title="Limpiar formulario"
+              >
+                Limpiar
+              </button>
             </div>
           </form>
         </section>
@@ -575,29 +806,60 @@ const Table = () => {
             <div className="grid2">
               <div className="formGroup">
                 <label className="label">Nombre</label>
-                <input className="input" value={formEditar.nombre} onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })} required />
+                <input
+                  className="input"
+                  value={formEditar.nombre}
+                  onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Apellido</label>
-                <input className="input" value={formEditar.apellido} onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })} required />
+                <input
+                  className="input"
+                  value={formEditar.apellido}
+                  onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Email</label>
-                <input className="input" type="email" value={formEditar.email} onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })} required />
+                <input
+                  className="input"
+                  type="email"
+                  value={formEditar.email}
+                  onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
+                  required
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Password (opcional)</label>
-                <input className="input" type="password" value={formEditar.password} onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })} />
+                <input
+                  className="input"
+                  type="password"
+                  value={formEditar.password}
+                  onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
+                />
               </div>
               <div className="formGroup">
                 <label className="label">Teléfono</label>
-                <input className="input" value={formEditar.telefono} onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })} />
+                <input
+                  className="input"
+                  value={formEditar.telefono}
+                  onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
+                />
               </div>
             </div>
 
             <div className="cardFooter">
               <button className="btn primary" type="submit">Actualizar</button>
-              <button className="btn secondary" type="button" onClick={() => setFormEditar({ id: null, ...emptyForm })}>Cancelar</button>
+              <button
+                className="btn secondary"
+                type="button"
+                onClick={() => setFormEditar({ id: null, ...emptyForm })}
+              >
+                Cancelar
+              </button>
             </div>
           </form>
         </section>
@@ -623,19 +885,28 @@ const Table = () => {
               </tr>
             </thead>
             <tbody>
-              {loadingLista && Array.from({ length: 6 }).map((_, idx) => (
-                <tr key={`skeleton-${idx}`}>
-                  <td className="td"><div className="skl w40" /></td>
-                  <td className="td"><div className="skl" /></td>
-                  <td className="td"><div className="skl" /></td>
-                  <td className="td"><div className="skl" /></td>
-                  <td className="td"><div className="skl w80" /></td>
-                  <td className="td"><div className="skl w80" /></td>
-                  <td className="td"><div className="skl w120" /></td>
-                </tr>
-              ))}
+              {loadingLista && (
+                <>
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <tr key={`skeleton-${idx}`}>
+                      <td className="td"><div className="skl w40" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl" /></td>
+                      <td className="td"><div className="skl w80" /></td>
+                      <td className="td"><div className="skl w80" /></td>
+                      <td className="td"><div className="skl w120" /></td>
+                    </tr>
+                  ))}
+                </>
+              )}
 
-              {!loadingLista && listaFiltrada.length === 0 && (
+              {!loadingLista && lista.filter((x) => {
+                const q = search.toLowerCase();
+                if (!q) return true;
+                const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
+                return campos.some((c) => c.includes(q));
+              }).length === 0 && (
                 <tr>
                   <td colSpan="7" className="emptyCell">
                     <div style={{ fontSize: 24 }}>🗂️</div>
@@ -644,65 +915,182 @@ const Table = () => {
                 </tr>
               )}
 
-              {!loadingLista && listaFiltrada.map((item, i) => (
-                <tr
-                  key={item._id}
-                  className={`row ${expandido === item._id ? "rowActive" : ""}`}
-                  onClick={() => setExpandido(expandido === item._id ? null : item._id)}
-                  aria-expanded={expandido === item._id}
-                >
-                  <td className="td">{i + 1}</td>
-                  <td className="td">
-                    <span className="nameStrong">{item.nombre}</span>
-                    <span className="pill" style={{ backgroundColor: ESTADO_COLORS[getEstado(item)] || "#6b7280", marginLeft: 6 }}>
-                      {getEstado(item)}
-                    </span>
-                  </td>
-                  <td className="td">{item.apellido}</td>
-                  <td className="td">{item.email}</td>
-                  <td className="td">{item.telefono || "N/A"}</td>
+              {!loadingLista &&
+                lista.filter((x) => {
+                  const q = search.toLowerCase();
+                  if (!q) return true;
+                  const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
+                  return campos.some((c) => c.includes(q));
+                }).map((item, i, arr) => (
+                  <React.Fragment key={item._id}>
+                    <tr
+                      className={`row ${expandido === item._id ? "rowActive" : ""}`}
+                      onClick={() => toggleExpandido(item._id, item)}
+                      aria-expanded={expandido === item._id}
+                    >
+                      <td className="td">{i + 1}</td>
+                      <td className="td">
+                        <span className="nameStrong">{item.nombre}</span>
+                        <EstadoBadge estado={getEstado(item)} />
+                      </td>
+                      <td className="td">{item.apellido}</td>
+                      <td className="td">{item.email}</td>
+                      <td className="td">{item.telefono || "N/A"}</td>
 
-                  <td className="td">
-                    <div className="inline">
-                      <label className="labelInlineSmall">Estado:</label>
-                      <select
-                        aria-label="Cambiar estado/advertencia"
-                        value={getEstado(item)}
-                        onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value, 'estado'); }}
-                        className="select"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {getEstadosPermitidos().map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </td>
+                      <td className="td">
+                        <div className="inline">
+                          <label htmlFor={`sel-${item._id}`} className="labelInlineSmall">Estado:</label>
+                          <select
+                            id={`sel-${item._id}`}
+                            aria-label="Cambiar estado/advertencia"
+                            value={getEstado(item)}
+                            onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value, 'estado'); }}
+                            className="select"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {getEstadosPermitidos().map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </td>
 
-                  <td className="td">
-                    <div className="actions">
-                      <button className="btn tiny" onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}>✏️ Editar</button>
-                      <button className="btn tiny danger" onClick={(e) => { e.stopPropagation(); solicitarEliminar(item); }}>🗑️ Eliminar</button>
-                      <button
-                        className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
-                        disabled={getEstado(item) === "Suspendido"}
-                        title={getEstado(item) === "Suspendido" ? "Ya está suspendido" : "Aplicar siguiente advertencia"}
-                        onClick={(e) => { e.stopPropagation(); const next = siguienteAdvertencia(getEstado(item)); openEstadoModal(item, next, 'advertir'); }}
-                      >
-                        ⚠️ Advertencia
-                      </button>
-                    </div>
+                      <td className="td">
+                        <div className="actions">
+                          <button
+                            className="btn tiny"
+                            onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}
+                            title="Editar"
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button
+                            className="btn tiny danger"
+                            onClick={(e) => { e.stopPropagation(); solicitarEliminar(item); }}
+                            title="Eliminar"
+                          >
+                            🗑️ Eliminar
+                          </button>
+                          <button
+                            className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
+                            disabled={getEstado(item) === "Suspendido"}
+                            title={getEstado(item) === "Suspendido" ? "Ya está suspendido" : "Aplicar siguiente advertencia"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const next = siguienteAdvertencia(getEstado(item));
+                              openEstadoModal(item, next, 'advertir');
+                            }}
+                          >
+                            ⚠️ Advertencia
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
 
-                    {/* Detalles expandibles simples */}
+                    {/* DETALLES EXPANDIDOS */}
                     {expandido === item._id && (
-                      <div style={{ marginTop: 8, color: "#475569" }}>
-                        <div><strong>Creado:</strong> {safeDateStr(item.createdAt)}</div>
-                        <div><strong>Actualizado:</strong> {safeDateStr(item.updatedAt)}</div>
-                      </div>
+                      <tr>
+                        <td colSpan="7" className="detailsCell">
+                          <div className="detailsGrid">
+                            <div className="detailItem">
+                              <div className="detailLabel">Nombre completo</div>
+                              <div className="detailValue">{item.nombre} {item.apellido}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Email</div>
+                              <div className="detailValue">{item.email}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Teléfono</div>
+                              <div className="detailValue">{item.telefono || "N/A"}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Creado</div>
+                              <div className="detailValue">{safeDateStrWithFallback(item.createdAt, item._id)}</div>
+                            </div>
+                            <div className="detailItem">
+                              <div className="detailLabel">Actualizado</div>
+                              <div className="detailValue">{safeDateStrWithFallback(item.updatedAt, item._id)}</div>
+                            </div>
+                          </div>
+
+                          {/* HISTORIAL */}
+                          {tipo === "cliente" && (
+                            <div className="histWrap">
+                              <div className="sectionHeader">
+                                <h4 className="sectionTitle">Historial de Advertencias / Suspensiones</h4>
+                                <div className="inline">
+                                  <button
+                                    className="btn tiny"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      await cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+                                      setMensaje("Historial actualizado");
+                                    }}
+                                  >
+                                    ↻ Actualizar
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="tableWrap">
+                                <table className="table mt8">
+                                  <thead>
+                                    <tr>
+                                      <th className="th">Fecha</th>
+                                      <th className="th">Tipo</th>
+                                      <th className="th">Motivo</th>
+                                      <th className="th">Origen</th>
+                                      <th className="th">Modificado por</th>
+                                      <th className="th">IP</th>
+                                      <th className="th">User-Agent</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(mapAuditoria[item._id]?.loading) && (
+                                      <tr><td colSpan="7" className="emptyCell">Cargando historial…</td></tr>
+                                    )}
+
+                                    {!mapAuditoria[item._id]?.loading &&
+                                      (mapAuditoria[item._id]?.items || []).length === 0 && (
+                                      <tr><td colSpan="7" className="emptyCell">Sin registros.</td></tr>
+                                    )}
+
+                                    {!mapAuditoria[item._id]?.loading &&
+                                      (mapAuditoria[item._id]?.items || []).map((a, idx) => (
+                                      <tr key={`${a._id || idx}`}>
+                                        <td className="td">{safeDateStr(a.fecha)}</td>
+                                        <td className="td">{a.tipo || "—"}</td>
+                                        <td className="td">{a.motivo || "—"}</td>
+                                        <td className="td">{a.origen || "—"}</td>
+                                        <td className="td">{displayActorName(a)}</td>
+                                        <td className="td">{a.ip || "—"}</td>
+                                        <td className="td" title={a.userAgent || ""}>
+                                          {a.userAgent ? (a.userAgent.length > 24 ? a.userAgent.slice(0,24) + "…" : a.userAgent) : "—"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+
+                              <div className="paginate">
+                                <div className="muted">Total: <strong>{mapAuditoria[item._id]?.total || 0}</strong></div>
+                                <div className="inline">
+                                  <button className="btn tiny" onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, -1); }}>◀ Anterior</button>
+                                  <span className="muted">
+                                    {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
+                                  </span>
+                                  <button className="btn tiny" onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, +1); }}>Siguiente ▶</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </React.Fragment>
+                ))}
             </tbody>
           </table>
         </div>
@@ -745,7 +1133,7 @@ const Table = () => {
                     className="input"
                   />
                   <small className="muted">
-                    Si lo dejas vacío: suspensión indefinida hasta reactivación manual o automática al vencer.
+                    Si lo dejas vacío: suspensión indefinida hasta reactivación manual o automática si vence.
                   </small>
                 </div>
               )}
@@ -753,20 +1141,19 @@ const Table = () => {
 
             <div className="modalFooter">
               <button className="btn secondary" onClick={closeEstadoModal}>Cancelar</button>
-              <button className="btn primary" onClick={updateEstadoClienteConfirmed}>Confirmar</button>
+              <button className="btn primary" onClick={updateEstadoClienteConfirmed}>
+                Confirmar
+              </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* CSS inline */}
-      <style>{css}</style>
     </div>
   );
 };
 
 /* ===========================
-   CSS
+   CSS (Responsivo + UX)
 =========================== */
 const css = `
 :root{
@@ -786,7 +1173,10 @@ const css = `
 .segBtn{ padding:8px 12px; background:#fff; color:#334155; border:none; cursor:pointer; font-weight:700; }
 .segBtn.active{ background:var(--ok); color:#fff; }
 .searchBox{ display:flex; gap:8px; align-items:center; }
-.searchInput{ width:280px; max-width:60vw; padding:8px 10px; border-radius: var(--radius-sm); border:1px solid var(--bd); outline:none; }
+.searchInput{
+  width:280px; max-width:60vw; padding:8px 10px; border-radius: var(--radius-sm);
+  border:1px solid var(--bd); outline:none;
+}
 .toastRegion{ position:fixed; top:14px; right:14px; display:grid; gap:8px; z-index:10000; }
 .toast{ padding:10px 12px; border-radius:10px; box-shadow: var(--shadow); font-size:13px; min-width:240px; }
 .toastErr{ background:#ffe8e6; color:#a33; }
@@ -812,6 +1202,7 @@ const css = `
 .btn.warn{ background: var(--warn); color:#fff; border:none; }
 .btn.disabled{ opacity:.5; cursor:not-allowed; }
 .btn.tiny{ padding:6px 10px; border-radius:6px; font-size:13px; }
+.inline{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .tableWrap{ overflow-x:auto; }
 .table{ width:100%; border-collapse: collapse; }
 .th{
@@ -822,18 +1213,43 @@ const css = `
 .row{ background:#fff; cursor:pointer; }
 .row:hover{ background:#f8fbff; }
 .rowActive{ background:#f5faff; }
-.pill{ display:inline-block; margin-left:6px; padding:2px 10px; border-radius:999px; font-size:12px; color:#fff; line-height:18px; }
-.pill.soft{ background:#0ea5e922; color:#0ea5e9; border:1px solid #0ea5e944; padding:2px 8px; }
+.nameStrong{ font-weight:800; margin-right:6px; }
+.select{ padding:8px 10px; border-radius: var(--radius-sm); border:1px solid var(--bd); background:#fff; }
+.actions{ display:flex; gap:6px; flex-wrap:wrap; }
 .emptyCell{ text-align:center; padding:20px; color:#666; font-size:14px; }
+.detailsCell{ padding:12px; background:#f7fbff; border-top:1px solid #e6eef8; }
+.detailsGrid{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
+.detailItem{ padding:10px; border:1px solid var(--bd); border-radius:10px; background:#fff; }
+.detailLabel{ font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px; }
+.detailValue{ font-size:14px; color:var(--txt); }
+.sectionHeader{ display:flex; justify-content:space-between; align-items:center; }
+.sectionTitle{ margin:0; color:var(--ok); }
+.mt8{ margin-top:8px; }
+.muted{ color:var(--muted); font-size:13px; }
+.paginate{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+.pill{
+  display:inline-block; margin-left:6px; padding:2px 10px; border-radius:999px; font-size:12px; color:#fff; line-height:18px;
+}
+.pill.soft{ background:#0ea5e922; color:#0ea5e9; border:1px solid #0ea5e944; padding:2px 8px; }
 .skl{ height:14px; width:100%; background:linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
 .skl.w40{ width:40px; } .skl.w80{ width:80px; } .skl.w120{ width:120px; }
 .modalOverlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; justify-content:center; align-items:center; z-index:9999; padding:12px; }
-.modal{ background:#fff; border-radius: var(--radius); width:520px; max-width:95%; box-shadow: var(--shadow-lg); display:flex; flex-direction:column; overflow:hidden; }
+.modal{
+  background:#fff; border-radius: var(--radius); width:520px; max-width:95%; box-shadow: var(--shadow-lg);
+  display:flex; flex-direction:column; overflow:hidden;
+}
 .modalHeader{ padding:12px 16px; background: var(--ok); color:#fff; display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:16px; }
 .modalTitle{ margin:0; }
 .modalBody{ padding:16px; min-height:120px; font-size:14px; color:#333; overflow-y:auto; }
 .modalFooter{ padding:12px; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:8px; }
 .req{ color:#dc2626; }
+
+@media (max-width: 768px){
+  .hdr{ grid-template-columns: 1fr; }
+  .grid2{ grid-template-columns: 1fr; }
+  .searchInput{ width:100%; max-width:100%; }
+  .detailsGrid{ grid-template-columns: 1fr; }
+}
 `;
 
 export default Table;
