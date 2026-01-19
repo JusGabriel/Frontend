@@ -129,6 +129,7 @@ const Table = () => {
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
   /* --------- Auditoría (Cliente) --------- */
+  // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
   const [mapAuditoria, setMapAuditoria] = useState({});
 
   /* Debounce de búsqueda (300 ms) */
@@ -329,12 +330,11 @@ const Table = () => {
   });
 
   const openEstadoModal = (item, nuevoEstado) => {
-    if (!nuevoEstado || (tipo === "cliente" && !ESTADOS_CLIENTE.includes(nuevoEstado))) {
-      // Protección: no abrir el modal con estado inválido
-      setError("Estado no válido.");
-      return;
-    }
     if (tipo === "cliente") {
+      if (!nuevoEstado || !ESTADOS_CLIENTE.includes(nuevoEstado)) {
+        setError("Estado no válido.");
+        return;
+      }
       setEstadoModal({
         visible: true,
         item,
@@ -344,6 +344,10 @@ const Table = () => {
       });
     } else {
       // Emprendedor: no requiere motivo
+      if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
+        setError("Estado no válido para emprendedor.");
+        return;
+      }
       updateEstadoEmprendedor(item, nuevoEstado);
     }
   };
@@ -393,7 +397,7 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Si no autorizado, avisar claramente
+      // Si no autorizado, avisar claramente y no hacer fallback
       if (res.status === 401 || res.status === 403) {
         const data = isJsonResponse(res) ? await res.json() : null;
         setError(data?.msg || "No autorizado para cambiar estado. Inicia sesión como Administrador.");
@@ -1241,7 +1245,7 @@ const Table = () => {
                                     ◀ Anterior
                                   </button>
                                   <span className="muted">
-                                    Página {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
+                                    {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
                                   </span>
                                   <button
                                     className="btn tiny"
@@ -1394,7 +1398,7 @@ const Table = () => {
                       <div className="paginate">
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, -1)}>◀</button>
                         <span className="muted">
-                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10))}
+                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
                         </span>
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, +1)}>▶</button>
                       </div>
