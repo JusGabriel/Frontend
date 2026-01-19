@@ -136,7 +136,7 @@ const Table = () => {
   const mensajesRef = useRef(null);
 
   /* --------- Sub-filtros Emprendedor --------- */
-  theconst [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
+  const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
   const [mapEmpProductos, setMapEmpProductos] = useState({});
   const [loadingNested, setLoadingNested] = useState(false);
@@ -553,7 +553,7 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // set loading = true para ese clienteId
+    // loading = true para ese clienteId
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: {
@@ -572,6 +572,7 @@ const Table = () => {
         setMapAuditoria((prev) => ({
           ...prev,
           [clienteId]: {
+            ...(prev[clienteId] || {}),
             items: [],
             total: 0,
             page,
@@ -587,6 +588,7 @@ const Table = () => {
       setMapAuditoria((prev) => ({
         ...prev,
         [clienteId]: {
+          ...(prev[clienteId] || {}),
           items: Array.isArray(data.items) ? data.items : [],
           total: Number(data.total || 0),
           page: Number(data.page || page),
@@ -600,6 +602,7 @@ const Table = () => {
       setMapAuditoria((prev) => ({
         ...prev,
         [clienteId]: {
+          ...(prev[clienteId] || {}),
           items: [],
           total: 0,
           page,
