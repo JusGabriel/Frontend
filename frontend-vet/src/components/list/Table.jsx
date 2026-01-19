@@ -146,7 +146,6 @@ const Table = () => {
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
   /* --------- Auditoría (Cliente) --------- */
-  // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
   const [mapAuditoria, setMapAuditoria] = useState({});
 
   /* Debounce de búsqueda (300 ms) */
@@ -281,7 +280,6 @@ const Table = () => {
       return;
     }
 
-    // ✅ Construir payload solo con campos presentes (evitar password: "")
     const payload = {
       nombre: nombre.trim(),
       apellido: apellido.trim(),
@@ -304,7 +302,6 @@ const Table = () => {
       if (isJsonResponse(res)) data = await res.json();
 
       if (!res.ok) {
-        // Mostrar detalle del backend si viene (p. ej. E11000 duplicate key)
         const detail = data?.error || data?.msg || `HTTP ${res.status}`;
         setError(detail);
         return;
@@ -362,7 +359,7 @@ const Table = () => {
     suspendidoHasta: ""
   });
 
-  // 🔧 Derivar siempre un "próximo estado" si no se pasa explícito
+  // Derivar siempre un "próximo estado" si no se pasa explícito
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
       const actual = getEstado(item);
@@ -376,10 +373,9 @@ const Table = () => {
         item,
         nuevoEstado: proximo,
         motivo: "",
-        suspendidoHasta: ""
+        suspendidoHasta: "" // limpiar siempre; si no es Suspendido, no se enviará
       });
     } else {
-      // Emprendedor: no requiere motivo
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
         setError("Estado no válido para emprendedor.");
         return;
@@ -392,7 +388,7 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // 🔁 Flujo robusto: intenta /estado/:id y haga lo que haga, si no es 2xx cae a /actualizar/:id
+  // Flujo robusto: /estado/:id y, si falla, /actualizar/:id. Enviamos suspendidoHasta solo si es válido.
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -407,11 +403,11 @@ const Table = () => {
         return;
       }
 
-      // Validar y normalizar 'suspendidoHasta' (si viene)
-      let untilISO = null;
-      if (nuevoEstado === "Suspendido" && suspendidoHasta) {
+      // Normalizar y decidir si enviamos 'suspendidoHasta'
+      let untilISO;
+      if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
         const d = new Date(suspendidoHasta);
-        if (!isValidDate(d)) {
+        if (isNaN(d.getTime())) {
           setError("La fecha/hora de suspensión no es válida.");
           return;
         }
@@ -423,31 +419,31 @@ const Table = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      // -------- 1) Intento ruta protegida /estado/:id
+      // 1) Intento principal: /estado/:id
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
+      let bodyEstado = { estado: nuevoEstado, motivo: motivo.trim() };
+      if (untilISO) bodyEstado.suspendidoHasta = untilISO;
+
       let res = await fetch(urlEstado, {
         method: "PUT",
         headers,
-        body: JSON.stringify({
-          estado: nuevoEstado,
-          motivo: motivo.trim(),
-          ...(untilISO ? { suspendidoHasta: untilISO } : {}),
-        }),
+        body: JSON.stringify(bodyEstado),
       });
 
-      // -------- 2) Fallback universal a /actualizar/:id si CUALQUIER cosa no es 2xx
+      // 2) Fallback: /actualizar/:id (enviar lo mismo, + estado_Cliente para compatibilidad)
       if (!res.ok) {
         const urlAlt = `${BASE_URLS["cliente"]}/actualizar/${item._id}`;
+        let bodyAlt = {
+          estado: nuevoEstado,
+          estado_Cliente: nuevoEstado,
+          motivo: motivo.trim()
+        };
+        if (untilISO) bodyAlt.suspendidoHasta = untilISO;
+
         res = await fetch(urlAlt, {
           method: "PUT",
           headers,
-          body: JSON.stringify({
-            // Enviar ambos nombres por compatibilidad
-            estado: nuevoEstado,
-            estado_Cliente: nuevoEstado,
-            motivo: motivo.trim(),
-            ...(untilISO ? { suspendidoHasta: untilISO } : {}),
-          }),
+          body: JSON.stringify(bodyAlt),
         });
       }
 
@@ -1440,7 +1436,7 @@ const Table = () => {
       {estadoModal.visible && tipo === "cliente" && (
         <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
           <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
-            {/* 🔧 Título con 'Actual → Próximo' */}
+            {/* Título con 'Actual → Próximo' */}
             <div className="modalHeader">
               <h3 className="modalTitle">
                 Cambiar estado:&nbsp;
@@ -1772,4 +1768,3 @@ const css = `
 `;
 
 export default Table;
-``
