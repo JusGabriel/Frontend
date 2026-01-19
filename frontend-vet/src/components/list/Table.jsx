@@ -136,7 +136,7 @@ const Table = () => {
   const mensajesRef = useRef(null);
 
   /* --------- Sub-filtros Emprendedor --------- */
-  const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
+  theconst [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
   const [mapEmpProductos, setMapEmpProductos] = useState({});
   const [loadingNested, setLoadingNested] = useState(false);
@@ -553,9 +553,14 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    // set loading = true para ese clienteId
     setMapAuditoria((prev) => ({
       ...prev,
-      { ...(prev[clienteId] || {}), loading: true, lastError: null }
+      [clienteId]: {
+        ...(prev[clienteId] || {}),
+        loading: true,
+        lastError: null,
+      },
     }));
     try {
       const url = `${BASE_URLS["cliente"]}/estado/${clienteId}/auditoria?page=${page}&limit=${limit}`;
@@ -566,7 +571,14 @@ const Table = () => {
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
-          { items: [], total: 0, page, limit, loading: false, lastError: res.ok ? null : `HTTP ${res.status}` }
+          [clienteId]: {
+            items: [],
+            total: 0,
+            page,
+            limit,
+            loading: false,
+            lastError: res.ok ? null : `HTTP ${res.status}`,
+          },
         }));
         return;
       }
@@ -574,20 +586,27 @@ const Table = () => {
       const data = await res.json();
       setMapAuditoria((prev) => ({
         ...prev,
-        {
+        [clienteId]: {
           items: Array.isArray(data.items) ? data.items : [],
           total: Number(data.total || 0),
           page: Number(data.page || page),
           limit: Number(data.limit || limit),
           loading: false,
-          lastError: null
-        }
+          lastError: null,
+        },
       }));
     } catch (e) {
       console.error(e);
       setMapAuditoria((prev) => ({
         ...prev,
-        { items: [], total: 0, page, limit, loading: false, lastError: e.message || "error" }
+        [clienteId]: {
+          items: [],
+          total: 0,
+          page,
+          limit,
+          loading: false,
+          lastError: e.message || "error",
+        },
       }));
     }
   };
@@ -1298,6 +1317,7 @@ const Table = () => {
                   value={getEstado(item)}
                   onChange={(e) => openEstadoModal(item, e.target.value)}
                   className="select full"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {getEstadosPermitidos().map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -1499,7 +1519,7 @@ const Table = () => {
                 <p className="muted" style={{ textAlign: "center", margin: 0 }}>No hay mensajes aún.</p>
               )}
               {mensajes.map((m) => {
-                const esEmisor = m.emisorId === emisorId;
+                const esEmisor = String(m.emisorId) === String(emisorId);
                 return (
                   <div key={m._id} style={{ marginBottom: 10, textAlign: esEmisor ? "right" : "left" }}>
                     <span className={`chatBubble ${esEmisor ? "right" : "left"}`}>
