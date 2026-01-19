@@ -411,7 +411,7 @@ const Table = () => {
           setError("La fecha/hora de suspensión no es válida.");
           return;
         }
-        untilISO = d.toISOString();
+        untilISO = d.toISOString(); // 👈 ISO siempre
       }
 
       const headers = {
@@ -479,8 +479,6 @@ const Table = () => {
         throw new Error(detail);
       }
 
-      let data = null;
-      if (isJsonResponse(res)) data = await res.json();
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       fetchLista();
     } catch (e) {
@@ -1535,6 +1533,7 @@ const Table = () => {
    CSS (Responsivo + UX mejorado)
 =========================== */
 const css = `
+:root{
   --bg:#f8fafc;
   --card:#ffffff;
   --bd:#e2e8f0;
