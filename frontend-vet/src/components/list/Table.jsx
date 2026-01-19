@@ -59,7 +59,7 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras (para “Creado/Actualizado” y auditoría) */
+/* Fechas seguras para evitar "Invalid Date" y mostrar “Creado/Actualizado” siempre */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 const fromObjectIdDate = (_id) => {
   if (!_id) return null;
@@ -101,7 +101,6 @@ const displayActorName = (a) => {
 const Table = () => {
   /* --------- Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
-  const isAdmin = String(emisorRol).toLowerCase() === "administrador".toLowerCase();
 
   /* --------- Estado principal --------- */
   const [tipo, setTipo] = useState("cliente"); // 'cliente' | 'emprendedor'
@@ -150,7 +149,7 @@ const Table = () => {
   // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
   const [mapAuditoria, setMapAuditoria] = useState({});
 
-  /* Debounce búsqueda */
+  /* Debounce de búsqueda (300 ms) */
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(t);
@@ -282,7 +281,7 @@ const Table = () => {
       return;
     }
 
-    // Payload solo con campos presentes
+    // ✅ Construir payload solo con campos presentes (evitar password: "")
     const payload = {
       nombre: nombre.trim(),
       apellido: apellido.trim(),
@@ -305,9 +304,9 @@ const Table = () => {
       if (isJsonResponse(res)) data = await res.json();
 
       if (!res.ok) {
-        // Mostrar detalle real si viene
-        const text = data?.error || data?.msg;
-        setError(text || `HTTP ${res.status}`);
+        // Mostrar detalle del backend si viene (p. ej. E11000 duplicate key)
+        const detail = data?.error || data?.msg || `HTTP ${res.status}`;
+        setError(detail);
         return;
       }
 
@@ -363,18 +362,19 @@ const Table = () => {
     suspendidoHasta: ""
   });
 
+  // 🔧 Derivar siempre un "próximo estado" si no se pasa explícito
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
-      // Si no llega un estado (o no es válido), por UX usamos el siguiente automático
-      const current = getEstado(item);
-      const destino = (!nuevoEstado || !ESTADOS_CLIENTE.includes(nuevoEstado))
-        ? siguienteAdvertencia(current)
-        : nuevoEstado;
+      const actual = getEstado(item);
+      const proximo =
+        (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
+          ? nuevoEstado
+          : siguienteAdvertencia(actual);
 
       setEstadoModal({
         visible: true,
         item,
-        nuevoEstado: destino,
+        nuevoEstado: proximo,
         motivo: "",
         suspendidoHasta: ""
       });
@@ -392,19 +392,7 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // Normaliza lectura de error (texto) aunque no sea JSON
-  const readErrorText = async (res) => {
-    try {
-      if (isJsonResponse(res)) {
-        const data = await res.json();
-        return data?.msg || data?.error || null;
-      }
-      return await res.text();
-    } catch {
-      return null;
-    }
-  };
-
+  // 🔁 Flujo robusto: intenta /estado/:id y haga lo que haga, si no es 2xx cae a /actualizar/:id
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -430,62 +418,45 @@ const Table = () => {
         untilISO = d.toISOString();
       }
 
-      // 📌 Si eres Admin: intenta /estado/:id; si NO: ve directo a /actualizar/:id
-      const tryEstadoPrimero = isAdmin;
-      let res, data, ok = false;
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
 
-      if (tryEstadoPrimero) {
-        const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-        const payloadEstado = {
+      // -------- 1) Intento ruta protegida /estado/:id
+      const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
+      let res = await fetch(urlEstado, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
           estado: nuevoEstado,
           motivo: motivo.trim(),
-          ...(untilISO ? { suspendidoHasta: untilISO } : {})
-        };
-        res = await fetch(urlEstado, {
+          ...(untilISO ? { suspendidoHasta: untilISO } : {}),
+        }),
+      });
+
+      // -------- 2) Fallback universal a /actualizar/:id si CUALQUIER cosa no es 2xx
+      if (!res.ok) {
+        const urlAlt = `${BASE_URLS["cliente"]}/actualizar/${item._id}`;
+        res = await fetch(urlAlt, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payloadEstado),
+          headers,
+          body: JSON.stringify({
+            // Enviar ambos nombres por compatibilidad
+            estado: nuevoEstado,
+            estado_Cliente: nuevoEstado,
+            motivo: motivo.trim(),
+            ...(untilISO ? { suspendidoHasta: untilISO } : {}),
+          }),
         });
-
-        if (res.status === 401 || res.status === 403) {
-          // Sin permiso → no seguir intentando aquí
-          const msg = await readErrorText(res);
-          setError(msg || "No autorizado para cambiar estado. Inicia sesión como Administrador.");
-          return;
-        }
-
-        if (res.ok) {
-          ok = true;
-          data = isJsonResponse(res) ? await res.json() : null;
-        } else {
-          // si falla por otra razón, haremos fallback abajo
-        }
       }
 
-      // Fallback/Principal para no-Admin → /actualizar/:id
-      if (!ok) {
-        const urlActualizar = `${BASE_URLS["cliente"]}/actualizar/${item._id}`;
-        const payloadActualizar = {
-          estado: nuevoEstado,
-          estado_Cliente: nuevoEstado,   // 👈 compatibilidad total con backend
-          motivo: motivo.trim(),
-        };
-        res = await fetch(urlActualizar, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify(payloadActualizar),
-        });
-        if (!res.ok) {
-          const msg = await readErrorText(res);
-          throw new Error(msg || "No se pudo actualizar el estado.");
-        }
-        data = isJsonResponse(res) ? await res.json() : null;
+      const ct = res.headers.get("content-type") || "";
+      const data = ct.includes("application/json") ? await res.json() : null;
+
+      if (!res.ok) {
+        const detail = data?.msg || data?.error || `HTTP ${res.status}`;
+        throw new Error(detail);
       }
 
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
@@ -520,14 +491,9 @@ const Table = () => {
         body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
       });
 
-      if (res.status === 401 || res.status === 403) {
-        const msg = await readErrorText(res);
-        setError(msg || "No autorizado para cambiar estado.");
-        return;
-      }
-
       if (!res.ok) {
-        res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
+        const urlAlt = `${BASE_URLS["emprendedor"]}/actualizar/${item._id}`;
+        res = await fetch(urlAlt, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -537,11 +503,9 @@ const Table = () => {
         });
       }
 
-      if (!res.ok) {
-        const msg = await readErrorText(res);
-        throw new Error(msg || "No se pudo actualizar el estado.");
-      }
-
+      let data = null;
+      if (isJsonResponse(res)) data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       fetchLista();
     } catch (e) {
@@ -564,7 +528,52 @@ const Table = () => {
   ============================ */
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
-    // (omito contenido – igual a tu versión actual)
+    setLoadingNested(true); setError("");
+
+    const from = rangoFechas.from || "";
+    const to   = rangoFechas.to   || "";
+
+    const tryFetch = async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch {
+        return null;
+      }
+    };
+
+    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    let emps = await tryFetch(urlEmps);
+    if (!Array.isArray(emps)) {
+      emps = catalogoEmprendimientos.filter((e) => {
+        const owner = String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
+        const ts = e?.createdAt ? new Date(e.createdAt).getTime() : null;
+        const inRange =
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+        return owner && inRange;
+      });
+    }
+
+    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    let prods = await tryFetch(urlProds);
+    if (!Array.isArray(prods)) {
+      prods = catalogoProductos.filter((p) => {
+        const owner =
+          String(p?.emprendimiento?.emprendedor?._id || p?.emprendimiento?.emprendedorId || "") ===
+          String(emprendedor._id);
+        const ts = p?.createdAt ? new Date(p.createdAt).getTime() : null;
+        const inRange =
+          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+        return owner && inRange;
+      });
+    }
+
+    setMapEmpEmprendimientos((prev) => ({ ...prev, [emprendedor._id]: emps }));
+    setMapEmpProductos((prev) => ({ ...prev, [emprendedor._id]: prods }));
+    setLoadingNested(false);
   };
 
   /* ===========================
@@ -580,14 +589,6 @@ const Table = () => {
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-
-      if (res.status === 401 || res.status === 403) {
-        setMapAuditoria((prev) => ({
-          ...prev,
-          [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: 'No autorizado' }
-        }));
-        return;
-      }
 
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
@@ -805,14 +806,6 @@ const Table = () => {
   /* ===========================
      RENDER
   ============================ */
-  const tituloModalEstado = () => {
-    if (!estadoModal.visible || !estadoModal.item) return "";
-    // Siempre mostramos el destino final (si no hay, calculamos siguiente UX)
-    const current = getEstado(estadoModal.item);
-    const destino = estadoModal.nuevoEstado || siguienteAdvertencia(current);
-    return destino;
-  };
-
   return (
     <div className="wrap">
       {/* CSS global del componente */}
@@ -1447,9 +1440,13 @@ const Table = () => {
       {estadoModal.visible && tipo === "cliente" && (
         <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
           <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
+            {/* 🔧 Título con 'Actual → Próximo' */}
             <div className="modalHeader">
               <h3 className="modalTitle">
-                Cambiar estado a <span className="pill soft">{tituloModalEstado()}</span>
+                Cambiar estado:&nbsp;
+                <span className="pill soft">
+                  {estadoModal.item ? getEstado(estadoModal.item) : "—"} → {estadoModal.nuevoEstado || "—"}
+                </span>
               </h3>
               <button className="btn close" onClick={closeEstadoModal} aria-label="Cerrar">✖</button>
             </div>
@@ -1771,8 +1768,8 @@ const css = `
   .hideOnMobile{ display:none; }
   .searchInput{ width:100%; max-width:100%; }
   .detailsGrid{ grid-template-columns: 1fr; }
-}`;
+}
+`;
 
 export default Table;
 ``
-
