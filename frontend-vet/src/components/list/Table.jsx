@@ -59,7 +59,7 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras para evitar "Invalid Date" y mostrar “Creado/Actualizado” siempre */
+/* Fechas seguras */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 const fromObjectIdDate = (_id) => {
   if (!_id) return null;
@@ -78,13 +78,11 @@ const safeDateStr = (val) => {
 };
 const safeDateStrWithFallback = (val, oid) => {
   let d = val ? new Date(val) : null;
-  if (!isValidDate(d)) {
-    d = fromObjectIdDate(oid);
-  }
+  if (!isValidDate(d)) d = fromObjectIdDate(oid);
   return isValidDate(d) ? d.toLocaleString() : "—";
 };
 
-/* Mostrar nombre del actor (snapshot o populate o sistema) */
+/* Mostrar nombre del actor */
 const displayActorName = (a) => {
   if (!a) return "—";
   if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
@@ -359,7 +357,7 @@ const Table = () => {
     suspendidoHasta: ""
   });
 
-  // Derivar siempre un "próximo estado" si no se pasa explícito
+  // Derivar proximo estado si no llega explícito
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
       const actual = getEstado(item);
@@ -373,7 +371,7 @@ const Table = () => {
         item,
         nuevoEstado: proximo,
         motivo: "",
-        suspendidoHasta: "" // limpiar siempre
+        suspendidoHasta: ""
       });
     } else {
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
@@ -388,30 +386,31 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // SOLO /estado/:id (sin fallback). Enviamos suspendidoHasta sólo si es válido.
+  // PUT /clientes/estado/:id => { estado, motivo, suspendidoHasta? }
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
       setMensaje(""); setError("");
 
-      if (!ESTADOS_CLIENTE.includes(nuevoEstado)) {
-        setError("Estado inválido para cliente.");
-        return;
-      }
-      if (!motivo.trim()) {
+      // Derivar estado válido (evita enviar solo motivo)
+      const actualUI = getEstado(item);
+      const estadoToSend = (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
+        ? nuevoEstado
+        : siguienteAdvertencia(actualUI);
+
+      if (!motivo || !motivo.trim()) {
         setError("Debes ingresar un motivo para el cambio de estado.");
         return;
       }
 
-      // Normalizar/decidir si enviamos 'suspendidoHasta'
       let untilISO;
-      if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
+      if (estadoToSend === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
         const d = new Date(suspendidoHasta);
         if (isNaN(d.getTime())) {
           setError("La fecha/hora de suspensión no es válida.");
           return;
         }
-        untilISO = d.toISOString(); // 👈 ISO siempre
+        untilISO = d.toISOString(); // ISO siempre
       }
 
       const headers = {
@@ -421,10 +420,13 @@ const Table = () => {
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
       const body = {
-        estado: nuevoEstado,
+        estado: estadoToSend,       // 👈 siempre enviar 'estado'
         motivo: motivo.trim(),
         ...(untilISO ? { suspendidoHasta: untilISO } : {}),
       };
+
+      console.debug("[PUT estado cliente] URL:", urlEstado);
+      console.debug("[PUT estado cliente] Body:", body);
 
       const res = await fetch(urlEstado, {
         method: "PUT",
@@ -432,15 +434,18 @@ const Table = () => {
         body: JSON.stringify(body),
       });
 
-      const ct = res.headers.get("content-type") || "";
-      const data = ct.includes("application/json") ? await res.json() : null;
+      const raw = await res.text();
+      let data = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch {}
 
       if (!res.ok) {
-        const detail = data?.msg || data?.error || `HTTP ${res.status}`;
+        const detail = data?.msg || data?.error || raw || `HTTP ${res.status}`;
+        console.error("[PUT estado cliente] Error:", res.status, detail);
         throw new Error(detail);
       }
 
-      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      console.debug("[PUT estado cliente] OK:", data);
+      setMensaje(`Estado actualizado a: ${estadoToSend}`);
       closeEstadoModal();
 
       await fetchLista();
@@ -553,7 +558,6 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // loading = true para ese clienteId
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: {
