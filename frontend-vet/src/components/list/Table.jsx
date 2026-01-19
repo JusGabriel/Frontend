@@ -1,4 +1,3 @@
-
 // src/components/Table.jsx
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
@@ -19,7 +18,6 @@ const API_EMPRENDIMIENTOS = "https://backend-production-bd1d.up.railway.app/api/
 const emptyForm = { nombre: "", apellido: "", email: "", password: "", telefono: "" };
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
 
-/* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
   Correcto: "#16a34a",
   Activo: "#16a34a",
@@ -29,11 +27,9 @@ const ESTADO_COLORS = {
   Suspendido: "#dc2626",
 };
 
-/* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
-/* Derivar estado cliente visible */
 const deriveEstadoCliente = (item) => {
   if (!item) return "Correcto";
   if (item.status === false) return "Suspendido";
@@ -43,7 +39,6 @@ const deriveEstadoCliente = (item) => {
   return "Correcto";
 };
 
-/* Siguiente advertencia desde un estado visible */
 const siguienteAdvertencia = (estadoActual) => {
   switch (estadoActual) {
     case "Correcto": return "Advertencia1";
@@ -59,7 +54,6 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 const fromObjectIdDate = (_id) => {
   if (!_id) return null;
@@ -82,7 +76,6 @@ const safeDateStrWithFallback = (val, oid) => {
   return isValidDate(d) ? d.toLocaleString() : "—";
 };
 
-/* Mostrar nombre del actor */
 const displayActorName = (a) => {
   if (!a) return "—";
   if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
@@ -93,23 +86,43 @@ const displayActorName = (a) => {
   return a.origen === "sistema" ? "Sistema" : "—";
 };
 
+/* Convierte Date o ISO a string para input datetime-local (yyyy-mm-ddThh:mm) */
+const toDatetimeLocalValue = (val) => {
+  if (!val) return "";
+  const d = new Date(val);
+  if (!isValidDate(d)) return "";
+  // Construir manualmente para evitar zonas horarias raras
+  const pad = (n) => String(n).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const min = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+};
+
+/* Convierte string de datetime-local (sin zona) a ISO */
+const localDatetimeToISOString = (s) => {
+  if (!s || typeof s !== "string") return null;
+  // 'YYYY-MM-DDTHH:mm' -> tratar como local
+  const d = new Date(s);
+  if (!isValidDate(d)) return null;
+  return d.toISOString();
+};
+
 /* ===========================
    COMPONENTE
 =========================== */
 const Table = () => {
-  /* --------- Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
 
-  /* --------- Estado principal --------- */
-  const [tipo, setTipo] = useState("cliente"); // 'cliente' | 'emprendedor'
+  const [tipo, setTipo] = useState("cliente");
   const [lista, setLista] = useState([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
-  /* --------- Formularios --------- */
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
 
-  /* --------- Mensajes --------- */
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   useEffect(() => {
@@ -118,40 +131,29 @@ const Table = () => {
     return () => clearTimeout(t);
   }, [error, mensaje]);
 
-  /* --------- UI --------- */
   const [expandido, setExpandido] = useState(null);
   const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState(""); // debounced
-
-  /* --------- Confirm Delete --------- */
+  const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
 
-  /* --------- Chat (opcional UI minimal) --------- */
   const [modalChatVisible, setModalChatVisible] = useState(false);
   const [chatUser, setChatUser] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [mensajeChat, setMensajeChat] = useState("");
   const mensajesRef = useRef(null);
 
-  /* --------- Sub-filtros Emprendedor --------- */
   const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
   const [mapEmpProductos, setMapEmpProductos] = useState({});
-
-  /* --------- Catálogos fallback --------- */
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
-
-  /* --------- Auditoría (Cliente) --------- */
   const [mapAuditoria, setMapAuditoria] = useState({});
 
-  /* Debounce de búsqueda (300 ms) */
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  /* ---- Carga de listas ---- */
   const fetchLista = async () => {
     setError(""); setMensaje(""); setLoadingLista(true);
     try {
@@ -168,7 +170,6 @@ const Table = () => {
         throw new Error(detail);
       }
 
-      // ✅ Soporta array o { items }
       let rawItems = Array.isArray(data)
         ? data
         : Array.isArray(data?.items)
@@ -200,7 +201,7 @@ const Table = () => {
         fetch(`${API_PRODUCTOS}/todos`),
         fetch(`${API_EMPRENDIMIENTOS}/publicos`),
       ]);
-      const dataProd = await res.json().catch(() => ({}));
+      const dataProd = await resProd.json().catch(() => ({}));
       const dataEmpr = await resEmpr.json().catch(() => ({}));
 
       const productosArray = Array.isArray(dataProd)
@@ -366,14 +367,14 @@ const Table = () => {
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
 
-  // Modal de cambio de estado (Cliente) + modo advertir
   const [estadoModal, setEstadoModal] = useState({
     visible: false,
     mode: 'estado',          // 'estado' | 'advertir'
     item: null,
     nuevoEstado: null,
     motivo: "",
-    suspendidoHasta: ""
+    suspendidoHasta: "",
+    assignSuspendDate: false
   });
 
   const openEstadoModal = (item, nuevoEstado, mode = 'estado') => {
@@ -384,13 +385,17 @@ const Table = () => {
           ? nuevoEstado
           : siguienteAdvertencia(actual);
 
+      // Si el item ya tiene una fecha de suspensión, pre-llenarla para comodidad
+      const existingUntil = item?.suspendidoHasta ? toDatetimeLocalValue(item.suspendidoHasta) : "";
+
       setEstadoModal({
         visible: true,
         mode,
         item,
         nuevoEstado: proximo,
         motivo: "",
-        suspendidoHasta: ""
+        suspendidoHasta: existingUntil,
+        assignSuspendDate: !!existingUntil // marcar si ya venía con fecha
       });
     } else {
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
@@ -402,12 +407,11 @@ const Table = () => {
   };
 
   const closeEstadoModal = () => setEstadoModal({
-    visible: false, mode: 'estado', item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
+    visible: false, mode: 'estado', item: null, nuevoEstado: null, motivo: "", suspendidoHasta: "", assignSuspendDate: false
   });
 
-  // Confirmar (estado o advertir)
   const updateEstadoClienteConfirmed = async () => {
-    const { item, nuevoEstado, motivo, suspendidoHasta, mode } = estadoModal;
+    const { item, nuevoEstado, motivo, suspendidoHasta, mode, assignSuspendDate } = estadoModal;
     try {
       setMensaje(""); setError("");
 
@@ -421,18 +425,24 @@ const Table = () => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      if (mode === 'advertir') {
-        // Progresión de advertencia -> si llega a Suspendido se puede fijar fecha
-        let untilISO;
-        if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
-          const d = new Date(suspendidoHasta);
-          if (isNaN(d.getTime())) {
-            setError("La fecha/hora de suspensión no es válida.");
-            return;
-          }
-          untilISO = d.toISOString();
+      // Convertir fecha si fue marcada por el admin
+      let untilISO = undefined;
+      if (assignSuspendDate) {
+        if (!suspendidoHasta || !suspendidoHasta.trim()) {
+          setError("Has marcado 'Fijar fecha de suspensión' pero no has escogido fecha/hora.");
+          return;
         }
+        const iso = localDatetimeToISOString(suspendidoHasta);
+        if (!iso) {
+          setError("La fecha/hora de suspensión no es válida.");
+          return;
+        }
+        untilISO = iso;
+      }
 
+      if (mode === 'advertir') {
+        // Progresión de advertencia -> en backend se decide si llega a Suspendido o no,
+        // pero permitimos enviar suspendidoHasta si el admin lo desea (assignSuspendDate).
         const url = `${BASE_URLS["cliente"]}/estado/${item._id}/advertir`;
         const body = {
           motivo: motivo.trim(),
@@ -458,16 +468,6 @@ const Table = () => {
         (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
           ? nuevoEstado
           : siguienteAdvertencia(actualUI);
-
-      let untilISO;
-      if (estadoToSend === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
-        const d = new Date(suspendidoHasta);
-        if (isNaN(d.getTime())) {
-          setError("La fecha/hora de suspensión no es válida.");
-          return;
-        }
-        untilISO = d.toISOString();
-      }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
       const body = {
@@ -1107,7 +1107,7 @@ const Table = () => {
                       </tr>
                     )}
                   </React.Fragment>
-                ))}
+                ))} 
             </tbody>
           </table>
         </div>
@@ -1140,18 +1140,36 @@ const Table = () => {
                 />
               </div>
 
-              {estadoModal.nuevoEstado === "Suspendido" && (
-                <div className="formGroup">
-                  <label className="label">Suspensión hasta (opcional)</label>
-                  <input
-                    type="datetime-local"
-                    value={estadoModal.suspendidoHasta}
-                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
-                    className="input"
-                  />
-                  <small className="muted">
-                    Si lo dejas vacío: suspensión indefinida hasta reactivación manual o automática si vence.
-                  </small>
+              {/* Mostrar control de fecha si:
+                  - admin eligió nuevoEstado === Suspendido
+                  - O si está en modo 'advertir' (le permitimos asignarla manualmente)
+                  - O si el registro ya venía con suspendidoHasta (se pre-llena)
+              */}
+              {(estadoModal.nuevoEstado === "Suspendido" || estadoModal.mode === "advertir") && (
+                <div className="formGroup" style={{ marginTop: 8 }}>
+                  <label className="label">
+                    <input
+                      type="checkbox"
+                      checked={estadoModal.assignSuspendDate}
+                      onChange={(e) => setEstadoModal((s) => ({ ...s, assignSuspendDate: e.target.checked }))}
+                      style={{ marginRight: 8 }}
+                    />
+                    Fijar fecha de suspensión (opcional)
+                  </label>
+
+                  {estadoModal.assignSuspendDate && (
+                    <>
+                      <input
+                        type="datetime-local"
+                        value={estadoModal.suspendidoHasta}
+                        onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
+                        className="input"
+                      />
+                      <small className="muted">
+                        Si lo dejas vacío: suspensión indefinida hasta reactivación manual o automática si vence.
+                      </small>
+                    </>
+                  )}
                 </div>
               )}
             </div>
