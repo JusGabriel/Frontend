@@ -58,7 +58,7 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras para evitar "Invalid Date" */
+/* Fechas seguras */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 const fromObjectIdDate = (_id) => {
   if (!_id) return null;
@@ -385,7 +385,7 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // ⬇️ ESTA ES LA FUNCIÓN CLAVE: SIEMPRE ENVÍA 'estado'
+  // ⬇️ FUNCIÓN CLAVE: SIEMPRE ENVÍA 'estado' Y MUESTRA EL ERROR REAL DEL BACK
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -435,7 +435,7 @@ const Table = () => {
         body: JSON.stringify(body),
       });
 
-      // Leer SIEMPRE respuesta (aunque no venga con content-type json)
+      // 🔍 Leer SIEMPRE respuesta completa (aunque content-type sea raro)
       const raw = await res.text();
       let data = null;
       try { data = raw ? JSON.parse(raw) : null; } catch {}
@@ -560,7 +560,6 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // loading = true para ese clienteId
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: {
@@ -817,9 +816,6 @@ const Table = () => {
       <header className="hdr">
         <div>
           <h1 className="ttl">Panel de Administración</h1>
-          <div className="subTtl">
-            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
-          </div>
         </div>
 
         <div className="toolbar">
@@ -862,153 +858,13 @@ const Table = () => {
         {mensaje && <div className="toast toastOk">✅ {mensaje}</div>}
       </div>
 
-      {/* ====== FORM: CREAR ====== */}
-      <section className="card" aria-label="Crear">
-        <div className="cardHeader">
-          <h2 className="cardTitle">Crear {capitalize(tipo)}</h2>
-        </div>
-        <form onSubmit={handleCrear}>
-          <div className="grid2">
-            <div className="formGroup">
-              <label className="label">Nombre</label>
-              <input
-                className="input"
-                placeholder="Ej. Ana"
-                value={formCrear.nombre}
-                onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
-                required
-              />
-            </div>
-            <div className="formGroup">
-              <label className="label">Apellido</label>
-              <input
-                className="input"
-                placeholder="Ej. Pérez"
-                value={formCrear.apellido}
-                onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
-                required
-              />
-            </div>
-            <div className="formGroup">
-              <label className="label">Email</label>
-              <input
-                className="input"
-                type="email"
-                placeholder="nombre@dominio.com"
-                value={formCrear.email}
-                onChange={(e) => setFormCrear({ ...formCrear, email: e.target.value })}
-                required
-              />
-            </div>
-            <div className="formGroup">
-              <label className="label">Password</label>
-              <input
-                className="input"
-                type="password"
-                placeholder="••••••••"
-                value={formCrear.password}
-                onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })}
-                required
-              />
-            </div>
-            <div className="formGroup">
-              <label className="label">Teléfono</label>
-              <input
-                className="input"
-                placeholder="Ej. 0999999999"
-                value={formCrear.telefono}
-                onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="cardFooter">
-            <button className="btn primary" type="submit">Crear</button>
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={() => setFormCrear(emptyForm)}
-              title="Limpiar formulario"
-            >
-              Limpiar
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* ====== FORM: EDITAR ====== */}
-      {formEditar.id && (
-        <section className="card" aria-label="Editar">
-          <div className="cardHeader">
-            <h2 className="cardTitle">Editar {capitalize(tipo)}</h2>
-          </div>
-          <form onSubmit={handleActualizar}>
-            <div className="grid2">
-              <div className="formGroup">
-                <label className="label">Nombre</label>
-                <input
-                  className="input"
-                  value={formEditar.nombre}
-                  onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Apellido</label>
-                <input
-                  className="input"
-                  value={formEditar.apellido}
-                  onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Email</label>
-                <input
-                  className="input"
-                  type="email"
-                  value={formEditar.email}
-                  onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Password (opcional)</label>
-                <input
-                  className="input"
-                  type="password"
-                  value={formEditar.password}
-                  onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Teléfono</label>
-                <input
-                  className="input"
-                  value={formEditar.telefono}
-                  onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="cardFooter">
-              <button className="btn primary" type="submit">Actualizar</button>
-              <button
-                className="btn secondary"
-                type="button"
-                onClick={() => setFormEditar({ id: null, ...emptyForm })}
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        </section>
-      )}
-
       {/* ====== LISTADO ====== */}
       <section aria-label="Listado principal" className="card">
         <div className="cardHeader">
           <h2 className="cardTitle">Listado de {capitalize(tipo)}s</h2>
+          <div className="subTtl">
+            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
+          </div>
         </div>
 
         {/* Vista tabla (>=768px) */}
@@ -1104,7 +960,7 @@ const Table = () => {
                           </button>
                           <button
                             className="btn tiny"
-                            onClick={(e) => { e.stopPropagation(); abrirChat(item); }}
+                            onClick={(e) => { e.stopPropagation(); /* abrir chat si aplica */ }}
                             title="Chatear"
                           >
                             💬 Chat
@@ -1337,7 +1193,7 @@ const Table = () => {
                 <div className="mActions">
                   <button className="btn tiny" onClick={() => prepararEditar(item)}>✏️ Editar</button>
                   <button className="btn tiny danger" onClick={() => solicitarEliminar(item)}>🗑️ Eliminar</button>
-                  <button className="btn tiny" onClick={() => abrirChat(item)}>💬 Chat</button>
+                  <button className="btn tiny" onClick={() => {/* abrirChat(item) si aplica */}}>💬 Chat</button>
                   <button
                     className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
                     disabled={getEstado(item) === "Suspendido"}
@@ -1510,48 +1366,6 @@ const Table = () => {
               <button className="btn secondary" onClick={cancelarEliminar}>Cancelar</button>
               <button className="btn danger" onClick={confirmarEliminar}>Eliminar</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ====== MODAL CHAT ====== */}
-      {modalChatVisible && chatUser && (
-        <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && cerrarChat()}>
-          <div className="modal" role="dialog" aria-modal="true" aria-label={`Chat con ${chatUser.nombre}`}>
-            <div className="modalHeader">
-              <h3 className="modalTitle">
-                Chat con <strong>{chatUser.nombre}</strong> <span className="muted">({chatUser.rol})</span>
-              </h3>
-              <button className="btn close" onClick={cerrarChat} aria-label="Cerrar">✖</button>
-            </div>
-            <div className="modalBody" style={{ minHeight: 150 }} ref={mensajesRef}>
-              {mensajes.length === 0 && (
-                <p className="muted" style={{ textAlign: "center", margin: 0 }}>No hay mensajes aún.</p>
-              )}
-              {mensajes.map((m) => {
-                const esEmisor = String(m.emisorId) === String(emisorId);
-                return (
-                  <div key={m._id} style={{ marginBottom: 10, textAlign: esEmisor ? "right" : "left" }}>
-                    <span className={`chatBubble ${esEmisor ? "right" : "left"}`}>
-                      {m.contenido}
-                    </span>
-                    <br />
-                    <small className="muted">{safeDateStr(m.createdAt)}</small>
-                  </div>
-                );
-              })}
-            </div>
-            <form className="modalFooter" onSubmit={(e) => { e.preventDefault(); enviarMensaje(e); }}>
-              <input
-                type="text"
-                placeholder="Escribe un mensaje…"
-                value={mensajeChat}
-                onChange={(e) => setMensajeChat(e.target.value)}
-                className="input flexGrow"
-                autoFocus
-              />
-              <button type="submit" className="btn primary">Enviar</button>
-            </form>
           </div>
         </div>
       )}
@@ -1775,4 +1589,3 @@ const css = `
 `;
 
 export default Table;
-``
