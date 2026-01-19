@@ -158,9 +158,24 @@ const Table = () => {
       const res = await fetch(`${BASE_URLS[tipo]}/todos`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const data = await res.json();
 
-      let normalizados = Array.isArray(data) ? data : [];
+      const text = await res.text();
+      const isJson = (res.headers.get("content-type") || "").includes("application/json");
+      const data = isJson && text ? JSON.parse(text) : text;
+
+      if (!res.ok) {
+        const detail = (isJson && data?.msg) || text || `HTTP ${res.status}`;
+        throw new Error(detail);
+      }
+
+      // ✅ Soporta array o { items }
+      let rawItems = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+        ? data.items
+        : [];
+
+      let normalizados = rawItems;
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
           const estadoUI = deriveEstadoCliente(c);
@@ -172,7 +187,7 @@ const Table = () => {
       setLista(normalizados);
     } catch (e) {
       console.error(e);
-      setError("No se pudo cargar el listado.");
+      setError(e.message || "No se pudo cargar el listado.");
       setLista([]);
     } finally {
       setLoadingLista(false);
@@ -185,8 +200,8 @@ const Table = () => {
         fetch(`${API_PRODUCTOS}/todos`),
         fetch(`${API_EMPRENDIMIENTOS}/publicos`),
       ]);
-      const dataProd = await resProd.json();
-      const dataEmpr = await resEmpr.json();
+      const dataProd = await res.json().catch(() => ({}));
+      const dataEmpr = await resEmpr.json().catch(() => ({}));
 
       const productosArray = Array.isArray(dataProd)
         ? dataProd
@@ -241,8 +256,8 @@ const Table = () => {
         },
         body: JSON.stringify(formCrear),
       });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "No se pudo crear.");
+      const data = isJsonResponse(res) ? await res.json() : null;
+      if (!res.ok) setError(data?.msg || "No se pudo crear.");
       else {
         setMensaje(`${capitalize(tipo)} creado correctamente.`);
         setFormCrear(emptyForm);
@@ -328,8 +343,8 @@ const Table = () => {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const data = await res.json();
-      if (!res.ok) setError(data.msg || "No se pudo eliminar.");
+      const data = isJsonResponse(res) ? await res.json() : null;
+      if (!res.ok) setError(data?.msg || "No se pudo eliminar.");
       else {
         setMensaje(`${capitalize(tipo)} eliminado.`);
         fetchLista();
@@ -921,7 +936,7 @@ const Table = () => {
                   if (!q) return true;
                   const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
                   return campos.some((c) => c.includes(q));
-                }).map((item, i, arr) => (
+                }).map((item, i) => (
                   <React.Fragment key={item._id}>
                     <tr
                       className={`row ${expandido === item._id ? "rowActive" : ""}`}
@@ -971,18 +986,20 @@ const Table = () => {
                           >
                             🗑️ Eliminar
                           </button>
-                          <button
-                            className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
-                            disabled={getEstado(item) === "Suspendido"}
-                            title={getEstado(item) === "Suspendido" ? "Ya está suspendido" : "Aplicar siguiente advertencia"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const next = siguienteAdvertencia(getEstado(item));
-                              openEstadoModal(item, next, 'advertir');
-                            }}
-                          >
-                            ⚠️ Advertencia
-                          </button>
+                          {tipo === 'cliente' && (
+                            <button
+                              className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
+                              disabled={getEstado(item) === "Suspendido"}
+                              title={getEstado(item) === "Suspendido" ? "Ya está suspendido" : "Aplicar siguiente advertencia"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const next = siguienteAdvertencia(getEstado(item));
+                                openEstadoModal(item, next, 'advertir');
+                              }}
+                            >
+                              ⚠️ Advertencia
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1223,9 +1240,9 @@ const css = `
 .detailLabel{ font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px; }
 .detailValue{ font-size:14px; color:var(--txt); }
 .sectionHeader{ display:flex; justify-content:space-between; align-items:center; }
-.sectionTitle{ margin:0; color:var(--ok); }
+.sectionTitle{ margin:0; color:#0ea5e9; }
 .mt8{ margin-top:8px; }
-.muted{ color:var(--muted); font-size:13px; }
+.muted{ color:#64748b; font-size:13px; }
 .paginate{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
 .pill{
   display:inline-block; margin-left:6px; padding:2px 10px; border-radius:999px; font-size:12px; color:#fff; line-height:18px;
@@ -1238,7 +1255,7 @@ const css = `
   background:#fff; border-radius: var(--radius); width:520px; max-width:95%; box-shadow: var(--shadow-lg);
   display:flex; flex-direction:column; overflow:hidden;
 }
-.modalHeader{ padding:12px 16px; background: var(--ok); color:#fff; display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:16px; }
+.modalHeader{ padding:12px 16px; background:#0ea5e9; color:#fff; display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:16px; }
 .modalTitle{ margin:0; }
 .modalBody{ padding:16px; min-height:120px; font-size:14px; color:#333; overflow-y:auto; }
 .modalFooter{ padding:12px; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:8px; }
