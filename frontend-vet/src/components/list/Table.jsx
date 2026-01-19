@@ -59,6 +59,14 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
+/* Fechas seguras para evitar "Invalid Date" */
+const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
+const safeDateStr = (val) => {
+  if (!val) return "—";
+  const d = new Date(val);
+  return isValidDate(d) ? d.toLocaleString() : "—";
+};
+
 /* Mostrar nombre del actor (snapshot o populate o sistema) */
 const displayActorName = (a) => {
   if (!a) return "—";
@@ -121,7 +129,6 @@ const Table = () => {
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
   /* --------- Auditoría (Cliente) --------- */
-  // Estructura: { [clienteId]: { items, total, page, limit, loading, lastError? } }
   const [mapAuditoria, setMapAuditoria] = useState({});
 
   /* Debounce de búsqueda (300 ms) */
@@ -322,6 +329,11 @@ const Table = () => {
   });
 
   const openEstadoModal = (item, nuevoEstado) => {
+    if (!nuevoEstado || (tipo === "cliente" && !ESTADOS_CLIENTE.includes(nuevoEstado))) {
+      // Protección: no abrir el modal con estado inválido
+      setError("Estado no válido.");
+      return;
+    }
     if (tipo === "cliente") {
       setEstadoModal({
         visible: true,
@@ -354,13 +366,22 @@ const Table = () => {
         return;
       }
 
+      // Validar y normalizar 'suspendidoHasta' (si viene)
+      let untilISO = null;
+      if (nuevoEstado === "Suspendido" && suspendidoHasta) {
+        const d = new Date(suspendidoHasta);
+        if (!isValidDate(d)) {
+          setError("La fecha/hora de suspensión no es válida.");
+          return;
+        }
+        untilISO = d.toISOString();
+      }
+
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
       const payload = {
         estado: nuevoEstado,
         motivo: motivo.trim(),
-        ...(nuevoEstado === "Suspendido" && suspendidoHasta
-          ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
-          : {})
+        ...(untilISO ? { suspendidoHasta: untilISO } : {})
       };
 
       let res = await fetch(urlEstado, {
@@ -372,7 +393,14 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Fallback
+      // Si no autorizado, avisar claramente
+      if (res.status === 401 || res.status === 403) {
+        const data = isJsonResponse(res) ? await res.json() : null;
+        setError(data?.msg || "No autorizado para cambiar estado. Inicia sesión como Administrador.");
+        return;
+      }
+
+      // Fallback a /actualizar/:id si /estado falla por otra razón
       if (!res.ok) {
         res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -384,7 +412,6 @@ const Table = () => {
         });
       }
 
-      // Solo intentamos parsear JSON si el servidor responde JSON
       let data = null;
       if (isJsonResponse(res)) data = await res.json();
 
@@ -393,7 +420,6 @@ const Table = () => {
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       closeEstadoModal();
 
-      // Refrescar listado y, si corresponde, recargar auditoría visible
       await fetchLista();
       if (expandido === item._id && tipo === "cliente") {
         cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
@@ -422,6 +448,12 @@ const Table = () => {
         },
         body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
       });
+
+      if (res.status === 401 || res.status === 403) {
+        const data = isJsonResponse(res) ? await res.json() : null;
+        setError(data?.msg || "No autorizado para cambiar estado.");
+        return;
+      }
 
       if (!res.ok) {
         res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
@@ -511,7 +543,6 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    // set loading (✔ FIX: clave dinámica [clienteId])
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: { ...(prev[clienteId] || {}), loading: true, lastError: null }
@@ -522,7 +553,14 @@ const Table = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
-      // Si el servidor responde HTML o no-JSON, lo tratamos como "sin registros"
+      if (res.status === 401 || res.status === 403) {
+        setMapAuditoria((prev) => ({
+          ...prev,
+          [clienteId]: { items: [], total: 0, page, limit, loading: false, lastError: 'No autorizado' }
+        }));
+        return;
+      }
+
       if (!res.ok || !isJsonResponse(res)) {
         setMapAuditoria((prev) => ({
           ...prev,
@@ -1076,11 +1114,11 @@ const Table = () => {
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Creado</div>
-                              <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                              <div className="detailValue">{safeDateStr(item.createdAt)}</div>
                             </div>
                             <div className="detailItem">
                               <div className="detailLabel">Actualizado</div>
-                              <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                              <div className="detailValue">{safeDateStr(item.updatedAt)}</div>
                             </div>
                           </div>
 
@@ -1106,7 +1144,7 @@ const Table = () => {
                                       e.stopPropagation();
                                       const info = mapAuditoria[item._id] || { items: [] };
                                       const rows = (info.items || []).map((a) => ({
-                                        fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                        fecha: safeDateStr(a.fecha),
                                         tipo: a.tipo || "",
                                         motivo: a.motivo || "",
                                         origen: a.origen || "",
@@ -1131,7 +1169,7 @@ const Table = () => {
                                         r?.header
                                           ? ["Fecha", "Tipo", "Motivo", "Origen", "Modificado por", "IP", "UA"]
                                           : [
-                                              r.fecha ? new Date(r.fecha).toLocaleString() : "",
+                                              safeDateStr(r.fecha),
                                               r.tipo || "",
                                               r.motivo || "",
                                               r.origen || "",
@@ -1178,7 +1216,7 @@ const Table = () => {
                                     {!mapAuditoria[item._id]?.loading &&
                                       (mapAuditoria[item._id]?.items || []).map((a, idx) => (
                                       <tr key={`${a._id || idx}`}>
-                                        <td className="td">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</td>
+                                        <td className="td">{safeDateStr(a.fecha)}</td>
                                         <td className="td">{a.tipo || "—"}</td>
                                         <td className="td">{a.motivo || "—"}</td>
                                         <td className="td">{a.origen || "—"}</td>
@@ -1282,11 +1320,11 @@ const Table = () => {
                 <div className="mCardBody">
                   <div className="detailItem">
                     <div className="detailLabel">Creado</div>
-                    <div className="detailValue">{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                    <div className="detailValue">{safeDateStr(item.createdAt)}</div>
                   </div>
                   <div className="detailItem">
                     <div className="detailLabel">Actualizado</div>
-                    <div className="detailValue">{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                    <div className="detailValue">{safeDateStr(item.updatedAt)}</div>
                   </div>
 
                   {tipo === "cliente" && (
@@ -1308,7 +1346,7 @@ const Table = () => {
                             onClick={() => {
                               const info = mapAuditoria[item._id] || { items: [] };
                               const rows = (info.items || []).map((a) => ({
-                                fecha: a.fecha ? new Date(a.fecha).toLocaleString() : "",
+                                fecha: safeDateStr(a.fecha),
                                 tipo: a.tipo || "",
                                 motivo: a.motivo || "",
                                 origen: a.origen || "",
@@ -1338,7 +1376,7 @@ const Table = () => {
                           <div className="mHistoryItem" key={`${a._id || idx}`}>
                             <div className="mHistoryRow">
                               <span className="badge">{a.tipo || "—"}</span>
-                              <span className="muted">{a.fecha ? new Date(a.fecha).toLocaleString() : "—"}</span>
+                              <span className="muted">{safeDateStr(a.fecha)}</span>
                             </div>
                             <div className="mHistoryMeta">
                               <span className="muted">Motivo:</span> {a.motivo || "—"}
@@ -1356,7 +1394,7 @@ const Table = () => {
                       <div className="paginate">
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, -1)}>◀</button>
                         <span className="muted">
-                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
+                          {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10))}
                         </span>
                         <button className="btn tiny" onClick={() => onPaginarAud(item._id, +1)}>▶</button>
                       </div>
@@ -1462,7 +1500,7 @@ const Table = () => {
                       {m.contenido}
                     </span>
                     <br />
-                    <small className="muted">{new Date(m.createdAt).toLocaleTimeString()}</small>
+                    <small className="muted">{safeDateStr(m.createdAt)}</small>
                   </div>
                 );
               })}
