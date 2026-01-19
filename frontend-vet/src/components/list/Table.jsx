@@ -17,7 +17,6 @@ const API_EMPRENDIMIENTOS = "https://backend-production-bd1d.up.railway.app/api/
 =========================== */
 const emptyForm = { nombre: "", apellido: "", email: "", password: "", telefono: "" };
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
-const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
 
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
@@ -33,7 +32,7 @@ const ESTADO_COLORS = {
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
-/* Derivar estado cliente visible */
+/* Derivar estado cliente visible (alineado con back) */
 const deriveEstadoCliente = (item) => {
   if (!item) return "Correcto";
   if (item.status === false) return "Suspendido";
@@ -59,7 +58,7 @@ const isJsonResponse = (res) => {
   return ct.includes("application/json");
 };
 
-/* Fechas seguras */
+/* Fechas seguras para evitar "Invalid Date" */
 const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
 const fromObjectIdDate = (_id) => {
   if (!_id) return null;
@@ -357,7 +356,7 @@ const Table = () => {
     suspendidoHasta: ""
   });
 
-  // Derivar proximo estado si no llega explícito
+  // Derivar siempre un "próximo estado" si no se pasa explícito
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
       const actual = getEstado(item);
@@ -371,7 +370,7 @@ const Table = () => {
         item,
         nuevoEstado: proximo,
         motivo: "",
-        suspendidoHasta: ""
+        suspendidoHasta: "" // limpiar siempre
       });
     } else {
       if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
@@ -386,23 +385,25 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // PUT /clientes/estado/:id => { estado, motivo, suspendidoHasta? }
+  // ⬇️ ESTA ES LA FUNCIÓN CLAVE: SIEMPRE ENVÍA 'estado'
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
       setMensaje(""); setError("");
 
-      // Derivar estado válido (evita enviar solo motivo)
-      const actualUI = getEstado(item);
+      // 1) Derivar un estado válido sí o sí
+      const actualUI = getEstado(item); // Correcto / Adv1 / Adv2 / Adv3 / Suspendido
       const estadoToSend = (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
         ? nuevoEstado
-        : siguienteAdvertencia(actualUI);
+        : siguienteAdvertencia(actualUI); // fallback si por alguna razón no vino
 
+      // 2) Validar motivo
       if (!motivo || !motivo.trim()) {
         setError("Debes ingresar un motivo para el cambio de estado.");
         return;
       }
 
+      // 3) Validar 'suspendidoHasta' solo si corresponde
       let untilISO;
       if (estadoToSend === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
         const d = new Date(suspendidoHasta);
@@ -410,17 +411,17 @@ const Table = () => {
           setError("La fecha/hora de suspensión no es válida.");
           return;
         }
-        untilISO = d.toISOString(); // ISO siempre
+        untilISO = d.toISOString();
       }
 
+      // 4) Armar request
+      const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
       const headers = {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-
-      const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
       const body = {
-        estado: estadoToSend,       // 👈 siempre enviar 'estado'
+        estado: estadoToSend,   // 👈 OBLIGATORIO PARA TU BACK
         motivo: motivo.trim(),
         ...(untilISO ? { suspendidoHasta: untilISO } : {}),
       };
@@ -434,12 +435,13 @@ const Table = () => {
         body: JSON.stringify(body),
       });
 
+      // Leer SIEMPRE respuesta (aunque no venga con content-type json)
       const raw = await res.text();
       let data = null;
       try { data = raw ? JSON.parse(raw) : null; } catch {}
 
       if (!res.ok) {
-        const detail = data?.msg || data?.error || raw || `HTTP ${res.status}`;
+        const detail = data?.error || data?.msg || raw || `HTTP ${res.status}`;
         console.error("[PUT estado cliente] Error:", res.status, detail);
         throw new Error(detail);
       }
@@ -558,6 +560,7 @@ const Table = () => {
      AUDITORÍA: Cliente
   ============================ */
   const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
+    // loading = true para ese clienteId
     setMapAuditoria((prev) => ({
       ...prev,
       [clienteId]: {
@@ -1772,3 +1775,4 @@ const css = `
 `;
 
 export default Table;
+``
