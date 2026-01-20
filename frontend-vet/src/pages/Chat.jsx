@@ -1,11 +1,63 @@
-// src/pages/Chat.jsx (o la ruta que uses)
+// src/pages/Chat.jsx
 import { useState, useEffect, useRef } from "react";
 import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
  * Chat responsivo (actualizado para mostrar foto de perfil en conversaciones y mensajes).
+ * - Si no hay foto: muestra iniciales en círculo (no depende de avatar-default.png).
+ * - En quejas: en seleccionarQueja enriquecemos mensajes con datos de participantes si faltan.
  */
+
+const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
+  const initials = (nombre || "")
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0] || "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "?";
+
+  const px = Math.max(6, Math.round(size / 6));
+  const styleImg = { width: size, height: size, borderRadius: "9999px", objectFit: "cover" };
+  const styleDiv = {
+    width: size,
+    height: size,
+    borderRadius: "9999px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 700,
+    fontSize: Math.max(10, Math.floor(size / 3)),
+    backgroundColor: "#F7E5D2",
+    color: "#8C3E39",
+  };
+
+  if (foto) {
+    return (
+      // el onError evita imágenes rotas (fallback a iniciales)
+      <img
+        src={foto}
+        alt={nombre || "Usuario"}
+        style={styleImg}
+        className={className}
+        onError={(e) => {
+          // cuando falla la carga de imagen, reemplazamos por el div con iniciales
+          const parent = e.currentTarget.parentNode;
+          if (!parent) return;
+          const span = document.createElement("span");
+          span.textContent = initials;
+          Object.assign(span.style, styleDiv);
+          span.className = className;
+          parent.replaceChild(span, e.currentTarget);
+        }}
+      />
+    );
+  }
+
+  return <div style={styleDiv} className={className}>{initials}</div>;
+};
+
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
 
@@ -121,7 +173,7 @@ const Chat = () => {
     }
   };
 
-  // ---------------- Quejas (sin cambios en lógica) ----------------
+  // ---------------- Quejas (sin cambios en lógica de carga), pero enriquecemos mensajes al seleccionar ----------------
   const cargarQuejas = async () => {
     try {
       setLoadingQuejas(true);
@@ -147,9 +199,39 @@ const Chat = () => {
     }
   };
 
+  // En seleccionarQueja enriquecemos mensajes (si vienen sin emisor poblado)
   const seleccionarQueja = (queja) => {
     setQuejaSeleccionada(queja);
-    setMensajesQueja(queja.mensajes || []);
+
+    // Mensajes provenientes del objeto queja: buscamos los datos del emisor (foto/nombre)
+    const mensajesEnriquecidos = (queja.mensajes || []).map((m) => {
+      const copia = { ...m };
+
+      // Si emisor ya es objeto con nombre/foto, lo dejamos
+      if (typeof copia.emisor === "object" && copia.emisor !== null && copia.emisor.nombre) {
+        return copia;
+      }
+
+      // Si emisor es id (string), buscar en participantes poblados (si existen)
+      const participantes = queja.participantes || [];
+      const found = participantes.find((p) => {
+        if (!p?.id) return false;
+        // p.id puede venir poblado (obj) o como id string; normalizamos
+        const pid = (typeof p.id === "object" && p.id !== null) ? p.id._id : p.id;
+        return String(pid) === String(copia.emisor);
+      });
+
+      if (found && found.id) {
+        // adjuntamos un _emisorObj para facilitar el render en el frontend
+        copia._emisorObj = (typeof found.id === "object" && found.id !== null)
+          ? { _id: found.id._id, nombre: found.id.nombre, apellido: found.id.apellido, foto: found.id.foto }
+          : { _id: found.id, nombre: "", apellido: "", foto: null };
+      }
+
+      return copia;
+    });
+
+    setMensajesQueja(mensajesEnriquecidos);
     setMensajeQueja("");
     setInfo("");
     setSidebarOpen(false);
@@ -192,14 +274,20 @@ const Chat = () => {
       );
       const data = await res.json();
       if (res.ok) {
-        const nuevoMsg = {
-          _id: data.data._id,
+        // añadimos al hilo localmente; backend devuelve data.data con mensaje poblado si corresponde
+        const nuevo = data?.data || {
+          _id: Date.now().toString(),
           contenido: mensajeQueja.trim(),
           emisor: usuarioId,
           emisorRol,
           timestamp: new Date().toISOString(),
         };
-        setMensajesQueja((prev) => [...prev, nuevoMsg]);
+
+        // intentar enriquecer con los datos del propio usuario desde storeAuth()
+        const usuarioLocal = { _id: usuarioId, nombre: storeAuth()?.nombre || "", apellido: storeAuth()?.apellido || "", foto: storeAuth()?.foto || null };
+        const nuevoEnriquecido = { ...nuevo, _emisorObj: usuarioLocal };
+
+        setMensajesQueja((prev) => [...prev, nuevoEnriquecido]);
         setMensajeQueja("");
         setInfo("");
       } else {
@@ -341,17 +429,6 @@ const Chat = () => {
     return "";
   };
 
-  const avatarFallback = (nombre) => {
-    const initials = (nombre || '')
-      .split(' ')
-      .map(w => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || '?';
-    return `/avatar-default.png`; // ruta a tu avatar por defecto
-  }
-
-  // ---------------- JSX ----------------
   return (
     <div className="bg-white min-h-[100dvh] w-full" style={{ padding: 5 }}>
       <header className="flex items-center justify-between px-4 py-3 md:py-4 md:px-6 sticky top-0 z-30" style={{ color: colorBrand, backgroundColor: colorBrandSoft }}>
@@ -411,18 +488,7 @@ const Chat = () => {
                       }}
                       className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-center gap-3 ${isActive ? "bg-[#fceaea]" : ""}`}
                     >
-                      {foto ? (
-                        <img
-                          src={foto}
-                          alt={nombre}
-                          className="w-8 h-8 rounded-full object-cover"
-                          onError={(e) => { e.currentTarget.src = '/avatar-default.png' }}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f7d4d1] text-[#8C3E39] font-bold text-xs">
-                          {nombre.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() || "?"}
-                        </div>
-                      )}
+                      <Avatar nombre={nombre} foto={foto} size={32} className="flex-shrink-0" />
                       <span className="truncate">{nombre}</span>
                     </button>
                   );
@@ -444,17 +510,12 @@ const Chat = () => {
                   const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
                   const isSelected = quejaSeleccionada?._id === q._id;
 
-                  const initials = `${(emprendedor?.nombre ?? "")} ${(emprendedor?.apellido ?? "")}`.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+                  const nombreEmpr = emprendedor ? `${emprendedor.nombre || ""} ${emprendedor.apellido || ""}`.trim() : "Emprendedor";
+                  const fotoEmpr = emprendedor?.foto || null;
 
                   return (
                     <button key={q._id} onClick={() => seleccionarQueja(q)} className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-start gap-3 ${isSelected ? "bg-[#fceaea]" : ""}`}>
-                      {emprendedor?.foto ? (
-                        <img src={emprendedor.foto} alt={`${emprendedor.nombre} ${emprendedor.apellido}`} className="w-8 h-8 rounded-full object-cover mt-1" onError={(e) => { e.currentTarget.src = '/avatar-default.png' }} />
-                      ) : (
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#f7d4d1] text-[#8C3E39] font-bold text-xs mt-1">
-                          {initials || "!"}
-                        </div>
-                      )}
+                      <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={32} className="mt-1 flex-shrink-0" />
                       <div className="flex-1">
                         <p className="font-semibold text-[#AA4A44]">Emisor: {emprendedor?.nombre} {emprendedor?.apellido}</p>
                         <p className="text-xs text-gray-600">Receptor: {admin?.nombre} {admin?.apellido}</p>
@@ -478,24 +539,35 @@ const Chat = () => {
                 <p className="text-center text-gray-500 mt-10">No hay mensajes aún.</p>
               ) : (
                 mensajesActivos.map((msg) => {
-                  // msg.emisor puede ser objeto (poblado) o id string
-                  const emisorObj = (typeof msg.emisor === 'object' && msg.emisor !== null) ? msg.emisor : null;
+                  // Determinar objeto emisor con preferencia: msg.emisor (poblado) -> msg._emisorObj (quejas enriquecidas) -> buscar en chatActivo.participantes
+                  let emisorObj = null;
+                  if (msg && typeof msg.emisor === "object" && msg.emisor !== null && (msg.emisor.nombre || msg.emisor.foto)) {
+                    emisorObj = msg.emisor;
+                  } else if (msg && msg._emisorObj) {
+                    emisorObj = msg._emisorObj;
+                  } else if (chatActivo && chatActivo.participantes) {
+                    const pFound = chatActivo.participantes.find((p) => {
+                      const pid = (typeof p.id === "object" && p.id !== null) ? p.id._id : p.id;
+                      return String(pid) === String(msg.emisor);
+                    });
+                    if (pFound && pFound.id) {
+                      emisorObj = (typeof pFound.id === "object" && pFound.id !== null)
+                        ? { _id: pFound.id._id, nombre: pFound.id.nombre, apellido: pFound.id.apellido, foto: pFound.id.foto }
+                        : { _id: pFound.id, nombre: "", apellido: "", foto: null };
+                    }
+                  }
+
                   const emisorId = emisorObj ? emisorObj._id : msg.emisor;
-                  const emisorNombre = emisorObj ? `${emisorObj.nombre || ''} ${emisorObj.apellido || ''}`.trim() : '';
+                  const emisorNombre = emisorObj ? `${emisorObj.nombre || ""} ${emisorObj.apellido || ""}`.trim() : "";
                   const emisorFoto = emisorObj ? emisorObj.foto : null;
                   const esMio = String(emisorId) === String(usuarioId);
 
                   return (
-                    <div key={msg._id || msg.id} className={`flex ${esMio ? "justify-end" : "justify-start"}`}>
+                    <div key={msg._id || msg.id} className={`flex items-end ${esMio ? "justify-end" : "justify-start"}`}>
+                      {/* Avatar a la izquierda solo para mensajes del otro */}
                       {!esMio && (
-                        <div className="mr-2">
-                          {emisorFoto ? (
-                            <img src={emisorFoto} alt={emisorNombre || 'Usuario'} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.src = '/avatar-default.png' }} />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-[#f7d4d1] text-[#8C3E39] font-bold text-xs flex items-center justify-center">
-                              {(emisorNombre || '').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() || "?"}
-                            </div>
-                          )}
+                        <div className="mr-3">
+                          <Avatar nombre={emisorNombre} foto={emisorFoto} size={36} />
                         </div>
                       )}
 
@@ -506,10 +578,12 @@ const Chat = () => {
                         </div>
                       </div>
 
+                      {/* Avatar del propio usuario (opcional) */}
                       {esMio && (
-                        <div className="ml-2">
-                          {/* opcional: avatar del propio usuario (si quieres mostrarlo) */}
-                          {/* <img src={storeAuth().foto || '/avatar-default.png'} alt="Yo" className="w-6 h-6 rounded-full object-cover" /> */}
+                        <div className="ml-3">
+                          {/* si quieres mostrar avatar del propio user, descomenta y adapta:
+                              <Avatar nombre={storeAuth()?.nombre} foto={storeAuth()?.foto} size={30} />
+                          */}
                         </div>
                       )}
                     </div>
