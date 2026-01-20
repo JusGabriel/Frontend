@@ -27,6 +27,21 @@ const estadoMensajesBase = {
     'Tu cuenta está suspendida. No puedes acceder. Contacta a soporte para más información.',
 };
 
+/** Config de contacto administrador */
+const ADMIN_EMAIL = 'sebasj@outlook.com';
+const ADMIN_WHATS = '0984523160';
+const ADMIN_COUNTRY_CODE = '593'; // Cambia si el número no es de Ecuador
+const DEFAULT_SUPPORT_MSG = 'Hola, necesito ayuda con mi cuenta.';
+
+/** Normaliza número local a formato internacional para wa.me */
+function buildWhatsLink(localNumber, countryCode = '593', text = '') {
+  const onlyDigits = String(localNumber).replace(/\D/g, '');
+  const noLeadingZero = onlyDigits.replace(/^0+/, '');
+  const international = `${countryCode}${noLeadingZero}`;
+  const base = `https://wa.me/${international}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [estadoBanner, setEstadoBanner] = useState(null);
@@ -152,24 +167,43 @@ const Login = () => {
   const GOOGLE_CLIENT_URL      = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
+  /** Links de contacto (dinámicos) */
+  const mailHref = `mailto:${ADMIN_EMAIL}?subject=${encodeURIComponent('Soporte de cuenta')}&body=${encodeURIComponent(DEFAULT_SUPPORT_MSG)}`;
+  const waHref   = buildWhatsLink(ADMIN_WHATS, ADMIN_COUNTRY_CODE, DEFAULT_SUPPORT_MSG);
+
   return (
     <div style={containerStyle}>
       <ToastContainer />
 
-      {/* Animación */}
+      {/* Animación + responsividad */}
       <style>{`
         @keyframes rise {
           0% { transform: translateY(0) scale(1); opacity: 0.7; }
           100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
+        }
+        /* Responsivo */
+        @media (max-width: 900px) {
+          .login-card {
+            flex-direction: column;
+            height: auto;
+            max-width: 95%;
+          }
+          .login-left {
+            height: 220px;
+            border-radius: 0;
+          }
+          .login-form {
+            padding: 1.25rem !important;
+          }
         }
       `}</style>
 
       <div style={backgroundStyle} />
       <Bubbles />
 
-      <div style={cardStyle}>
+      <div className="login-card" style={cardStyle}>
         {/* Imagen lateral */}
-        <div style={leftPanelStyle}>
+        <div className="login-left" style={leftPanelStyle}>
           <img
             src={panecillo}
             alt="Panecillo"
@@ -184,8 +218,8 @@ const Login = () => {
         </div>
 
         {/* Formulario */}
-        <div style={formContainerStyle}>
-          {/* Banner de advertencia/suspensión */}
+        <div className="login-form" style={formContainerStyle}>
+          {/* Banner arriba del título */}
           {estadoBanner && (
             <div
               className={`mb-4 p-3 rounded-lg text-center font-semibold text-base
@@ -195,9 +229,27 @@ const Login = () => {
                 }`}
               style={{ wordBreak: 'break-word' }}
             >
-              {estadoBanner.msg}
+              {/* Mensaje principal */}
+              <div style={{ marginBottom: '0.5rem' }}>{estadoBanner.msg}</div>
+
+              {/* ✅ Acciones de contacto SOLO si está SUSPENDIDO */}
+              {estadoBanner.tipo === 'Suspendido' && (
+                <div style={contactRowStyle}>
+                  <a href={mailHref} style={contactLinkStyle} aria-label="Contactar por correo">
+                    <MailIcon />
+                    <span style={{ marginLeft: 8 }}>Escribir al administrador</span>
+                  </a>
+
+                  <a href={waHref} target="_blank" rel="noopener noreferrer" style={contactLinkStyle} aria-label="Contactar por WhatsApp">
+                    <WhatsIcon />
+                    <span style={{ marginLeft: 8 }}>Abrir WhatsApp</span>
+                  </a>
+                </div>
+              )}
+
+              {/* Link a políticas si NO está suspendido */}
               {estadoBanner.tipo !== 'Suspendido' && (
-                <div className="mt-2 text-sm">
+                <div className="mt-2 text-sm" style={{ marginTop: '0.5rem' }}>
                   <a
                     href={politicasPdf}
                     target="_blank"
@@ -326,6 +378,21 @@ const Bubbles = () => (
   </div>
 );
 
+/** Iconos inline (SVG) */
+const MailIcon = ({ size = 18, color = '#AA4A44' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" stroke={color} strokeWidth="1.6" />
+    <path d="M4 7l8 6 8-6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const WhatsIcon = ({ size = 18, color = '#25D366' }) => (
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
+    <path d="M16 3C9.372 3 4 8.373 4 15a11.9 11.9 0 0 0 1.641 6l-1.1 4.02 4.108-1.077A12 12 0 1 0 16 3z" stroke={color} strokeWidth="1.6" />
+    <path d="M12.2 11.8c-.3-.72-.47-.74-.88-.76-.23-.012-.49-.01-.75-.01-.26 0-.69.1-1.05.5-.36.4-1.38 1.35-1.38 3.29 0 1.94 1.41 3.81 1.61 4.07.2.26 2.73 4.17 6.75 5.68 3.34 1.29 4.02 1.04 4.75.98.73-.06 2.34-.95 2.67-1.87.33-.92.33-1.71.23-1.87-.1-.16-.36-.26-.75-.46-.39-.2-2.34-1.15-2.71-1.28-.36-.13-.62-.19-.88.19-.26.38-1 1.28-1.22 1.54-.23.26-.45.29-.84.1-.39-.2-1.63-.6-3.11-1.9-1.15-.98-1.93-2.18-2.16-2.56-.23-.38-.02-.58.17-.77.18-.18.39-.46.59-.69.2-.23.26-.38.39-.64.13-.26.06-.49-.03-.69-.09-.2-.81-2-1.13-2.72z" fill={color} />
+  </svg>
+);
+
 // Estilos
 const containerStyle = {
   position: 'relative',
@@ -387,6 +454,27 @@ const googleButtonStyleGray = {
 };
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
-export default Login;
-``
+/** Estilos para la fila de contacto dentro del banner */
+const contactRowStyle = {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '0.75rem',
+  marginTop: '0.25rem'
+};
+const contactLinkStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  borderRadius: '9999px',
+  padding: '0.4rem 0.9rem',
+  backgroundColor: '#ffffff',
+  color: '#3B2F2F',
+  fontWeight: 600,
+  border: '1px solid rgba(0,0,0,0.1)',
+  textDecoration: 'none',
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.06)'
+};
 
+export default Login;
