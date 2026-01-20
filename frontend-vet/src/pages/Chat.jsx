@@ -5,11 +5,12 @@ import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
- * Chat compacto y sin polling.
- * - Sin buscador ni previews bajo cada conversación.
- * - Sin separadores de fecha (máxima compacidad).
- * - Composer siempre visible sin espacios grandes.
- * - Colores dinámicos por style (sin clases Tailwind con variables).
+ * Chat compacto, sin espacios muertos:
+ * - Ajuste de altura con variables CSS para integrarse con header/footer globales
+ * - Sin buscador ni previews
+ * - Sin separadores de fecha
+ * - Composer siempre visible
+ * - Sin polling (solo al cambiar conversación y al enviar)
  */
 
 const theme = {
@@ -20,12 +21,11 @@ const theme = {
   otherBubble: "#FFFFFF",
   border: "#E5E7EB",
   bg: "#F7F7F9",
-  surface: "#FFFFFF",
   text: "#1F2937",
   subtle: "#6B7280",
 };
 
-const Avatar = ({ nombre = "", foto = null, size = 34, className = "" }) => {
+const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
   const initials =
     (nombre || "")
       .trim()
@@ -352,7 +352,7 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatTargetId, conversaciones]);
 
-  // Sin loop/polling: carga sólo al cambiar la conversación
+  // Sin polling: solo al cambiar de conversación
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
@@ -517,10 +517,15 @@ const Chat = () => {
 
   return (
     <div
-      className="h-[100dvh] w-full overflow-hidden flex flex-col"
-      style={{ backgroundColor: theme.bg }}
+      className="w-full overflow-hidden flex flex-col"
+      // Altura exacta restando header/subnav/footer externos (ajústalos en tu layout global)
+      style={{
+        backgroundColor: theme.bg,
+        height:
+          "calc(100dvh - var(--app-header, 0px) - var(--app-subnav, 0px) - var(--app-footer, 0px))",
+      }}
     >
-      {/* Header muy compacto */}
+      {/* Header interno ultra-compacto */}
       <header
         className="flex items-center justify-between px-3 md:px-5 py-2 border-b shrink-0"
         style={{ color: theme.brand, backgroundColor: theme.brandSoft, borderColor: theme.border }}
@@ -560,8 +565,8 @@ const Chat = () => {
         </div>
       </header>
 
-      {/* Cuerpo ocupa todo el resto (sin espacios) */}
-      <div className="flex-1 grid md:grid-cols-[18rem_1fr] min-h-0">
+      {/* Cuerpo: grid altura total sin espacios extra */}
+      <div className="flex-1 grid md:grid-cols-[17.5rem_1fr] min-h-0">
         {/* Overlay móvil */}
         {sidebarOpen && (
           <div
@@ -573,7 +578,7 @@ const Chat = () => {
 
         {/* Sidebar compacto */}
         <aside
-          className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[84%] max-w-[18rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
+          className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[84%] max-w-[17.5rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           }`}
           style={{ borderColor: theme.border }}
@@ -642,7 +647,7 @@ const Chat = () => {
                         borderColor: theme.border,
                       }}
                     >
-                      <Avatar nombre={nombre} foto={foto} size={36} className="flex-shrink-0" />
+                      <Avatar nombre={nombre} foto={foto} size={34} className="flex-shrink-0" />
                       <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
                         <span className="font-medium truncate text-[14px]">{nombre}</span>
                         {conv.ultimoTimestamp && (
@@ -688,7 +693,7 @@ const Chat = () => {
                       borderColor: theme.border,
                     }}
                   >
-                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={36} className="flex-shrink-0" />
+                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={34} className="flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-[#AA4A44] truncate text-[14px]">
                         Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
@@ -706,12 +711,12 @@ const Chat = () => {
 
         {/* Main */}
         <section className="min-h-0 flex flex-col bg-white">
-          {/* Lista de mensajes */}
+          {/* Lista de mensajes (compacta) */}
           <div
             ref={mensajesRef}
             role="log"
             aria-live="polite"
-            className="flex-1 overflow-y-auto px-2 sm:px-5 py-2"
+            className="flex-1 overflow-y-auto px-2 sm:px-4 py-2"
             style={{ background: "linear-gradient(180deg, #FFFFFF 0%, rgba(248,250,252,0.9) 100%)" }}
           >
             {!chatActivo ? (
@@ -735,11 +740,11 @@ const Chat = () => {
                 />
               </div>
             ) : (
-              <div className="space-y-2 sm:space-y-2.5">
+              <div className="space-y-2">
                 {(vista === "chat" ? mensajes : mensajesQueja).map((msg, idx) => {
                   // Resolver emisor
                   let emisorObj = null;
-                  const chatActual = chatActivo;
+                  const activo = chatActivo;
                   if (
                     msg &&
                     typeof msg.emisor === "object" &&
@@ -749,8 +754,8 @@ const Chat = () => {
                     emisorObj = msg.emisor;
                   } else if (msg && msg._emisorObj) {
                     emisorObj = msg._emisorObj;
-                  } else if (chatActual && chatActual.participantes) {
-                    const pFound = chatActual.participantes.find((p) => {
+                  } else if (activo && activo.participantes) {
+                    const pFound = activo.participantes.find((p) => {
                       const pid =
                         typeof p.id === "object" && p.id !== null
                           ? p.id._id
@@ -787,7 +792,7 @@ const Chat = () => {
                         <Avatar
                           nombre={emisorNombre}
                           foto={emisorFoto}
-                          size={30}
+                          size={28}
                           className="flex-shrink-0 translate-y-[1px]"
                         />
                       )}
@@ -815,7 +820,7 @@ const Chat = () => {
                         </div>
                       </div>
 
-                      {esMio && <div className="w-[30px]" />}
+                      {esMio && <div className="w-[28px]" />}
                     </div>
                   );
                 })}
@@ -830,7 +835,7 @@ const Chat = () => {
                 const el = mensajesRef.current;
                 if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
               }}
-              className="absolute right-3 bottom-24 z-20 px-2.5 py-1.5 rounded-full shadow bg-white border text-xs"
+              className="absolute right-3 bottom-20 z-20 px-2.5 py-1.5 rounded-full shadow bg-white border text-xs"
               style={{ borderColor: theme.border, color: theme.text }}
               aria-label="Bajar al último mensaje"
               title="Bajar al último mensaje"
@@ -839,7 +844,7 @@ const Chat = () => {
             </button>
           )}
 
-          {/* Composer ultracompacto y SIEMPRE visible */}
+          {/* Composer compacto y siempre visible */}
           <form
             onSubmit={handleEnviarMensaje}
             className="shrink-0 border-t bg-white"
@@ -933,7 +938,7 @@ const SidebarSkeleton = () => (
 );
 
 const MessagesSkeleton = () => (
-  <div className="space-y-2.5">
+  <div className="space-y-2">
     {[...Array(5)].map((_, i) => (
       <div key={i} className={`flex ${i % 2 ? "justify-end" : "justify-start"}`}>
         <div className="rounded-2xl px-3.5 py-2 bg-gray-200 animate-pulse" style={{ maxWidth: "66%" }}>
