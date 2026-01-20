@@ -3,7 +3,7 @@ import storeAuth from "../../context/storeAuth";
 
 /* ===========================
    CONFIGURACIÓN API
-=========================== */
+   =========================== */
 const BASE_URLS = {
   cliente: "https://backend-production-bd1d.up.railway.app/api/clientes",
   emprendedor: "https://backend-production-bd1d.up.railway.app/api/emprendedores",
@@ -13,7 +13,7 @@ const API_EMPRENDIMIENTOS = "https://backend-production-bd1d.up.railway.app/api/
 
 /* ===========================
    HELPERS
-=========================== */
+   =========================== */
 const emptyForm = { nombre: "", apellido: "", email: "", password: "", telefono: "" };
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
 const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
@@ -34,7 +34,7 @@ const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertenci
 
 /* ===========================
    COMPONENTE
-=========================== */
+   =========================== */
 const Table = () => {
   /* --------- Contexto Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
@@ -84,11 +84,17 @@ const Table = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= Derivar estado visible CLIENTE desde modelo ========= */
+  /* ========= Derivar estado visible CLIENTE desde modelo =========
+     FIX: ahora usa estado_Cliente primero (y hace fallback a estado_Emprendedor).
+     Así clientes y emprendedores se comportan igual.
+  */
   const deriveEstadoCliente = (item) => {
     if (!item) return "Correcto";
     if (item.status === false) return "Suspendido";
-    const e = item.estado_Emprendedor;
+
+    // Preferir campo específico de cliente, si no existe usar el de emprendedor (compatibilidad)
+    const e = item.estado_Cliente ?? item.estado_Emprendedor ?? "Activo";
+
     if (e === "Activo") return "Correcto";
     if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
     return "Correcto";
@@ -96,7 +102,7 @@ const Table = () => {
 
   /* ===========================
      CARGA DE LISTAS
-  ============================ */
+  =========================== */
   const fetchLista = async () => {
     setError("");
     setMensaje("");
@@ -111,6 +117,7 @@ const Table = () => {
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
           const estadoUI = deriveEstadoCliente(c);
+          // exportamos estado y estado_Cliente para que el UI use siempre el mismo campo
           return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
         });
       } else if (tipo === "emprendedor") {
@@ -163,7 +170,7 @@ const Table = () => {
 
   /* ===========================
      CRUD: CREAR / EDITAR / ELIMINAR
-  ============================ */
+  =========================== */
   const handleCrear = async (e) => {
     e.preventDefault();
     setError("");
@@ -279,7 +286,7 @@ const Table = () => {
 
   /* ===========================
      ESTADO (Cliente/Emprendedor)
-  ============================ */
+  =========================== */
 
   const getEstado = (item) =>
     tipo === "emprendedor"
@@ -482,7 +489,7 @@ const Table = () => {
 
   /* ===========================
      ANIDADOS (Emprendedor)
-  ============================ */
+  =========================== */
   const toggleExpandido = async (id, item) => {
     const nuevo = expandido === id ? null : id;
     setExpandido(nuevo);
@@ -1370,8 +1377,8 @@ const Table = () => {
 };
 
 /* ===========================
-   ESTILOS
-=========================== */
+   ESTILOS (sin cambios)
+  =========================== */
 const styles = {
   container: {
     maxWidth: 1080,
