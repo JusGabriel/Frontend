@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -40,6 +41,7 @@ const Login = () => {
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
 
+  // Capturar datos desde OAuth si vinieran
   useEffect(() => {
     const query = new URLSearchParams(location.search);
     const tokenFromUrl = query.get('token');
@@ -54,6 +56,7 @@ const Login = () => {
     }
   }, [location.search, setToken, setRol, setId, navigate]);
 
+  // Redirigir si ya hay token (sesión previa)
   useEffect(() => {
     if (token) navigate('/dashboard');
   }, [token, navigate]);
@@ -66,10 +69,10 @@ const Login = () => {
         case 'admin':
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/administradores/login`;
           break;
-        case 'user':
+        case 'user':   // Cliente
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/clientes/login`;
           break;
-        case 'editor':
+        case 'editor': // Emprendedor
           endpoint = `${import.meta.env.VITE_BACKEND_URL}/api/emprendedores/login`;
           break;
         default:
@@ -90,12 +93,16 @@ const Login = () => {
 
       const result = await response.json();
 
+      // 🚫 Manejo de suspensión (403)
       if (!response.ok) {
         if (response.status === 403 && (result?.estadoUI === 'Suspendido' || result?.status === false)) {
           clearToken();
+          const ultima = result?.ultimaAdvertencia;
+          const motivoTxt = ultima?.motivo ? ` Motivo: ${ultima.motivo}.` : '';
+          const fechaTxt  = ultima?.fecha ? ` (${new Date(ultima.fecha).toLocaleString()})` : '';
           setEstadoBanner({
             tipo: 'Suspendido',
-            msg: estadoMensajesBase['Suspendido']
+            msg: `${estadoMensajesBase['Suspendido']}${motivoTxt}${fechaTxt}`
           });
           toast.error(result?.msg || estadoMensajesBase['Suspendido']);
           return;
@@ -103,9 +110,37 @@ const Login = () => {
         throw new Error(result?.msg || 'Credenciales incorrectas');
       }
 
+      // ✅ Persistir credenciales base
+      const roleMap = { admin: 'Administrador', editor: 'Emprendedor', user: 'Cliente' };
       setToken(result.token);
-      setRol(result.rol);
+      setRol(roleMap[data.role] || result.rol);
       setId(result._id);
+
+      // ✅ Persistir estado (usa lo que venga; si no, deriva)
+      const estadoUIResp      = result?.estadoUI ?? deriveEstadoUIFront(result?.status, result?.estado_Emprendedor);
+      const estadoInternoResp = result?.estado_Emprendedor ?? 'Activo';
+      const statusResp        = typeof result?.status === 'boolean' ? result.status : true;
+
+      setEstadoUI(estadoUIResp);
+      setEstadoInterno(estadoInternoResp);
+      setStatus(statusResp);
+
+      // 🆕 Persistir y mostrar última advertencia si aplica
+      const ultima = result?.ultimaAdvertencia || null;
+      setUltimaAdvertencia(ultima || null);
+
+      if (['Advertencia1', 'Advertencia2', 'Advertencia3', 'Suspendido'].includes(estadoUIResp)) {
+        const base = estadoMensajesBase[estadoUIResp];
+        const motivoTxt = ultima?.motivo ? ` Motivo: ${ultima.motivo}.` : '';
+        const fechaTxt  = ultima?.fecha ? ` (${new Date(ultima.fecha).toLocaleString()})` : '';
+        setEstadoBanner({ tipo: estadoUIResp, msg: `${base}${motivoTxt}${fechaTxt}` });
+      }
+
+      // Bloqueo si suspendido (no guardar sesión efectiva)
+      if (estadoUIResp === 'Suspendido' || statusResp === false) {
+        clearToken();
+        return;
+      }
 
       toast.success('Inicio de sesión exitoso');
       setTimeout(() => navigate('/dashboard'), 800);
@@ -114,43 +149,76 @@ const Login = () => {
     }
   };
 
+  const GOOGLE_CLIENT_URL      = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
+  const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
+
   return (
     <div style={containerStyle}>
       <ToastContainer />
 
+      {/* Animación */}
+      <style>{`
+        @keyframes rise {
+          0% { transform: translateY(0) scale(1); opacity: 0.7; }
+          100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
+        }
+      `}</style>
+
       <div style={backgroundStyle} />
+      <Bubbles />
 
       <div style={cardStyle}>
+        {/* Imagen lateral */}
         <div style={leftPanelStyle}>
-          <img src={panecillo} alt="Panecillo" style={imageStyle} />
+          <img
+            src={panecillo}
+            alt="Panecillo"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '5%',
+              border: '8px solid white',
+            }}
+          />
         </div>
 
+        {/* Formulario */}
         <div style={formContainerStyle}>
-
-          {/* 🔔 Barra de contacto */}
-          <div style={contactBar}>
-            <a href="mailto:sebasj@outlook.com" style={contactLink}>
-              📧 Contactar por correo
-            </a>
-            <a
-              href="https://wa.me/593984523160"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={contactLink}
-            >
-              📱 WhatsApp soporte
-            </a>
-          </div>
-
+          {/* Banner de advertencia/suspensión */}
           {estadoBanner && (
-            <div style={bannerStyle}>
+            <div
+              className={`mb-4 p-3 rounded-lg text-center font-semibold text-base
+                ${estadoBanner.tipo === 'Suspendido'
+                  ? 'bg-red-100 border border-red-400 text-red-800'
+                  : 'bg-yellow-100 border border-yellow-400 text-yellow-800'
+                }`}
+              style={{ wordBreak: 'break-word' }}
+            >
               {estadoBanner.msg}
+              {estadoBanner.tipo !== 'Suspendido' && (
+                <div className="mt-2 text-sm">
+                  <a
+                    href={politicasPdf}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#AA4A44] underline"
+                  >
+                    Ver políticas de uso (PDF)
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
           <form onSubmit={handleSubmit(loginUser)} style={formStyle}>
-            <h1 style={titleStyle}>Bienvenido(a) de nuevo</h1>
-            <small style={subtitleStyle}>Por favor ingresa tus datos</small>
+            <h1 style={{ fontSize: '1.8rem', fontWeight: '600', textAlign: 'center', marginBottom: '0.3rem', color: '#3B2F2F' }}>
+              Bienvenido(a) de nuevo
+            </h1>
+
+            <small style={{ color: '#3B2F2F', display: 'block', textAlign: 'center', marginBottom: '1.5rem' }}>
+              Por favor ingresa tus datos
+            </small>
 
             <input
               type="email"
@@ -160,30 +228,79 @@ const Login = () => {
             />
             {errors.email && <p style={errorText}>{errors.email.message}</p>}
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', marginTop: '1rem' }}>
               <input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Contraseña"
                 {...register('password', { required: 'La contraseña es obligatoria' })}
-                style={inputStyle}
+                style={{ ...inputStyle, paddingRight: '3rem' }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={showButton}
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  right: '10px',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#888',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  userSelect: 'none'
+                }}
               >
                 {showPassword ? 'Ocultar' : 'Mostrar'}
               </button>
             </div>
+            {errors.password && <p style={errorText}>{errors.password.message}</p>}
 
-            <select {...register('role', { required: true })} style={selectStyle}>
+            <select
+              {...register('role', { required: 'El rol es obligatorio' })}
+              style={selectStyle}
+            >
               <option value="">Selecciona un rol</option>
               <option value="admin">Administrador</option>
               <option value="editor">Emprendedor</option>
               <option value="user">Cliente</option>
             </select>
+            {errors.role && <p style={errorText}>{errors.role.message}</p>}
 
-            <button type="submit" style={buttonStyle}>Iniciar sesión</button>
+            <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+              <Link to="/forgot/id" style={{ color: '#AA4A44', fontSize: '0.9rem', textDecoration: 'underline' }}>
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
+
+            <button type="submit" style={buttonStyle}>
+              Iniciar sesión
+            </button>
+
+            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Link to="/" style={{ color: '#AA4A44', fontSize: '0.9rem', textDecoration: 'underline' }}>
+                Regresar
+              </Link>
+              <Link
+                to="/register"
+                style={{
+                  backgroundColor: '#AA4A44',
+                  padding: '0.5rem 1.2rem',
+                  borderRadius: '20px',
+                  color: 'white',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Registrarse
+              </Link>
+            </div>
+
+            {/* Si en el futuro quieres login con Google:
+              <a href={GOOGLE_CLIENT_URL} style={googleButtonStyleBlue}>Login con Google (Cliente)</a>
+              <a href={GOOGLE_EMPRENDEDOR_URL} style={googleButtonStyleGray}>Login con Google (Emprendedor)</a>
+            */}
           </form>
         </div>
       </div>
@@ -191,68 +308,85 @@ const Login = () => {
   );
 };
 
-/* ================= ESTILOS ================= */
+// Animación burbujas
+const Bubbles = () => (
+  <div style={bubblesContainer}>
+    {[...Array(15)].map((_, i) => (
+      <div
+        key={i}
+        style={{
+          ...bubble,
+          animationDelay: `${i * 0.4}s`,
+          left: `${Math.random() * 100}%`,
+          width: `${10 + Math.random() * 15}px`,
+          height: `${10 + Math.random() * 15}px`
+        }}
+      />
+    ))}
+  </div>
+);
 
+// Estilos
 const containerStyle = {
+  position: 'relative',
   height: '100vh',
+  width: '100%',
+  overflow: 'hidden',
   display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center'
+  alignItems: 'center',
+  justifyContent: 'center'
 };
-
 const backgroundStyle = {
   position: 'absolute',
-  inset: 0,
+  top: 0, left: 0,
+  height: '100%', width: '100%',
   backgroundImage: `url(${fondoblanco})`,
   backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  zIndex: 0,
   filter: 'brightness(0.85)'
+};
+const bubblesContainer = {
+  position: 'absolute',
+  top: 0, left: 0, width: '100%', height: '100%',
+  zIndex: 1, pointerEvents: 'none', overflow: 'hidden'
+};
+const bubble = {
+  position: 'absolute',
+  bottom: '-50px',
+  backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  borderRadius: '50%',
+  animationName: 'rise',
+  animationDuration: '8s',
+  animationTimingFunction: 'linear',
+  animationIterationCount: 'infinite',
+  opacity: 0.7
 };
 
 const cardStyle = {
   display: 'flex',
-  maxWidth: '850px',
-  width: '100%',
-  height: '650px',
-  borderRadius: '25px',
-  overflow: 'hidden',
+  width: '100%', maxWidth: '850px', height: '650px',
+  borderRadius: '25px', overflow: 'hidden',
+  boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
   background: '#fff',
-  zIndex: 2
+  position: 'relative', zIndex: 2
 };
-
-const leftPanelStyle = { flex: 1 };
-const imageStyle = { width: '100%', height: '100%', objectFit: 'cover' };
-
-const formContainerStyle = {
-  flex: 1,
-  padding: '2rem',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center'
+const leftPanelStyle = { flex: 1, borderRadius: '5%', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' };
+const formContainerStyle = { flex: 1, background: '#ffffff', padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' };
+const formStyle = { maxWidth: '380px', width: '100%', margin: '0 auto' };
+const inputStyle = { width: '100%', padding: '0.5rem', marginTop: '0.5rem', border: '1px solid #ccc', borderRadius: '8px', fontSize: '1rem', color: '#3B2F2F', fontWeight: '500' };
+const selectStyle = { width: '100%', padding: '0.5rem', marginTop: '1rem', border: '1px solid #ccc', borderRadius: '8px', fontSize: '1rem', backgroundColor: '#fff', color: '#3B2F2F', fontWeight: '500' };
+const buttonStyle = { width: '100%', padding: '0.5rem', marginTop: '1.5rem', backgroundColor: '#AA4A44', color: 'white', border: 'none', borderRadius: '25px', fontSize: '1rem', cursor: 'pointer', fontWeight: '600' };
+const errorText = { color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' };
+const googleButtonStyleGray = {
+  backgroundColor: 'white', border: '1px solid #ccc',
+  padding: '0.5rem 1rem', borderRadius: '20px',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  color: '#444', fontWeight: '600', textDecoration: 'none',
+  fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.3s ease', userSelect: 'none'
 };
-
-const contactBar = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  gap: '0.5rem',
-  marginBottom: '1rem',
-  fontSize: '0.85rem'
-};
-
-const contactLink = {
-  color: '#AA4A44',
-  textDecoration: 'underline',
-  fontWeight: '600'
-};
-
-const formStyle = { maxWidth: '380px', margin: '0 auto' };
-const titleStyle = { textAlign: 'center', fontSize: '1.8rem' };
-const subtitleStyle = { textAlign: 'center', marginBottom: '1rem' };
-const inputStyle = { width: '100%', padding: '0.6rem', marginTop: '0.5rem' };
-const selectStyle = { width: '100%', padding: '0.6rem', marginTop: '1rem' };
-const buttonStyle = { width: '100%', marginTop: '1.5rem', padding: '0.6rem', background: '#AA4A44', color: '#fff', border: 'none', borderRadius: '25px' };
-const showButton = { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' };
-const errorText = { color: 'red', fontSize: '0.8rem' };
-const bannerStyle = { background: '#fdecea', padding: '0.8rem', borderRadius: '10px', marginBottom: '1rem' };
+const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
 
 export default Login;
+``
+
