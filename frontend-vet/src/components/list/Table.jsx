@@ -44,6 +44,11 @@ const Table = () => {
   const [lista, setLista] = useState([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
+  /* --------- PAGINACIÓN (NUEVO) --------- */
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const PAGE_SIZE_OPTIONS = [5, 10, 25, 50];
+
   /* --------- Form states --------- */
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
@@ -63,6 +68,11 @@ const Table = () => {
   /* --------- UI states --------- */
   const [expandido, setExpandido] = useState(null);
   const [search, setSearch] = useState("");
+
+  /* Reset page when tipo/search/pageSize changes */
+  useEffect(() => {
+    setPage(1);
+  }, [tipo, search, pageSize]);
 
   /* --------- Confirmación de eliminación --------- */
   const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
@@ -166,6 +176,7 @@ const Table = () => {
     setError("");
     setMensaje("");
     setSearch("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo]);
 
   /* ===========================
@@ -750,6 +761,17 @@ const Table = () => {
   });
 
   /* ===========================
+     PAGINACIÓN: calcular lista visible
+  ============================ */
+  const totalPages = Math.max(1, Math.ceil(listaFiltrada.length / pageSize));
+  useEffect(() => {
+    // Ajusta page si queda fuera de rango tras cambios en listaFiltrada/pageSize
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
+  const listaPaginada = listaFiltrada.slice((page - 1) * pageSize, page * pageSize);
+
+  /* ===========================
      RENDER
   ============================ */
   return (
@@ -978,7 +1000,7 @@ const Table = () => {
               )}
 
               {!loadingLista &&
-                listaFiltrada.map((item, i) => (
+                listaPaginada.map((item, i) => (
                   <React.Fragment key={item._id}>
                     <tr
                       style={{
@@ -988,7 +1010,7 @@ const Table = () => {
                       onClick={() => toggleExpandido(item._id, item)}
                       aria-expanded={expandido === item._id}
                     >
-                      <td style={styles.td}>{i + 1}</td>
+                      <td style={styles.td}>{(page - 1) * pageSize + i + 1}</td>
                       <td style={styles.td}>
                         <span style={{ fontWeight: 600 }}>{item.nombre}</span>
                         <EstadoBadge estado={getEstado(item)} />
@@ -1280,6 +1302,56 @@ const Table = () => {
                 ))}
             </tbody>
           </table>
+        </div>
+
+        {/* ===== PAGINACIÓN ===== */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              style={styles.btnSecondary}
+              onClick={() => { setPage(1); }}
+              disabled={page === 1}
+            >
+              ⏮ Inicio
+            </button>
+            <button
+              style={styles.btnSecondary}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              ← Anterior
+            </button>
+            <span style={{ color: "#64748b", fontSize: 14 }}>
+              Página {page} de {totalPages}
+            </span>
+            <button
+              style={styles.btnSecondary}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Siguiente →
+            </button>
+            <button
+              style={styles.btnSecondary}
+              onClick={() => { setPage(totalPages); }}
+              disabled={page === totalPages}
+            >
+              Fin ⏭
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <label style={{ color: "#475569", fontWeight: 600 }}>Filas por página</label>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #cbd5e1" }}
+            >
+              {PAGE_SIZE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
