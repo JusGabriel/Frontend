@@ -1,5 +1,4 @@
 
-// src/components/Table.jsx
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -18,86 +17,27 @@ const API_EMPRENDIMIENTOS = "https://backend-production-bd1d.up.railway.app/api/
 =========================== */
 const emptyForm = { nombre: "", apellido: "", email: "", password: "", telefono: "" };
 const capitalize = (str) => (str ? str.charAt(0).toUpperCase() + str.slice(1) : "");
+const fmtUSD = new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" });
 
 /* Paleta de estados (para badges) */
 const ESTADO_COLORS = {
-  Correcto: "#16a34a",
-  Activo: "#16a34a",
-  Advertencia1: "#f59e0b",
-  Advertencia2: "#ea580c",
-  Advertencia3: "#dc2626",
-  Suspendido: "#dc2626",
+  Correcto: "#28a745",
+  Activo: "#28a745",
+  Advertencia1: "#ffc107",
+  Advertencia2: "#fd7e14",
+  Advertencia3: "#dc3545",
+  Suspendido: "#dc3545",
 };
 
 /* Estados permitidos */
 const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
-/* Derivar estado cliente visible */
-const deriveEstadoCliente = (item) => {
-  if (!item) return "Correcto";
-  if (item.status === false) return "Suspendido";
-  const e = item.estado_Emprendedor;
-  if (e === "Activo") return "Correcto";
-  if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
-  return "Correcto";
-};
-
-/* Siguiente advertencia desde un estado visible */
-const siguienteAdvertencia = (estadoActual) => {
-  switch (estadoActual) {
-    case "Correcto": return "Advertencia1";
-    case "Advertencia1": return "Advertencia2";
-    case "Advertencia2": return "Advertencia3";
-    case "Advertencia3": return "Suspendido";
-    default: return "Suspendido";
-  }
-};
-
-const isJsonResponse = (res) => {
-  const ct = res.headers.get("content-type") || "";
-  return ct.includes("application/json");
-};
-
-/* Fechas seguras */
-const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
-const fromObjectIdDate = (_id) => {
-  if (!_id) return null;
-  const s = String(_id);
-  if (s.length >= 8) {
-    const ts = parseInt(s.slice(0, 8), 16) * 1000;
-    const d = new Date(ts);
-    return isValidDate(d) ? d : null;
-  }
-  return null;
-};
-const safeDateStr = (val) => {
-  if (!val) return "—";
-  const d = new Date(val);
-  return isValidDate(d) ? d.toLocaleString() : "—";
-};
-const safeDateStrWithFallback = (val, oid) => {
-  let d = val ? new Date(val) : null;
-  if (!isValidDate(d)) d = fromObjectIdDate(oid);
-  return isValidDate(d) ? d.toLocaleString() : "—";
-};
-
-/* Mostrar nombre del actor */
-const displayActorName = (a) => {
-  if (!a) return "—";
-  if (a.creadoPorNombre && a.creadoPorNombre.trim()) return a.creadoPorNombre.trim();
-  if (a.creadoPor) {
-    const n = `${a.creadoPor?.nombre || ""} ${a.creadoPor?.apellido || ""}`.trim();
-    if (n) return n;
-  }
-  return a.origen === "sistema" ? "Sistema" : "—";
-};
-
 /* ===========================
    COMPONENTE
 =========================== */
 const Table = () => {
-  /* --------- Auth --------- */
+  /* --------- Contexto Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
 
   /* --------- Estado principal --------- */
@@ -105,7 +45,7 @@ const Table = () => {
   const [lista, setLista] = useState([]);
   const [loadingLista, setLoadingLista] = useState(false);
 
-  /* --------- Formularios --------- */
+  /* --------- Form states --------- */
   const [formCrear, setFormCrear] = useState(emptyForm);
   const [formEditar, setFormEditar] = useState({ id: null, ...emptyForm });
 
@@ -114,80 +54,74 @@ const Table = () => {
   const [mensaje, setMensaje] = useState("");
   useEffect(() => {
     if (!error && !mensaje) return;
-    const t = setTimeout(() => { setError(""); setMensaje(""); }, 3000);
+    const t = setTimeout(() => {
+      setError("");
+      setMensaje("");
+    }, 3000);
     return () => clearTimeout(t);
   }, [error, mensaje]);
 
-  /* --------- UI --------- */
+  /* --------- UI states --------- */
   const [expandido, setExpandido] = useState(null);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState(""); // debounced
+  const [search, setSearch] = useState("");
 
-  /* --------- Confirm Delete --------- */
+  /* --------- Confirmación de eliminación --------- */
   const [confirmDelete, setConfirmDelete] = useState({ visible: false, id: null, nombre: "" });
 
-  /* --------- Chat (opcional UI minimal) --------- */
+  /* --------- Chat --------- */
   const [modalChatVisible, setModalChatVisible] = useState(false);
   const [chatUser, setChatUser] = useState(null);
   const [mensajes, setMensajes] = useState([]);
   const [mensajeChat, setMensajeChat] = useState("");
   const mensajesRef = useRef(null);
 
-  /* --------- Sub-filtros Emprendedor --------- */
+  /* --------- Sub-filtros por fecha para Emprendedor --------- */
   const [rangoFechas, setRangoFechas] = useState({ from: "", to: "" });
   const [mapEmpEmprendimientos, setMapEmpEmprendimientos] = useState({});
   const [mapEmpProductos, setMapEmpProductos] = useState({});
+  const [loadingNested, setLoadingNested] = useState(false);
 
-  /* --------- Catálogos fallback --------- */
+  /* --------- Catálogos generales (fallback) --------- */
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* --------- Auditoría (Cliente) --------- */
-  const [mapAuditoria, setMapAuditoria] = useState({});
+  /* ========= Derivar estado visible CLIENTE desde modelo ========= */
+  const deriveEstadoCliente = (item) => {
+    if (!item) return "Correcto";
+    if (item.status === false) return "Suspendido";
+    const e = item.estado_Emprendedor;
+    if (e === "Activo") return "Correcto";
+    if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
+    return "Correcto";
+  };
 
-  /* Debounce de búsqueda (300 ms) */
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
-  /* ---- Carga de listas ---- */
+  /* ===========================
+     CARGA DE LISTAS
+  ============================ */
   const fetchLista = async () => {
-    setError(""); setMensaje(""); setLoadingLista(true);
+    setError("");
+    setMensaje("");
+    setLoadingLista(true);
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/todos`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
+      const data = await res.json();
 
-      const text = await res.text();
-      const isJson = (res.headers.get("content-type") || "").includes("application/json");
-      const data = isJson && text ? JSON.parse(text) : text;
-
-      if (!res.ok) {
-        const detail = (isJson && data?.msg) || text || `HTTP ${res.status}`;
-        throw new Error(detail);
-      }
-
-      // ✅ Soporta array o { items }
-      let rawItems = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-        ? data.items
-        : [];
-
-      let normalizados = rawItems;
+      let normalizados = Array.isArray(data) ? data : [];
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
           const estadoUI = deriveEstadoCliente(c);
           return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
         });
-      } else {
+      } else if (tipo === "emprendedor") {
         normalizados = normalizados.map((e) => ({ ...e, estado: e.estado_Emprendedor || "Activo" }));
       }
+
       setLista(normalizados);
     } catch (e) {
       console.error(e);
-      setError(e.message || "No se pudo cargar el listado.");
+      setError("No se pudo cargar el listado.");
       setLista([]);
     } finally {
       setLoadingLista(false);
@@ -200,20 +134,20 @@ const Table = () => {
         fetch(`${API_PRODUCTOS}/todos`),
         fetch(`${API_EMPRENDIMIENTOS}/publicos`),
       ]);
-      const dataProd = await res.json().catch(() => ({}));
-      const dataEmpr = await resEmpr.json().catch(() => ({}));
+      const dataProd = await resProd.json();
+      const dataEmpr = await resEmpr.json();
 
       const productosArray = Array.isArray(dataProd)
         ? dataProd
         : Array.isArray(dataProd?.productos)
-          ? dataProd.productos
-          : [];
+        ? dataProd.productos
+        : [];
       const emprArray = Array.isArray(dataEmpr) ? dataEmpr : [];
 
       setCatalogoProductos(productosArray);
       setCatalogoEmprendimientos(emprArray);
     } catch (e) {
-      console.warn("No se pudieron cargar catálogos de fallback:", e?.message);
+      console.warn("No se pudieron cargar catálogos generales (fallback):", e?.message);
     }
   };
 
@@ -223,15 +157,18 @@ const Table = () => {
     setFormCrear(emptyForm);
     setFormEditar({ id: null, ...emptyForm });
     setExpandido(null);
-    setError(""); setMensaje("");
+    setError("");
+    setMensaje("");
+    setSearch("");
   }, [tipo]);
 
   /* ===========================
-     CRUD base
+     CRUD: CREAR / EDITAR / ELIMINAR
   ============================ */
   const handleCrear = async (e) => {
     e.preventDefault();
-    setError(""); setMensaje("");
+    setError("");
+    setMensaje("");
 
     if (!formCrear.nombre.trim() || !formCrear.apellido.trim()) {
       setError("Nombre y Apellido son obligatorios.");
@@ -240,10 +177,6 @@ const Table = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formCrear.email)) {
       setError("Ingresa un email válido.");
-      return;
-    }
-    if (!formCrear.password || !formCrear.password.trim()) {
-      setError("El password es obligatorio.");
       return;
     }
 
@@ -256,8 +189,8 @@ const Table = () => {
         },
         body: JSON.stringify(formCrear),
       });
-      const data = isJsonResponse(res) ? await res.json() : null;
-      if (!res.ok) setError(data?.msg || "No se pudo crear.");
+      const data = await res.json();
+      if (!res.ok) setError(data.msg || "No se pudo crear.");
       else {
         setMensaje(`${capitalize(tipo)} creado correctamente.`);
         setFormCrear(emptyForm);
@@ -277,13 +210,15 @@ const Table = () => {
       password: "",
       telefono: item.telefono || "",
     });
-    setMensaje(""); setError("");
+    setMensaje("");
+    setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleActualizar = async (e) => {
     e.preventDefault();
-    setError(""); setMensaje("");
+    setError("");
+    setMensaje("");
     const { id, nombre, apellido, email, password, telefono } = formEditar;
 
     if (!nombre.trim() || !apellido.trim()) {
@@ -296,14 +231,6 @@ const Table = () => {
       return;
     }
 
-    const payload = {
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      email: email.trim(),
-    };
-    if (telefono !== undefined) payload.telefono = telefono;
-    if (password && password.trim()) payload.password = password;
-
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/actualizar/${id}`, {
         method: "PUT",
@@ -311,40 +238,37 @@ const Table = () => {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ nombre, apellido, email, password, telefono }),
       });
-
-      let data = null;
-      if (isJsonResponse(res)) data = await res.json();
-
-      if (!res.ok) {
-        const detail = data?.error || data?.msg || `HTTP ${res.status}`;
-        setError(detail);
-        return;
+      const data = await res.json();
+      if (!res.ok) setError(data.msg || "No se pudo actualizar.");
+      else {
+        setMensaje(`${capitalize(tipo)} actualizado correctamente.`);
+        setFormEditar({ id: null, ...emptyForm });
+        fetchLista();
       }
-
-      setMensaje(`${capitalize(tipo)} actualizado correctamente.`);
-      setFormEditar({ id: null, ...emptyForm });
-      fetchLista();
-    } catch (err) {
+    } catch {
       setError("Error de red al actualizar.");
     }
   };
 
-  const solicitarEliminar = (item) => setConfirmDelete({ visible: true, id: item._id, nombre: `${item.nombre} ${item.apellido}` });
+  const solicitarEliminar = (item) => {
+    setConfirmDelete({ visible: true, id: item._id, nombre: `${item.nombre} ${item.apellido}` });
+  };
   const cancelarEliminar = () => setConfirmDelete({ visible: false, id: null, nombre: "" });
 
   const confirmarEliminar = async () => {
     const id = confirmDelete.id;
     cancelarEliminar();
-    setError(""); setMensaje("");
+    setError("");
+    setMensaje("");
     try {
       const res = await fetch(`${BASE_URLS[tipo]}/eliminar/${id}`, {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      const data = isJsonResponse(res) ? await res.json() : null;
-      if (!res.ok) setError(data?.msg || "No se pudo eliminar.");
+      const data = await res.json();
+      if (!res.ok) setError(data.msg || "No se pudo eliminar.");
       else {
         setMensaje(`${capitalize(tipo)} eliminado.`);
         fetchLista();
@@ -355,7 +279,7 @@ const Table = () => {
   };
 
   /* ===========================
-     ESTADOS y MODALES
+     ESTADO (Cliente/Emprendedor)
   ============================ */
 
   const getEstado = (item) =>
@@ -366,126 +290,87 @@ const Table = () => {
   const getEstadosPermitidos = () =>
     tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
 
-  // Modal de cambio de estado (Cliente) + modo advertir
+  // --- Modal cambio de estado (Cliente) ---
   const [estadoModal, setEstadoModal] = useState({
     visible: false,
-    mode: 'estado',          // 'estado' | 'advertir'
     item: null,
     nuevoEstado: null,
     motivo: "",
     suspendidoHasta: ""
   });
 
-  const openEstadoModal = (item, nuevoEstado, mode = 'estado') => {
+  const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
-      const actual = getEstado(item);
-      const proximo =
-        (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
-          ? nuevoEstado
-          : siguienteAdvertencia(actual);
-
       setEstadoModal({
         visible: true,
-        mode,
         item,
-        nuevoEstado: proximo,
+        nuevoEstado,
         motivo: "",
         suspendidoHasta: ""
       });
     } else {
-      if (!nuevoEstado || !ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
-        setError("Estado no válido para emprendedor.");
-        return;
-      }
+      // Emprendedor: comportamiento previo (sin motivo)
       updateEstadoEmprendedor(item, nuevoEstado);
     }
   };
 
   const closeEstadoModal = () => setEstadoModal({
-    visible: false, mode: 'estado', item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
+    visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
-  // Confirmar (estado o advertir)
   const updateEstadoClienteConfirmed = async () => {
-    const { item, nuevoEstado, motivo, suspendidoHasta, mode } = estadoModal;
+    const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
-      setMensaje(""); setError("");
+      setMensaje("");
+      setError("");
 
-      if (!motivo || !motivo.trim()) {
-        setError("Debes ingresar un motivo.");
+      if (!ESTADOS_CLIENTE.includes(nuevoEstado)) {
+        setError("Estado inválido para cliente.");
         return;
       }
-
-      const headers = {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
-      if (mode === 'advertir') {
-        // Progresión de advertencia -> si llega a Suspendido se puede fijar fecha
-        let untilISO;
-        if (nuevoEstado === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
-          const d = new Date(suspendidoHasta);
-          if (isNaN(d.getTime())) {
-            setError("La fecha/hora de suspensión no es válida.");
-            return;
-          }
-          untilISO = d.toISOString();
-        }
-
-        const url = `${BASE_URLS["cliente"]}/estado/${item._id}/advertir`;
-        const body = {
-          motivo: motivo.trim(),
-          ...(untilISO ? { suspendidoHasta: untilISO } : {})
-        };
-
-        const res = await fetch(url, { method: "PUT", headers, body: JSON.stringify(body) });
-        const raw = await res.text(); let data = null; try { data = raw ? JSON.parse(raw) : null; } catch {}
-        if (!res.ok) throw new Error(data?.msg || data?.error || raw || `HTTP ${res.status}`);
-
-        setMensaje(`Advertencia aplicada${data?.estadoUI ? `: ${data.estadoUI}` : ""}`);
-        closeEstadoModal();
-        await fetchLista();
-        if (expandido === item._id && tipo === "cliente") {
-          cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
-        }
+      if (!motivo.trim()) {
+        setError("Debes ingresar un motivo para el cambio de estado.");
         return;
-      }
-
-      // Cambio manual de estado (UI -> back)
-      const actualUI = getEstado(item);
-      const estadoToSend =
-        (nuevoEstado && ESTADOS_CLIENTE.includes(nuevoEstado))
-          ? nuevoEstado
-          : siguienteAdvertencia(actualUI);
-
-      let untilISO;
-      if (estadoToSend === "Suspendido" && suspendidoHasta && suspendidoHasta.trim()) {
-        const d = new Date(suspendidoHasta);
-        if (isNaN(d.getTime())) {
-          setError("La fecha/hora de suspensión no es válida.");
-          return;
-        }
-        untilISO = d.toISOString();
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-      const body = {
-        estado: estadoToSend,
+
+      const payload = {
+        estado: nuevoEstado,
         motivo: motivo.trim(),
-        ...(untilISO ? { suspendidoHasta: untilISO } : {}),
+        ...(nuevoEstado === "Suspendido" && suspendidoHasta
+          ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
+          : {})
       };
 
-      const res = await fetch(urlEstado, { method: "PUT", headers, body: JSON.stringify(body) });
-      const raw = await res.text(); let data = null; try { data = raw ? JSON.parse(raw) : null; } catch {}
-      if (!res.ok) throw new Error(data?.msg || data?.error || raw || `HTTP ${res.status}`);
+      // Llamada al endpoint dedicado (con token)
+      let res = await fetch(urlEstado, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
 
-      setMensaje(`Estado actualizado a: ${estadoToSend}`);
-      closeEstadoModal();
-      await fetchLista();
-      if (expandido === item._id && tipo === "cliente") {
-        cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
+      // Fallback a actualizar/:id (enviando motivo también)
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado: nuevoEstado, motivo: payload.motivo }),
+        });
       }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
+
+      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      closeEstadoModal();
+      fetchLista();
     } catch (e) {
       console.error(e);
       setError(e.message || "Error al actualizar el estado.");
@@ -494,7 +379,8 @@ const Table = () => {
 
   const updateEstadoEmprendedor = async (item, nuevoEstado) => {
     try {
-      setMensaje(""); setError("");
+      setMensaje("");
+      setError("");
 
       if (!ESTADOS_EMPRENDEDOR.includes(nuevoEstado)) {
         setError("Estado inválido para emprendedor.");
@@ -512,12 +398,18 @@ const Table = () => {
       });
 
       if (!res.ok) {
-        let data = null;
-        if (isJsonResponse(res)) data = await res.json();
-        const detail = data?.msg || `HTTP ${res.status}`;
-        throw new Error(detail);
+        res = await fetch(`${BASE_URLS["emprendedor"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado_Emprendedor: nuevoEstado }),
+        });
       }
 
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.msg || "No se pudo actualizar el estado.");
       setMensaje(`Estado actualizado a: ${nuevoEstado}`);
       fetchLista();
     } catch (e) {
@@ -527,22 +419,44 @@ const Table = () => {
   };
 
   const EstadoBadge = ({ estado }) => {
-    const bg = ESTADO_COLORS[estado] || "#6b7280";
+    const bg = ESTADO_COLORS[estado] || "#6c757d";
     return (
-      <span aria-label={`Estado: ${estado}`} className="pill" style={{ backgroundColor: bg }}>
+      <span
+        aria-label={`Estado: ${estado}`}
+        style={{
+          display: "inline-block",
+          marginLeft: 6,
+          padding: "2px 10px",
+          borderRadius: 999,
+          fontSize: 12,
+          color: "white",
+          backgroundColor: bg,
+          lineHeight: "18px",
+        }}
+      >
         {estado}
       </span>
     );
   };
 
   /* ===========================
-     ANIDADOS: Emprendedor
+     ANIDADOS (Emprendedor)
   ============================ */
+  const toggleExpandido = async (id, item) => {
+    const nuevo = expandido === id ? null : id;
+    setExpandido(nuevo);
+    if (nuevo && tipo === "emprendedor") {
+      await cargarNestedParaEmprendedor(item);
+    }
+  };
+
   const cargarNestedParaEmprendedor = async (emprendedor) => {
     if (!emprendedor?._id) return;
+    setLoadingNested(true);
+    setError("");
 
     const from = rangoFechas.from || "";
-    const to   = rangoFechas.to   || "";
+    const to = rangoFechas.to || "";
 
     const tryFetch = async (url) => {
       try {
@@ -556,19 +470,27 @@ const Table = () => {
       }
     };
 
-    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    const urlEmps = `${API_EMPRENDIMIENTOS}/by-emprendedor/${emprendedor._id}${
+      from || to ? `?from=${from}&to=${to}` : ""
+    }`;
     let emps = await tryFetch(urlEmps);
     if (!Array.isArray(emps)) {
       emps = catalogoEmprendimientos.filter((e) => {
         const owner = String(e?.emprendedor?._id || e?.emprendedorId || "") === String(emprendedor._id);
         const ts = e?.createdAt ? new Date(e.createdAt).getTime() : null;
         const inRange =
-          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+          !from && !to
+            ? true
+            : (!!ts &&
+               (!from || ts >= new Date(from).getTime()) &&
+               (!to || ts <= new Date(to).getTime()));
         return owner && inRange;
       });
     }
 
-    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${from || to ? `?from=${from}&to=${to}` : ""}`;
+    const urlProds = `${API_PRODUCTOS}/by-emprendedor/${emprendedor._id}${
+      from || to ? `?from=${from}&to=${to}` : ""
+    }`;
     let prods = await tryFetch(urlProds);
     if (!Array.isArray(prods)) {
       prods = catalogoProductos.filter((p) => {
@@ -577,299 +499,391 @@ const Table = () => {
           String(emprendedor._id);
         const ts = p?.createdAt ? new Date(p.createdAt).getTime() : null;
         const inRange =
-          !from && !to ? true : (!!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime()));
+          !from && !to
+            ? true
+            : (!!ts &&
+               (!from || ts >= new Date(from).getTime()) &&
+               (!to || ts <= new Date(to).getTime()));
         return owner && inRange;
       });
     }
 
-    setMapEmpEmprendimientos((prev) => ({ ...prev, [emprendedor._id]: emps || [] }));
-    setMapEmpProductos((prev) => ({ ...prev, [emprendedor._id]: prods || [] }));
+    setMapEmpEmprendimientos((prev) => ({ ...prev, [emprendedor._id]: emps }));
+    setMapEmpProductos((prev) => ({ ...prev, [emprendedor._id]: prods }));
+    setLoadingNested(false);
   };
 
-  /* ===========================
-     AUDITORÍA: Cliente
-  ============================ */
-  const cargarAuditoriaCliente = async (clienteId, page = 1, limit = 10) => {
-    setMapAuditoria((prev) => ({
-      ...prev,
-      [clienteId]: {
-        ...(prev[clienteId] || {}),
-        loading: true,
-        lastError: null,
-      },
-    }));
-    try {
-      const url = `${BASE_URLS["cliente"]}/estado/${clienteId}/auditoria?page=${page}&limit=${limit}`;
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+  useEffect(() => {
+    if (expandido && tipo === "emprendedor") {
+      const emp = lista.find((x) => x._id === expandido);
+      if (emp) cargarNestedParaEmprendedor(emp);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangoFechas]);
 
-      if (!res.ok || !isJsonResponse(res)) {
-        setMapAuditoria((prev) => ({
-          ...prev,
-          [clienteId]: {
-            ...(prev[clienteId] || {}),
-            items: [],
-            total: 0,
-            page,
-            limit,
-            loading: false,
-            lastError: res.ok ? null : `HTTP ${res.status}`,
-          },
-        }));
+  /* ===========================
+     EXPORTS
+  ============================ */
+  const exportCSV = (rows, filename) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      setError("No hay datos para exportar.");
+      return;
+    }
+    const cols = Object.keys(rows[0]).filter((k) => typeof rows[0][k] !== "object");
+    const header = cols.join(",");
+    const body = rows
+      .map((r) =>
+        cols
+          .map((c) => {
+            const val = r[c] ?? "";
+            const txt = String(val).replace(/"/g, '""');
+            return `"${txt}"`;
+          })
+          .join(",")
+      )
+      .join("\n");
+    const csv = [header, body].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.endsWith(".csv") ? filename : `${filename}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setMensaje("Exportación CSV lista.");
+  };
+
+  const exportPDF = (htmlTitle, rows, mapper) => {
+    if (!Array.isArray(rows) || rows.length === 0) {
+      setError("No hay datos para exportar.");
+      return;
+    }
+    const win = window.open("", "_blank");
+    const now = new Date().toLocaleString();
+    const tableRows = rows
+      .map(
+        (r) =>
+          `<tr>${mapper(r)
+            .map((cell) => `<td style="padding:8px;border:1px solid #ddd">${cell}</td>`)
+            .join("")}</tr>`
+      )
+      .join("");
+    win.document.write(`
+      <html><head><title>${htmlTitle}</title></head>
+      <body style="font-family:Segoe UI,Arial,sans-serif">
+        <h2 style="margin:0 0 4px">${htmlTitle}</h2>
+        <p style="color:#666;font-size:12px;margin:0 0 12px">Generado: ${now}</p>
+        <table style="border-collapse:collapse;width:100%;font-size:13px">
+          <thead>
+            <tr style="background:#e9f0ff">
+              ${mapper({header:true})
+                .map((h) => `<th style="padding:8px;border:1px solid #bbb;text-align:left">${h}</th>`)
+                .join("")}
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+    setMensaje("Exportación PDF lista.");
+  };
+
+  const mapperEmprendimientos = (r) =>
+    r?.header
+      ? ["Nombre Comercial", "Ciudad", "Creado"]
+      : [
+          r.nombreComercial || "",
+          r.ubicacion?.ciudad || "",
+          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+        ];
+
+  const mapperProductos = (r) =>
+    r?.header
+      ? ["Producto", "Precio", "Stock", "Emprendimiento", "Creado"]
+      : [
+          r.nombre || "",
+          typeof r.precio === "number" ? fmtUSD.format(r.precio) : "",
+          r.stock ?? "",
+          r.empNombreComercial || r.emprendimiento?.nombreComercial || "",
+          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
+        ];
+
+  /* ===========================
+     CHAT
+  ============================ */
+  const abrirChat = (item) => {
+    setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
+    setModalChatVisible(true);
+    cargarMensajes(item._id);
+  };
+  const cerrarChat = () => {
+    setModalChatVisible(false);
+    setChatUser(null);
+    setMensajes([]);
+    setMensajeChat("");
+  };
+  const cargarMensajes = async (receptorId) => {
+    if (!receptorId) return;
+    try {
+      const resConv = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${emisorId}`
+      );
+      const dataConv = await resConv.json();
+      const conversacion = Array.isArray(dataConv)
+        ? dataConv.find((conv) =>
+            conv.participantes?.some((p) => p.id && p.id._id === receptorId)
+          )
+        : null;
+
+      if (!conversacion) {
+        setMensajes([]);
         return;
       }
 
-      const data = await res.json();
-      setMapAuditoria((prev) => ({
-        ...prev,
-        [clienteId]: {
-          ...(prev[clienteId] || {}),
-          items: Array.isArray(data.items) ? data.items : [],
-          total: Number(data.total || 0),
-          page: Number(data.page || page),
-          limit: Number(data.limit || limit),
-          loading: false,
-          lastError: null,
-        },
-      }));
-    } catch (e) {
-      console.error(e);
-      setMapAuditoria((prev) => ({
-        ...prev,
-        [clienteId]: {
-          ...(prev[clienteId] || {}),
-          items: [],
-          total: 0,
-          page,
-          limit,
-          loading: false,
-          lastError: e.message || "error",
-        },
-      }));
+      const resMsgs = await fetch(
+        `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacion._id}`
+      );
+      const dataMsgs = await resMsgs.json();
+      setMensajes(Array.isArray(dataMsgs) ? dataMsgs : []);
+    } catch (error) {
+      setError("No se pudieron cargar los mensajes.");
     }
   };
-
-  const onPaginarAud = (clienteId, dir = 0) => {
-    const info = mapAuditoria[clienteId] || { page: 1, limit: 10, total: 0 };
-    const totalPages = Math.max(1, Math.ceil((info.total || 0) / (info.limit || 10)));
-    let nextPage = info.page + dir;
-    if (nextPage < 1) nextPage = 1;
-    if (nextPage > totalPages) nextPage = totalPages;
-    if (nextPage !== info.page) cargarAuditoriaCliente(clienteId, nextPage, info.limit);
+  const enviarMensaje = async (e) => {
+    e.preventDefault();
+    if (!mensajeChat.trim() || !chatUser || !emisorId || !emisorRol) return;
+    try {
+      const res = await fetch("https://backend-production-bd1d.up.railway.app/api/chat/mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emisorId,
+          emisorRol,
+          receptorId: chatUser.id,
+          receptorRol: chatUser.rol,
+          contenido: mensajeChat.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMensajeChat("");
+        cargarMensajes(chatUser.id);
+      } else {
+        setError(data.mensaje || "No se pudo enviar el mensaje.");
+      }
+    } catch (error) {
+      setError("Error de red al enviar mensaje.");
+    }
   };
+  useEffect(() => {
+    if (mensajesRef.current) {
+      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+    }
+  }, [mensajes]);
+  useEffect(() => {
+    if (!modalChatVisible || !chatUser) return;
+    const intervalo = setInterval(() => cargarMensajes(chatUser.id), 3000);
+    return () => clearInterval(intervalo);
+  }, [modalChatVisible, chatUser]);
 
   /* ===========================
-     TOGGLE expandido
+     FILTRO LOCAL
   ============================ */
-  const toggleExpandido = async (id, item) => {
-    const nuevo = expandido === id ? null : id;
-    setExpandido(nuevo);
-
-    if (nuevo && tipo === "emprendedor") {
-      await cargarNestedParaEmprendedor(item);
-    }
-    if (nuevo && tipo === "cliente") {
-      await cargarAuditoriaCliente(item._id, 1, 10);
-    }
-  };
+  const listaFiltrada = lista.filter((x) => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
+    return campos.some((c) => c.includes(q));
+  });
 
   /* ===========================
      RENDER
   ============================ */
   return (
-    <div className="wrap">
-      <style>{css}</style>
-
+    <div style={styles.container}>
       {/* ====== ENCABEZADO ====== */}
-      <header className="hdr">
+      <header style={styles.header}>
         <div>
-          <h1 className="ttl">Panel de Administración</h1>
-          <div className="subTtl">
-            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${lista.filter((x) => {
-              const q = search.toLowerCase();
-              if (!q) return true;
-              const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
-              return campos.some((c) => c.includes(q));
-            }).length} resultados`}
+          <h1 style={styles.title}>Panel de Administración</h1>
+          <div style={styles.subTitle}>
+            {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
           </div>
         </div>
 
-        <div className="toolbar">
-          <div role="tablist" aria-label="Tipo de listado" className="segmented">
+        <div style={styles.actionsBar}>
+          <div role="group" aria-label="Seleccionar tipo" style={styles.segmented}>
             <button
-              role="tab"
-              aria-selected={tipo === "cliente"}
-              className={tipo === "cliente" ? "segBtn active" : "segBtn"}
+              style={tipo === "cliente" ? styles.segmentedActive : styles.segmentedBtn}
               onClick={() => setTipo("cliente")}
             >
-              👥 Clientes
+              Clientes
             </button>
             <button
-              role="tab"
-              aria-selected={tipo === "emprendedor"}
-              className={tipo === "emprendedor" ? "segBtn active" : "segBtn"}
+              style={tipo === "emprendedor" ? styles.segmentedActive : styles.segmentedBtn}
               onClick={() => setTipo("emprendedor")}
             >
-              🧑‍💼 Emprendedores
+              Emprendedores
             </button>
           </div>
 
-          <div className="searchBox">
+          <div style={styles.searchBox}>
             <input
               aria-label="Buscar en el listado"
               type="search"
               placeholder={`Buscar ${capitalize(tipo)} por nombre, apellido, email o teléfono…`}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="searchInput"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={styles.searchInput}
             />
-            <button className="btn ghost" onClick={fetchLista} title="Actualizar listado">↻</button>
+            <button style={styles.refreshBtn} onClick={fetchLista}>↻ Actualizar</button>
           </div>
         </div>
       </header>
 
-      {/* Mensajes toast */}
-      <div className="toastRegion" aria-live="polite" aria-atomic="true">
-        {error && <div className="toast toastErr">⚠️ {error}</div>}
-        {mensaje && <div className="toast toastOk">✅ {mensaje}</div>}
+      {/* Mensajes */}
+      <div style={styles.toastRegion} aria-live="polite" aria-atomic="true">
+        {error && <div style={{ ...styles.toast, backgroundColor: "#ffe8e6", color: "#a33" }}>⚠️ {error}</div>}
+        {mensaje && <div style={{ ...styles.toast, backgroundColor: "#e7f9ed", color: "#1e7e34" }}>✅ {mensaje}</div>}
       </div>
 
       {/* ====== FORM: CREAR ====== */}
-      {tipo === "cliente" && (
-        <section className="card" aria-label="Crear">
-          <div className="cardHeader">
-            <h2 className="cardTitle">Crear {capitalize(tipo)}</h2>
+      <section style={styles.card} aria-label="Crear">
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Crear {capitalize(tipo)}</h2>
+        </div>
+        <form onSubmit={handleCrear}>
+          <div style={styles.grid2}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Nombre</label>
+              <input
+                style={styles.input}
+                placeholder="Ej. Ana"
+                value={formCrear.nombre}
+                onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
+                required
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Apellido</label>
+              <input
+                style={styles.input}
+                placeholder="Ej. Pérez"
+                value={formCrear.apellido}
+                onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
+                required
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Email</label>
+              <input
+                style={styles.input}
+                type="email"
+                placeholder="nombre@dominio.com"
+                value={formCrear.email}
+                onChange={(e) => setFormCrear({ ...formCrear, email: e.target.value })}
+                required
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Password</label>
+              <input
+                style={styles.input}
+                type="password"
+                placeholder="••••••••"
+                value={formCrear.password}
+                onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })}
+                required
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Teléfono</label>
+              <input
+                style={styles.input}
+                placeholder="Ej. 0999999999"
+                value={formCrear.telefono}
+                onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
+              />
+            </div>
           </div>
-          <form onSubmit={handleCrear}>
-            <div className="grid2">
-              <div className="formGroup">
-                <label className="label">Nombre</label>
-                <input
-                  className="input"
-                  placeholder="Ej. Ana"
-                  value={formCrear.nombre}
-                  onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Apellido</label>
-                <input
-                  className="input"
-                  placeholder="Ej. Pérez"
-                  value={formCrear.apellido}
-                  onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Email</label>
-                <input
-                  className="input"
-                  type="email"
-                  placeholder="nombre@dominio.com"
-                  value={formCrear.email}
-                  onChange={(e) => setFormCrear({ ...formCrear, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Password</label>
-                <input
-                  className="input"
-                  type="password"
-                  placeholder="••••••••"
-                  value={formCrear.password}
-                  onChange={(e) => setFormCrear({ ...formCrear, password: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="formGroup">
-                <label className="label">Teléfono</label>
-                <input
-                  className="input"
-                  placeholder="Ej. 0999999999"
-                  value={formCrear.telefono}
-                  onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
-                />
-              </div>
-            </div>
 
-            <div className="cardFooter">
-              <button className="btn primary" type="submit">Crear</button>
-              <button
-                className="btn ghost"
-                type="button"
-                onClick={() => setFormCrear(emptyForm)}
-                title="Limpiar formulario"
-              >
-                Limpiar
-              </button>
-            </div>
-          </form>
-        </section>
-      )}
+          <div style={styles.cardFooter}>
+            <button style={styles.btnPrimary} type="submit">Crear</button>
+            <button
+              style={styles.btnGhost}
+              type="button"
+              onClick={() => setFormCrear(emptyForm)}
+              title="Limpiar formulario"
+            >
+              Limpiar
+            </button>
+          </div>
+        </form>
+      </section>
 
       {/* ====== FORM: EDITAR ====== */}
       {formEditar.id && (
-        <section className="card" aria-label="Editar">
-          <div className="cardHeader">
-            <h2 className="cardTitle">Editar {capitalize(tipo)}</h2>
+        <section style={styles.card} aria-label="Editar">
+          <div style={styles.cardHeader}>
+            <h2 style={styles.cardTitle}>Editar {capitalize(tipo)}</h2>
           </div>
           <form onSubmit={handleActualizar}>
-            <div className="grid2">
-              <div className="formGroup">
-                <label className="label">Nombre</label>
+            <div style={styles.grid2}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Nombre</label>
                 <input
-                  className="input"
+                  style={styles.input}
                   value={formEditar.nombre}
                   onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
                   required
                 />
               </div>
-              <div className="formGroup">
-                <label className="label">Apellido</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Apellido</label>
                 <input
-                  className="input"
+                  style={styles.input}
                   value={formEditar.apellido}
                   onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })}
                   required
                 />
               </div>
-              <div className="formGroup">
-                <label className="label">Email</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Email</label>
                 <input
-                  className="input"
+                  style={styles.input}
                   type="email"
                   value={formEditar.email}
                   onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
                   required
                 />
               </div>
-              <div className="formGroup">
-                <label className="label">Password (opcional)</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Password (opcional)</label>
                 <input
-                  className="input"
+                  style={styles.input}
                   type="password"
                   value={formEditar.password}
                   onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
                 />
               </div>
-              <div className="formGroup">
-                <label className="label">Teléfono</label>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Teléfono</label>
                 <input
-                  className="input"
+                  style={styles.input}
                   value={formEditar.telefono}
                   onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
                 />
               </div>
             </div>
 
-            <div className="cardFooter">
-              <button className="btn primary" type="submit">Actualizar</button>
+            <div style={styles.cardFooter}>
+              <button style={styles.btnPrimary} type="submit">Actualizar</button>
               <button
-                className="btn secondary"
+                style={styles.btnSecondary}
                 type="button"
                 onClick={() => setFormEditar({ id: null, ...emptyForm })}
               >
@@ -880,50 +894,35 @@ const Table = () => {
         </section>
       )}
 
-      {/* ====== LISTADO ====== */}
-      <section aria-label="Listado principal" className="card">
-        <div className="cardHeader">
-          <h2 className="cardTitle">Listado de {capitalize(tipo)}s</h2>
+      {/* ====== TABLA PRINCIPAL ====== */}
+      <section aria-label="Listado principal" style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Listado de {capitalize(tipo)}s</h2>
         </div>
 
-        <div className="tableWrap">
-          <table className="table">
+        <div style={{ overflowX: "auto" }}>
+          <table style={styles.table}>
             <thead>
               <tr>
-                <th className="th">#</th>
-                <th className="th">Nombre</th>
-                <th className="th">Apellido</th>
-                <th className="th">Email</th>
-                <th className="th">Teléfono</th>
-                <th className="th">Estado</th>
-                <th className="th">Acciones</th>
+                <th style={styles.th}>#</th>
+                <th style={styles.th}>Nombre</th>
+                <th style={styles.th}>Apellido</th>
+                <th style={styles.th}>Email</th>
+                <th style={styles.th}>Teléfono</th>
+                <th style={styles.th}>Estado</th>
+                <th style={styles.th}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loadingLista && (
-                <>
-                  {Array.from({ length: 6 }).map((_, idx) => (
-                    <tr key={`skeleton-${idx}`}>
-                      <td className="td"><div className="skl w40" /></td>
-                      <td className="td"><div className="skl" /></td>
-                      <td className="td"><div className="skl" /></td>
-                      <td className="td"><div className="skl" /></td>
-                      <td className="td"><div className="skl w80" /></td>
-                      <td className="td"><div className="skl w80" /></td>
-                      <td className="td"><div className="skl w120" /></td>
-                    </tr>
-                  ))}
-                </>
+                <tr>
+                  <td colSpan="7" style={styles.emptyCell}>Cargando datos…</td>
+                </tr>
               )}
 
-              {!loadingLista && lista.filter((x) => {
-                const q = search.toLowerCase();
-                if (!q) return true;
-                const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
-                return campos.some((c) => c.includes(q));
-              }).length === 0 && (
+              {!loadingLista && listaFiltrada.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="emptyCell">
+                  <td colSpan="7" style={styles.emptyCell}>
                     <div style={{ fontSize: 24 }}>🗂️</div>
                     <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
                   </td>
@@ -931,180 +930,303 @@ const Table = () => {
               )}
 
               {!loadingLista &&
-                lista.filter((x) => {
-                  const q = search.toLowerCase();
-                  if (!q) return true;
-                  const campos = [x.nombre, x.apellido, x.email, x.telefono].map((v) => String(v || "").toLowerCase());
-                  return campos.some((c) => c.includes(q));
-                }).map((item, i) => (
+                listaFiltrada.map((item, i) => (
                   <React.Fragment key={item._id}>
                     <tr
-                      className={`row ${expandido === item._id ? "rowActive" : ""}`}
+                      style={{
+                        backgroundColor: expandido === item._id ? "#f5faff" : "white",
+                        cursor: "pointer",
+                      }}
                       onClick={() => toggleExpandido(item._id, item)}
                       aria-expanded={expandido === item._id}
                     >
-                      <td className="td">{i + 1}</td>
-                      <td className="td">
-                        <span className="nameStrong">{item.nombre}</span>
+                      <td style={styles.td}>{i + 1}</td>
+                      <td style={styles.td}>
+                        <span style={{ fontWeight: 600 }}>{item.nombre}</span>
                         <EstadoBadge estado={getEstado(item)} />
                       </td>
-                      <td className="td">{item.apellido}</td>
-                      <td className="td">{item.email}</td>
-                      <td className="td">{item.telefono || "N/A"}</td>
+                      <td style={styles.td}>{item.apellido}</td>
+                      <td style={styles.td}>{item.email}</td>
+                      <td style={styles.td}>{item.telefono || "N/A"}</td>
 
-                      <td className="td">
-                        <div className="inline">
-                          <label htmlFor={`sel-${item._id}`} className="labelInlineSmall">Estado:</label>
+                      {/* ESTADO editable inline */}
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <select
-                            id={`sel-${item._id}`}
                             aria-label="Cambiar estado/advertencia"
                             value={getEstado(item)}
-                            onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value, 'estado'); }}
-                            className="select"
+                            onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value); }}
+                            style={styles.select}
                             onClick={(e) => e.stopPropagation()}
                           >
                             {getEstadosPermitidos().map((opt) => (
                               <option key={opt} value={opt}>{opt}</option>
                             ))}
                           </select>
+                          <EstadoBadge estado={getEstado(item)} />
                         </div>
                       </td>
 
-                      <td className="td">
-                        <div className="actions">
+                      {/* ACCIONES */}
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                           <button
-                            className="btn tiny"
-                            onClick={(e) => { e.stopPropagation(); prepararEditar(item); }}
-                            title="Editar"
+                            style={styles.btnTiny}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              prepararEditar(item);
+                            }}
                           >
                             ✏️ Editar
                           </button>
                           <button
-                            className="btn tiny danger"
-                            onClick={(e) => { e.stopPropagation(); solicitarEliminar(item); }}
-                            title="Eliminar"
+                            style={styles.btnTinyDanger}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              solicitarEliminar(item);
+                            }}
                           >
                             🗑️ Eliminar
                           </button>
-                          {tipo === 'cliente' && (
-                            <button
-                              className={`btn tiny ${getEstado(item) === "Suspendido" ? "disabled" : "warn"}`}
-                              disabled={getEstado(item) === "Suspendido"}
-                              title={getEstado(item) === "Suspendido" ? "Ya está suspendido" : "Aplicar siguiente advertencia"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const next = siguienteAdvertencia(getEstado(item));
-                                openEstadoModal(item, next, 'advertir');
-                              }}
-                            >
-                              ⚠️ Advertencia
-                            </button>
-                          )}
+                          <button
+                            style={styles.btnTinySuccess}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirChat(item);
+                            }}
+                          >
+                            💬 Chatear
+                          </button>
                         </div>
                       </td>
                     </tr>
 
-                    {/* DETALLES EXPANDIDOS */}
+                    {/* DETALLES */}
                     {expandido === item._id && (
-                      <tr>
-                        <td colSpan="7" className="detailsCell">
-                          <div className="detailsGrid">
-                            <div className="detailItem">
-                              <div className="detailLabel">Nombre completo</div>
-                              <div className="detailValue">{item.nombre} {item.apellido}</div>
+                      <>
+                        <tr>
+                          <td colSpan="7" style={styles.detailsCell}>
+                            <div style={styles.detailsGrid}>
+                              <div style={styles.detailItem}>
+                                <div style={styles.detailLabel}>Nombre completo</div>
+                                <div style={styles.detailValue}>{item.nombre} {item.apellido}</div>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <div style={styles.detailLabel}>Email</div>
+                                <div style={styles.detailValue}>{item.email}</div>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <div style={styles.detailLabel}>Teléfono</div>
+                                <div style={styles.detailValue}>{item.telefono || "N/A"}</div>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <div style={styles.detailLabel}>Creado</div>
+                                <div style={styles.detailValue}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
+                              </div>
+                              <div style={styles.detailItem}>
+                                <div style={styles.detailLabel}>Actualizado</div>
+                                <div style={styles.detailValue}>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
+                              </div>
                             </div>
-                            <div className="detailItem">
-                              <div className="detailLabel">Email</div>
-                              <div className="detailValue">{item.email}</div>
-                            </div>
-                            <div className="detailItem">
-                              <div className="detailLabel">Teléfono</div>
-                              <div className="detailValue">{item.telefono || "N/A"}</div>
-                            </div>
-                            <div className="detailItem">
-                              <div className="detailLabel">Creado</div>
-                              <div className="detailValue">{safeDateStrWithFallback(item.createdAt, item._id)}</div>
-                            </div>
-                            <div className="detailItem">
-                              <div className="detailLabel">Actualizado</div>
-                              <div className="detailValue">{safeDateStrWithFallback(item.updatedAt, item._id)}</div>
-                            </div>
-                          </div>
+                          </td>
+                        </tr>
 
-                          {/* HISTORIAL */}
-                          {tipo === "cliente" && (
-                            <div className="histWrap">
-                              <div className="sectionHeader">
-                                <h4 className="sectionTitle">Historial de Advertencias / Suspensiones</h4>
-                                <div className="inline">
+                        {tipo === "emprendedor" && (
+                          <tr>
+                            <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
+                              {/* Filtros de fecha */}
+                              <div style={styles.filtersRow}>
+                                <div style={{ fontWeight: 600 }}>Filtrar por fecha</div>
+                                <div style={styles.filtersGroup}>
+                                  <label style={styles.labelInline}>
+                                    Desde
+                                    <input
+                                      type="date"
+                                      value={rangoFechas.from}
+                                      onChange={(e) => setRangoFechas((s) => ({ ...s, from: e.target.value }))}
+                                      style={styles.inputInline}
+                                    />
+                                  </label>
+                                  <label style={styles.labelInline}>
+                                    Hasta
+                                    <input
+                                      type="date"
+                                      value={rangoFechas.to}
+                                      onChange={(e) => setRangoFechas((s) => ({ ...s, to: e.target.value }))}
+                                      style={styles.inputInline}
+                                    />
+                                  </label>
                                   <button
-                                    className="btn tiny"
-                                    onClick={async (e) => {
+                                    style={styles.btnTiny}
+                                    onClick={(e) => {
                                       e.stopPropagation();
-                                      await cargarAuditoriaCliente(item._id, mapAuditoria[item._id]?.page || 1, mapAuditoria[item._id]?.limit || 10);
-                                      setMensaje("Historial actualizado");
+                                      const emp = lista.find((x) => x._id === expandido);
+                                      if (emp) cargarNestedParaEmprendedor(emp);
                                     }}
                                   >
-                                    ↻ Actualizar
+                                    Aplicar
+                                  </button>
+                                  <button
+                                    style={styles.btnTiny}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRangoFechas({ from: "", to: "" });
+                                    }}
+                                  >
+                                    Limpiar
                                   </button>
                                 </div>
                               </div>
 
-                              <div className="tableWrap">
-                                <table className="table mt8">
-                                  <thead>
-                                    <tr>
-                                      <th className="th">Fecha</th>
-                                      <th className="th">Tipo</th>
-                                      <th className="th">Motivo</th>
-                                      <th className="th">Origen</th>
-                                      <th className="th">Modificado por</th>
-                                      <th className="th">IP</th>
-                                      <th className="th">User-Agent</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {(mapAuditoria[item._id]?.loading) && (
-                                      <tr><td colSpan="7" className="emptyCell">Cargando historial…</td></tr>
-                                    )}
-
-                                    {!mapAuditoria[item._id]?.loading &&
-                                      (mapAuditoria[item._id]?.items || []).length === 0 && (
-                                      <tr><td colSpan="7" className="emptyCell">Sin registros.</td></tr>
-                                    )}
-
-                                    {!mapAuditoria[item._id]?.loading &&
-                                      (mapAuditoria[item._id]?.items || []).map((a, idx) => (
-                                      <tr key={`${a._id || idx}`}>
-                                        <td className="td">{safeDateStr(a.fecha)}</td>
-                                        <td className="td">{a.tipo || "—"}</td>
-                                        <td className="td">{a.motivo || "—"}</td>
-                                        <td className="td">{a.origen || "—"}</td>
-                                        <td className="td">{displayActorName(a)}</td>
-                                        <td className="td">{a.ip || "—"}</td>
-                                        <td className="td" title={a.userAgent || ""}>
-                                          {a.userAgent ? (a.userAgent.length > 24 ? a.userAgent.slice(0,24) + "…" : a.userAgent) : "—"}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-
-                              <div className="paginate">
-                                <div className="muted">Total: <strong>{mapAuditoria[item._id]?.total || 0}</strong></div>
-                                <div className="inline">
-                                  <button className="btn tiny" onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, -1); }}>◀ Anterior</button>
-                                  <span className="muted">
-                                    {mapAuditoria[item._id]?.page || 1} / {Math.max(1, Math.ceil((mapAuditoria[item._id]?.total || 0) / (mapAuditoria[item._id]?.limit || 10)))}
-                                  </span>
-                                  <button className="btn tiny" onClick={(e) => { e.stopPropagation(); onPaginarAud(item._id, +1); }}>Siguiente ▶</button>
+                              {/* Emprendimientos */}
+                              <div style={{ marginBottom: 18 }}>
+                                <div style={styles.sectionHeader}>
+                                  <h4 style={styles.sectionTitle}>Emprendimientos</h4>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button
+                                      style={styles.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const emps = mapEmpEmprendimientos[item._id] || [];
+                                        exportCSV(
+                                          emps.map((e) => ({
+                                            nombreComercial: e.nombreComercial || "",
+                                            ciudad: e?.ubicacion?.ciudad || "",
+                                            creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
+                                          })),
+                                          `emprendimientos_${item.nombre}_${item.apellido}`
+                                        );
+                                      }}
+                                    >
+                                      Exportar CSV
+                                    </button>
+                                    <button
+                                      style={styles.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const emps = mapEmpEmprendimientos[item._id] || [];
+                                        exportPDF(
+                                          `Emprendimientos de ${item.nombre} ${item.apellido}`,
+                                          emps,
+                                          mapperEmprendimientos
+                                        );
+                                      }}
+                                    >
+                                      Exportar PDF
+                                    </button>
+                                  </div>
                                 </div>
+
+                                {loadingNested ? (
+                                  <div style={styles.emptyCell}>Cargando emprendimientos…</div>
+                                ) : (
+                                  <table style={{ ...styles.table, marginTop: 8 }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={styles.th}>Nombre Comercial</th>
+                                        <th style={styles.th}>Ciudad</th>
+                                        <th style={styles.th}>Creado</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
+                                        <tr><td colSpan="3" style={styles.emptyCell}>Sin emprendimientos en el rango.</td></tr>
+                                      ) : (
+                                        (mapEmpEmprendimientos[item._id] || []).map((e) => (
+                                          <tr key={e._id}>
+                                            <td style={styles.td}>{e.nombreComercial}</td>
+                                            <td style={styles.td}>{e?.ubicacion?.ciudad || "—"}</td>
+                                            <td style={styles.td}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}</td>
+                                          </tr>
+                                        ))
+                                      )}
+                                    </tbody>
+                                  </table>
+                                )}
                               </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+
+                              {/* Productos */}
+                              <div>
+                                <div style={styles.sectionHeader}>
+                                  <h4 style={styles.sectionTitle}>Productos</h4>
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button
+                                      style={styles.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const prods = mapEmpProductos[item._id] || [];
+                                        exportCSV(
+                                          prods.map((p) => ({
+                                            producto: p.nombre || "",
+                                            precio: typeof p.precio === "number" ? p.precio : "",
+                                            stock: p.stock ?? "",
+                                            emprendimiento: p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
+                                            creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
+                                          })),
+                                          `productos_${item.nombre}_${item.apellido}`
+                                        );
+                                      }}
+                                    >
+                                      Exportar CSV
+                                    </button>
+                                    <button
+                                      style={styles.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const prods = mapEmpProductos[item._id] || [];
+                                        exportPDF(
+                                          `Productos de ${item.nombre} ${item.apellido}`,
+                                          prods,
+                                          mapperProductos
+                                        );
+                                      }}
+                                    >
+                                      Exportar PDF
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {loadingNested ? (
+                                  <div style={styles.emptyCell}>Cargando productos…</div>
+                                ) : (
+                                  <table style={{ ...styles.table, marginTop: 8 }}>
+                                    <thead>
+                                      <tr>
+                                        <th style={styles.th}>Producto</th>
+                                        <th style={styles.th}>Precio</th>
+                                        <th style={styles.th}>Stock</th>
+                                        <th style={styles.th}>Emprendimiento</th>
+                                        <th style={styles.th}>Creado</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(mapEmpProductos[item._id] || []).length === 0 ? (
+                                        <tr><td colSpan="5" style={styles.emptyCell}>Sin productos en el rango.</td></tr>
+                                      ) : (
+                                        (mapEmpProductos[item._id] || []).map((p) => (
+                                          <tr key={p._id}>
+                                            <td style={styles.td}>{p.nombre}</td>
+                                            <td style={styles.td}>
+                                              {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
+                                            </td>
+                                            <td style={styles.td}>{p.stock ?? "—"}</td>
+                                            <td style={styles.td}>
+                                              {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
+                                            </td>
+                                            <td style={styles.td}>
+                                              {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      )}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     )}
                   </React.Fragment>
                 ))}
@@ -1113,54 +1235,88 @@ const Table = () => {
         </div>
       </section>
 
-      {/* ====== MODAL: CAMBIO DE ESTADO / ADVERTENCIA ====== */}
+      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ====== */}
       {estadoModal.visible && tipo === "cliente" && (
-        <div className="modalOverlay" onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
-          <div className="modal" role="dialog" aria-modal="true" aria-label="Confirmar">
-            <div className="modalHeader">
-              <h3 className="modalTitle">
-                {estadoModal.mode === 'advertir' ? 'Aplicar advertencia' : 'Cambiar estado'}:&nbsp;
-                <span className="pill soft">
-                  {estadoModal.item ? getEstado(estadoModal.item) : "—"} → {estadoModal.nuevoEstado || "—"}
-                </span>
+        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
+          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0 }}>
+                Cambiar estado a {estadoModal.nuevoEstado}
               </h3>
-              <button className="btn close" onClick={closeEstadoModal} aria-label="Cerrar">✖</button>
+              <button style={styles.btnClose} onClick={closeEstadoModal}>Cerrar</button>
             </div>
 
-            <div className="modalBody">
-              <div className="formGroup">
-                <label className="label">Motivo <span className="req">*</span></label>
+            <div style={styles.modalBody}>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
+                  Motivo <span style={{ color: "#dc2626" }}>*</span>
+                </label>
                 <textarea
                   rows={4}
                   value={estadoModal.motivo}
                   onChange={(e) => setEstadoModal((s) => ({ ...s, motivo: e.target.value }))}
                   placeholder="Describe brevemente el motivo…"
-                  className="input"
-                  style={{ resize: "vertical" }}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: 10,
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    resize: "vertical"
+                  }}
                 />
               </div>
 
               {estadoModal.nuevoEstado === "Suspendido" && (
-                <div className="formGroup">
-                  <label className="label">Suspensión hasta (opcional)</label>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
+                    Suspensión hasta (opcional)
+                  </label>
                   <input
                     type="datetime-local"
                     value={estadoModal.suspendidoHasta}
                     onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
-                    className="input"
+                    style={{
+                      width: "100%",
+                      marginTop: 6,
+                      padding: 10,
+                      borderRadius: 8,
+                      border: "1px solid #cbd5e1",
+                    }}
                   />
-                  <small className="muted">
-                    Si lo dejas vacío: suspensión indefinida hasta reactivación manual o automática si vence.
+                  <small style={{ color: "#6b7280" }}>
+                    Si lo dejas vacío, la suspensión será indefinida hasta reactivación manual.
                   </small>
                 </div>
               )}
             </div>
 
-            <div className="modalFooter">
-              <button className="btn secondary" onClick={closeEstadoModal}>Cancelar</button>
-              <button className="btn primary" onClick={updateEstadoClienteConfirmed}>
+            <div style={styles.modalFooter}>
+              <button style={styles.btnSecondary} onClick={closeEstadoModal}>Cancelar</button>
+              <button style={styles.btnPrimary} onClick={updateEstadoClienteConfirmed}>
                 Confirmar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====== MODAL CONFIRM ELIMINACIÓN ====== */}
+      {confirmDelete.visible && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0 }}>Confirmar eliminación</h3>
+              <button style={styles.btnClose} onClick={cancelarEliminar}>Cerrar</button>
+            </div>
+            <div style={styles.modalBody}>
+              <p style={{ marginTop: 0 }}>
+                ¿Eliminar {capitalize(tipo)} <strong>{confirmDelete.nombre}</strong>? Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div style={styles.modalFooter}>
+              <button style={styles.btnSecondary} onClick={cancelarEliminar}>Cancelar</button>
+              <button style={styles.btnDanger} onClick={confirmarEliminar}>Eliminar</button>
             </div>
           </div>
         </div>
@@ -1170,103 +1326,293 @@ const Table = () => {
 };
 
 /* ===========================
-   CSS (Responsivo + UX)
+   ESTILOS
 =========================== */
-const css = `
-:root{
-  --bg:#f8fafc; --card:#ffffff; --bd:#e2e8f0; --bd-strong:#0ea5e9;
-  --txt:#1f2937; --muted:#64748b; --muted2:#475569;
-  --ok:#0ea5e9; --ok-strong:#0284c7; --warn:#f59e0b; --danger:#dc2626; --success:#16a34a;
-  --shadow:0 1px 4px rgba(0,0,0,0.05); --shadow-lg:0 10px 25px rgba(0,0,0,0.15);
-  --radius:12px; --radius-sm:8px; --space:16px;
-}
-*{box-sizing:border-box}
-.wrap{ max-width: 1100px; margin: auto; padding: 16px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--txt); }
-.hdr{ display:grid; grid-template-columns: 1fr auto; gap:12px; align-items:center; margin-bottom:16px; }
-.ttl{ margin:0; font-size:24px; font-weight:800; }
-.subTtl{ margin-top:4px; color:var(--muted); font-size:13px; }
-.toolbar{ display:flex; gap:12px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
-.segmented{ display:inline-flex; border:1px solid var(--bd); border-radius: var(--radius-sm); overflow:hidden; background:#fff; }
-.segBtn{ padding:8px 12px; background:#fff; color:#334155; border:none; cursor:pointer; font-weight:700; }
-.segBtn.active{ background:var(--ok); color:#fff; }
-.searchBox{ display:flex; gap:8px; align-items:center; }
-.searchInput{
-  width:280px; max-width:60vw; padding:8px 10px; border-radius: var(--radius-sm);
-  border:1px solid var(--bd); outline:none;
-}
-.toastRegion{ position:fixed; top:14px; right:14px; display:grid; gap:8px; z-index:10000; }
-.toast{ padding:10px 12px; border-radius:10px; box-shadow: var(--shadow); font-size:13px; min-width:240px; }
-.toastErr{ background:#ffe8e6; color:#a33; }
-.toastOk{ background:#e7f9ed; color:#1e7e34; }
-.card{ margin-bottom: 16px; padding: 16px; border:1px solid var(--bd); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
-.cardHeader{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.cardTitle{ margin:0; font-size:18px; font-weight:800; }
-.cardFooter{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
-.grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
-.formGroup{ display:flex; flex-direction:column; gap:6px; }
-.label{ font-size:13px; color:var(--muted2); font-weight:700; }
-.input{ width:100%; padding:10px; border-radius: var(--radius-sm); border:1px solid var(--bd); outline:none; background:#fff; }
-.labelInlineSmall{ font-size:12px; color:var(--muted); margin-right:6px; }
-.btn{
-  padding:10px 16px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-weight:700;
-  background:#fff; color:#0ea5e9; border:1px solid var(--ok);
-}
-.btn.primary{ background: var(--ok); color:#fff; border:none; }
-.btn.primary:hover{ background: var(--ok-strong); }
-.btn.secondary{ background:#64748b; color:#fff; }
-.btn.ghost{ background:#ffffff; color:var(--ok); border:1px solid var(--ok); }
-.btn.danger{ background: var(--danger); color:#fff; border:none; }
-.btn.warn{ background: var(--warn); color:#fff; border:none; }
-.btn.disabled{ opacity:.5; cursor:not-allowed; }
-.btn.tiny{ padding:6px 10px; border-radius:6px; font-size:13px; }
-.inline{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.tableWrap{ overflow-x:auto; }
-.table{ width:100%; border-collapse: collapse; }
-.th{
-  border-bottom: 2px solid var(--bd-strong); padding:10px; text-align:left; background:#eaf7ff;
-  font-weight:800; font-size:13px; color:var(--txt); position:sticky; top:0; z-index:1;
-}
-.td{ border-bottom:1px solid #e5e7eb; padding:10px; vertical-align: top; font-size:14px; }
-.row{ background:#fff; cursor:pointer; }
-.row:hover{ background:#f8fbff; }
-.rowActive{ background:#f5faff; }
-.nameStrong{ font-weight:800; margin-right:6px; }
-.select{ padding:8px 10px; border-radius: var(--radius-sm); border:1px solid var(--bd); background:#fff; }
-.actions{ display:flex; gap:6px; flex-wrap:wrap; }
-.emptyCell{ text-align:center; padding:20px; color:#666; font-size:14px; }
-.detailsCell{ padding:12px; background:#f7fbff; border-top:1px solid #e6eef8; }
-.detailsGrid{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
-.detailItem{ padding:10px; border:1px solid var(--bd); border-radius:10px; background:#fff; }
-.detailLabel{ font-size:12px; color:var(--muted); font-weight:700; margin-bottom:4px; }
-.detailValue{ font-size:14px; color:var(--txt); }
-.sectionHeader{ display:flex; justify-content:space-between; align-items:center; }
-.sectionTitle{ margin:0; color:#0ea5e9; }
-.mt8{ margin-top:8px; }
-.muted{ color:#64748b; font-size:13px; }
-.paginate{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
-.pill{
-  display:inline-block; margin-left:6px; padding:2px 10px; border-radius:999px; font-size:12px; color:#fff; line-height:18px;
-}
-.pill.soft{ background:#0ea5e922; color:#0ea5e9; border:1px solid #0ea5e944; padding:2px 8px; }
-.skl{ height:14px; width:100%; background:linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
-.skl.w40{ width:40px; } .skl.w80{ width:80px; } .skl.w120{ width:120px; }
-.modalOverlay{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; justify-content:center; align-items:center; z-index:9999; padding:12px; }
-.modal{
-  background:#fff; border-radius: var(--radius); width:520px; max-width:95%; box-shadow: var(--shadow-lg);
-  display:flex; flex-direction:column; overflow:hidden;
-}
-.modalHeader{ padding:12px 16px; background:#0ea5e9; color:#fff; display:flex; justify-content:space-between; align-items:center; font-weight:800; font-size:16px; }
-.modalTitle{ margin:0; }
-.modalBody{ padding:16px; min-height:120px; font-size:14px; color:#333; overflow-y:auto; }
-.modalFooter{ padding:12px; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:8px; }
-.req{ color:#dc2626; }
+const styles = {
+  container: {
+    maxWidth: 1080,
+    margin: "auto",
+    padding: 20,
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    color: "#1f2937",
+  },
+  header: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  title: { margin: 0, fontSize: 24, fontWeight: 800 },
+  subTitle: { marginTop: 4, color: "#64748b", fontSize: 13 },
+  actionsBar: { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" },
 
-@media (max-width: 768px){
-  .hdr{ grid-template-columns: 1fr; }
-  .grid2{ grid-template-columns: 1fr; }
-  .searchInput{ width:100%; max-width:100%; }
-  .detailsGrid{ grid-template-columns: 1fr; }
-}
-`;
+  segmented: {
+    display: "inline-flex",
+    border: "1px solid #cbd5e1",
+    borderRadius: 8,
+    overflow: "hidden",
+    background: "#fff",
+  },
+  segmentedBtn: {
+    padding: "8px 12px",
+    backgroundColor: "#fff",
+    color: "#334155",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+  segmentedActive: {
+    padding: "8px 12px",
+    backgroundColor: "#0ea5e9",
+    color: "white",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+
+  searchBox: { display: "flex", gap: 8, alignItems: "center" },
+  searchInput: {
+    width: 280,
+    maxWidth: "60vw",
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    outline: "none",
+  },
+  refreshBtn: {
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    background: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  toastRegion: { position: "fixed", top: 14, right: 14, display: "grid", gap: 8, zIndex: 10000 },
+  toast: {
+    padding: "10px 12px",
+    borderRadius: 10,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+    fontSize: 13,
+    minWidth: 240,
+  },
+
+  card: {
+    marginBottom: 20,
+    padding: 16,
+    border: "1px solid #e2e8f0",
+    borderRadius: 12,
+    backgroundColor: "#ffffff",
+    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+  },
+  cardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
+  cardTitle: { margin: 0, fontSize: 18, fontWeight: 700 },
+  cardFooter: { display: "flex", gap: 8, marginTop: 8 },
+
+  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
+  formGroup: { display: "flex", flexDirection: "column", gap: 6 },
+  label: { fontSize: 13, color: "#475569", fontWeight: 600 },
+  input: {
+    width: "100%",
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    boxSizing: "border-box",
+    outline: "none",
+  },
+
+  btnPrimary: {
+    padding: "10px 16px",
+    backgroundColor: "#0ea5e9",
+    color: "white",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  btnSecondary: {
+    padding: "10px 16px",
+    backgroundColor: "#64748b",
+    color: "white",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+  btnGhost: {
+    padding: "10px 16px",
+    backgroundColor: "#ffffff",
+    color: "#0ea5e9",
+    border: "1px solid #0ea5e9",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  th: {
+    borderBottom: "2px solid #0ea5e9",
+    padding: 10,
+    textAlign: "left",
+    backgroundColor: "#eaf7ff",
+    fontWeight: 700,
+    fontSize: 13,
+    color: "#1f2937",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+  },
+  td: {
+    borderBottom: "1px solid #e5e7eb",
+    padding: 10,
+    verticalAlign: "top",
+    fontSize: 14,
+  },
+
+  select: {
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#fff",
+  },
+
+  btnTiny: {
+    padding: "6px 10px",
+    backgroundColor: "#0ea5e9",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  btnTinyDanger: {
+    padding: "6px 10px",
+    backgroundColor: "#dc3545",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  btnTinySuccess: {
+    padding: "6px 10px",
+    backgroundColor: "#22c55e",
+    color: "white",
+    border: "none",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 700,
+  },
+
+  emptyCell: {
+    textAlign: "center",
+    padding: 20,
+    color: "#666",
+    fontSize: 14,
+  },
+
+  detailsCell: {
+    padding: 12,
+    backgroundColor: "#f7fbff",
+    borderTop: "1px solid #e6eef8",
+  },
+  detailsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 12,
+  },
+  detailItem: {
+    padding: 10,
+    border: "1px solid #e2e8f0",
+    borderRadius: 10,
+    background: "#fff",
+  },
+  detailLabel: { fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 4 },
+  detailValue: { fontSize: 14, color: "#1f2937" },
+
+  filtersRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  filtersGroup: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  labelInline: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569", fontWeight: 600 },
+  inputInline: {
+    padding: "6px 8px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    backgroundColor: "#fff",
+    outline: "none",
+  },
+
+  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
+  sectionTitle: { margin: 0, color: "#0ea5e9" },
+
+  modalOverlay: {
+    position: "fixed",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+    padding: 12,
+  },
+  modal: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    width: 520,
+    maxWidth: "95%",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    padding: "12px 16px",
+    backgroundColor: "#0ea5e9",
+    color: "white",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  btnClose: {
+    backgroundColor: "#dc3545",
+    border: "none",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    padding: "6px 10px",
+    borderRadius: 8,
+  },
+  modalBody: {
+    padding: 16,
+    minHeight: 120,
+    fontSize: 14,
+    color: "#333",
+    overflowY: "auto",
+  },
+  modalFooter: {
+    padding: 12,
+    borderTop: "1px solid #e5e7eb",
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
+  btnDanger: {
+    padding: "10px 16px",
+    backgroundColor: "#dc3545",
+    color: "white",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: 700,
+  },
+};
 
 export default Table;
