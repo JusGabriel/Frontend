@@ -153,7 +153,7 @@ const Login = () => {
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className="page-container">
       <ToastContainer />
 
       {/* Animación */}
@@ -162,14 +162,50 @@ const Login = () => {
           0% { transform: translateY(0) scale(1); opacity: 0.7; }
           100% { transform: translateY(-110vh) scale(1.3); opacity: 0; }
         }
+
+        /* ========== RESPONSIVE ========== */
+        .login-card {
+          width: min(95vw, 850px) !important;
+          height: auto !important;              /* evita desbordes verticales */
+          max-height: none !important;
+          border-radius: 25px;
+        }
+        .login-form {
+          padding: 2rem;
+        }
+        .estado-banner {
+          max-height: 28vh;                     /* banner nunca ocupa todo el alto */
+          overflow: auto;
+        }
+        .form-inner {
+          max-width: 480px;                     /* un poquito más cómodo en pantallas medianas */
+          width: 100%;
+        }
+        @media (max-width: 900px) {
+          .login-left { display: none !important; } /* ocultar imagen lateral para ganar espacio */
+          .login-form { padding: 1.25rem !important; }
+          .form-inner { max-width: 100% !important; }
+        }
+        @media (max-width: 600px) {
+          .login-card { border-radius: 16px !important; box-shadow: 0 6px 24px rgba(0,0,0,0.18) !important; }
+          .estado-banner { font-size: 0.92rem; }
+        }
+        @media (max-height: 700px) {
+          /* cuando el alto es pequeño, permitimos scroll del body contenedor */
+          .page-container { align-items: flex-start !important; padding-top: 16px !important; }
+        }
+        /* Accesibilidad: reducir movimiento si el usuario lo prefiere */
+        @media (prefers-reduced-motion: reduce) {
+          .bubble { animation: none !important; }
+        }
       `}</style>
 
       <div style={backgroundStyle} />
       <Bubbles />
 
-      <div style={cardStyle}>
+      <div style={cardStyle} className="login-card">
         {/* Imagen lateral */}
-        <div style={leftPanelStyle}>
+        <div style={leftPanelStyle} className="login-left">
           <img
             src={panecillo}
             alt="Panecillo"
@@ -184,11 +220,11 @@ const Login = () => {
         </div>
 
         {/* Formulario */}
-        <div style={formContainerStyle}>
+        <div style={formContainerStyle} className="login-form">
           {/* Banner de advertencia/suspensión */}
           {estadoBanner && (
             <div
-              className={`mb-4 p-3 rounded-lg text-center font-semibold text-base
+              className={`mb-4 p-3 rounded-lg text-center font-semibold text-base estado-banner
                 ${estadoBanner.tipo === 'Suspendido'
                   ? 'bg-red-100 border border-red-400 text-red-800'
                   : 'bg-yellow-100 border border-yellow-400 text-yellow-800'
@@ -234,7 +270,7 @@ const Login = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(loginUser)} style={formStyle}>
+          <form onSubmit={handleSubmit(loginUser)} style={formStyle} className="form-inner">
             <h1 style={{ fontSize: '1.8rem', fontWeight: '600', textAlign: 'center', marginBottom: '0.3rem', color: '#3B2F2F' }}>
               Bienvenido(a) de nuevo
             </h1>
@@ -333,10 +369,11 @@ const Login = () => {
 
 // Animación burbujas
 const Bubbles = () => (
-  <div style={bubblesContainer}>
+  <div style={bubblesContainer} className="bubbles-container">
     {[...Array(15)].map((_, i) => (
       <div
         key={i}
+        className="bubble"
         style={{
           ...bubble,
           animationDelay: `${i * 0.4}s`,
@@ -352,12 +389,14 @@ const Bubbles = () => (
 // Estilos
 const containerStyle = {
   position: 'relative',
-  height: '100vh',
+  minHeight: '100vh',           // ⬅️ antes: height: '100vh' (esto evita cortes en pantallas bajas)
   width: '100%',
-  overflow: 'hidden',
+  overflowY: 'auto',            // ⬅️ permite scroll vertical cuando haga falta
+  overflowX: 'hidden',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center'
+  justifyContent: 'center',
+  padding: '16px'               // ⬅️ respiración en móviles
 };
 const backgroundStyle = {
   position: 'absolute',
@@ -388,7 +427,7 @@ const bubble = {
 
 const cardStyle = {
   display: 'flex',
-  width: '100%', maxWidth: '850px', height: '650px',
+  width: '100%', maxWidth: '850px', height: '650px', // ⬅️ será sobrescrito por CSS a height:auto en móviles
   borderRadius: '25px', overflow: 'hidden',
   boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
   background: '#fff',
