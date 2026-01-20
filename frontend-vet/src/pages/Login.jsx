@@ -1,3 +1,4 @@
+
 // src/pages/Login.jsx
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,6 +9,8 @@ import storeAuth from '../context/storeAuth';
 import fondoblanco from '../assets/fondoblanco.jpg';
 import panecillo from '../pages/Imagenes/panecillo.jpg';
 import politicasPdf from '../assets/Politicas_QuitoEmprende.pdf';
+// opcional: estilos de react-toastify si no los tienes globales
+// import 'react-toastify/dist/ReactToastify.css';
 
 /** Derivación segura si el backend no manda estadoUI */
 function deriveEstadoUIFront(status, estado_Emprendedor) {
@@ -40,15 +43,6 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { register, handleSubmit, formState: { errors } } = useForm();
-
-  // Datos de contacto solicitados por el usuario
-  const CONTACT_EMAIL = 'sebasj@outlook.com.ar';
-  const CONTACT_PHONE_DISPLAY = '0984523160';
-  // Formateo para WhatsApp: quitar el 0 inicial y añadir código de país (Ecuador: 593)
-  const CONTACT_PHONE_WHATSAPP = '593984523160'; // 0984523160 -> 593 + 984523160
-  const WHATSAPP_PRETEXT = encodeURIComponent('Hola, necesito asistencia con mi cuenta.');
-  const MAIL_SUBJECT = encodeURIComponent('Contacto desde la plataforma');
-  const MAIL_BODY = encodeURIComponent('Hola,\n\nTengo una consulta y requiero asistencia.\n\nGracias.');
 
   // Capturar datos desde OAuth si vinieran
   useEffect(() => {
@@ -158,6 +152,7 @@ const Login = () => {
     }
   };
 
+  // URLs Google (reservadas para cuando actives login social)
   const GOOGLE_CLIENT_URL      = 'https://backend-production-bd1d.up.railway.app/auth/google/cliente';
   const GOOGLE_EMPRENDEDOR_URL = 'https://backend-production-bd1d.up.railway.app/auth/google/emprendedor';
 
@@ -219,50 +214,6 @@ const Login = () => {
               )}
             </div>
           )}
-
-          {/* --- NOTIFICACIÓN DE CONTACTO (nuevo) --- */}
-          <div style={notificationStyle} role="status" aria-live="polite">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-                <path d="M12 2a7 7 0 0 1 7 7v3l2 4H3l2-4V9a7 7 0 0 1 7-7z" fill="#AA4A44" />
-              </svg>
-
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, color: '#3B2F2F' }}>¿Necesitas ayuda inmediata?</span>
-
-                {/* Enlace correo -> mailto */}
-                <a
-                  href={`mailto:${CONTACT_EMAIL}?subject=${MAIL_SUBJECT}&body=${MAIL_BODY}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={contactLinkStyle}
-                  title={`Enviar correo a ${CONTACT_EMAIL}`}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ marginRight: 6 }}>
-                    <path d="M3 8.5v7A2.5 2.5 0 0 0 5.5 18h13A2.5 2.5 0 0 0 21 15.5v-7A2.5 2.5 0 0 0 18.5 6h-13A2.5 2.5 0 0 0 3 8.5z" stroke="#3B2F2F" strokeWidth="0.8" fill="none"/>
-                    <path d="M21 8.5L12 13 3 8.5" stroke="#3B2F2F" strokeWidth="0.8" fill="none"/>
-                  </svg>
-                  {CONTACT_EMAIL}
-                </a>
-
-                {/* Enlace whatsapp -> wa.me */}
-                <a
-                  href={`https://wa.me/${CONTACT_PHONE_WHATSAPP}?text=${WHATSAPP_PRETEXT}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={contactPhoneStyle}
-                  title={`Abrir WhatsApp a ${CONTACT_PHONE_DISPLAY}`}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden style={{ marginRight: 6 }}>
-                    <path d="M20.5 3.5A11 11 0 0 0 3.5 20.5L2 22l1.6-4.6A11 11 0 1 0 20.5 3.5z" fill="#25D366"/>
-                    <path d="M17.3 14.2c-.3-.1-1.8-.9-2-.9-.2 0-.4 0-.6.2-.2.3-.6.9-.7 1.1-.1.2-.3.2-.6.1-1-.5-3.2-1.9-4.7-3.9-.4-.6.4-.6 1.1-2 .1-.2 0-.4 0-.6 0-.2-.5-.6-1-.9-1.3-.7-1.9-1.8-2.1-2.1-.1-.2 0-.5.1-.7.2-.3.6-.6 1-.6h.8c.3 0 .6 0 .9.1.3.1.6.2 1 .3.5.2 1 .5 1.4.7.4.2.6.4.9.6.3.2.8.7 1.1 1 .3.4.5.9.7 1.1.2.3.4.6.5.8.1.2.2.4.2.6.1.3 0 .6-.1.8-.1.2-.4.4-.8.6z" fill="#fff"/>
-                  </svg>
-                  {CONTACT_PHONE_DISPLAY}
-                </a>
-              </div>
-            </div>
-          </div>
-          {/* --- FIN NOTIFICACIÓN --- */}
 
           <form onSubmit={handleSubmit(loginUser)} style={formStyle}>
             <h1 style={{ fontSize: '1.8rem', fontWeight: '600', textAlign: 'center', marginBottom: '0.3rem', color: '#3B2F2F' }}>
@@ -350,9 +301,9 @@ const Login = () => {
               </Link>
             </div>
 
-            {/* Si en el futuro quieres login con Google:
-              <a href={GOOGLE_CLIENT_URL} style={googleButtonStyleBlue}>Login con Google (Cliente)</a>
-              <a href={GOOGLE_EMPRENDEDOR_URL} style={googleButtonStyleGray}>Login con Google (Emprendedor)</a>
+            {/* Futuro login con Google:
+            <a href={GOOGLE_CLIENT_URL} style={googleButtonStyleBlue}>Login con Google (Cliente)</a>
+            <a href={GOOGLE_EMPRENDEDOR_URL} style={googleButtonStyleGray}>Login con Google (Emprendedor)</a>
             */}
           </form>
         </div>
@@ -439,38 +390,5 @@ const googleButtonStyleGray = {
   fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.3s ease', userSelect: 'none'
 };
 const googleButtonStyleBlue = { ...googleButtonStyleGray, borderColor: '#1976d2', color: 'white', backgroundColor: '#1976d2' };
-
-// --- estilos para la notificación de contacto ---
-const notificationStyle = {
-  background: '#fff7f6',
-  border: '1px solid #F3D4D2',
-  padding: '10px 14px',
-  borderRadius: 10,
-  marginBottom: '16px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-  boxShadow: '0 2px 10px rgba(170,74,68,0.06)',
-  fontSize: 13,
-  color: '#3B2F2F'
-};
-const contactLinkStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 6,
-  textDecoration: 'none',
-  color: '#AA4A44',
-  background: 'transparent',
-  padding: '6px 8px',
-  borderRadius: 8,
-  border: '1px solid rgba(170,74,68,0.08)'
-};
-const contactPhoneStyle = {
-  ...contactLinkStyle,
-  background: '#eaf9ee',
-  color: '#1f6b3e',
-  border: '1px solid rgba(31,107,62,0.08)'
-};
 
 export default Login;
