@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -299,15 +298,58 @@ const Table = () => {
     suspendidoHasta: ""
   });
 
+  // ---------- NUEVO: cambio DIRECTO para clientes (igual que emprendedor) ----------
+  const updateEstadoClienteDirect = async (item, nuevoEstado) => {
+    try {
+      setMensaje("");
+      setError("");
+
+      if (!ESTADOS_CLIENTE.includes(nuevoEstado)) {
+        setError("Estado inválido para cliente.");
+        return;
+      }
+
+      const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
+      // payload mínimo: solo estado (backend ahora acepta sin motivo)
+      const payload = { estado: nuevoEstado };
+
+      let res = await fetch(urlEstado, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      // Si el endpoint dedicado falla (por permisos o versiones), fallback al actualizar/:id
+      if (!res.ok) {
+        res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ estado_Cliente: nuevoEstado }),
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || "No se pudo actualizar el estado.");
+
+      setMensaje(`Estado actualizado a: ${nuevoEstado}`);
+      fetchLista();
+    } catch (e) {
+      console.error(e);
+      setError(e.message || "Error al actualizar el estado.");
+    }
+  };
+
+  // Abre modal solo para cliente si quisieras (ahora NO lo usamos; cambio directo)
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
-      setEstadoModal({
-        visible: true,
-        item,
-        nuevoEstado,
-        motivo: "",
-        suspendidoHasta: ""
-      });
+      // Cambio DIRECTO: no abrimos modal, llamamos al endpoint igual que en Emprendedor
+      updateEstadoClienteDirect(item, nuevoEstado);
     } else {
       // Emprendedor: comportamiento previo (sin motivo)
       updateEstadoEmprendedor(item, nuevoEstado);
@@ -318,6 +360,7 @@ const Table = () => {
     visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
   });
 
+  // (Dejo la función original por compatibilidad si necesitas aplicar advertencias manuales con motivo)
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -343,7 +386,6 @@ const Table = () => {
           : {})
       };
 
-      // Llamada al endpoint dedicado (con token)
       let res = await fetch(urlEstado, {
         method: "PUT",
         headers: {
@@ -353,7 +395,6 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Fallback a actualizar/:id (enviando motivo también)
       if (!res.ok) {
         res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -522,7 +563,7 @@ const Table = () => {
   }, [rangoFechas]);
 
   /* ===========================
-     EXPORTS
+     EXPORTS (CSV/PDF)
   ============================ */
   const exportCSV = (rows, filename) => {
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -1235,7 +1276,10 @@ const Table = () => {
         </div>
       </section>
 
-      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ====== */}
+      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ======
+          Nota: lo dejo en el código por compatibilidad, pero ya no se abre
+          porque los cambios de estado para cliente son DIRECTOS (igual que emprendedor).
+      */}
       {estadoModal.visible && tipo === "cliente" && (
         <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
           <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
