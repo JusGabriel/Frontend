@@ -5,11 +5,12 @@ import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
- * Chat con mejor UX:
- * - Sidebar con búsqueda y estados vacíos/cargando
- * - Lista de mensajes con separadores por fecha, timestamps y scroll-to-bottom
- * - Composer con textarea auto-size, Enter para enviar y Shift+Enter para nueva línea
- * - Colores de marca con style (evita clases dinámicas no soportadas por Tailwind)
+ * Chat con UX mejorado:
+ * - Sin búsqueda en el sidebar
+ * - Sin línea de “último mensaje …” bajo cada conversación
+ * - Sin loop de carga (polling); sólo carga al cambiar de conversación y al enviar
+ * - Espacios ajustados y estilo limpio con colores de marca
+ * - Evita clases Tailwind dinámicas (usa style para colores variables)
  */
 
 const theme = {
@@ -126,7 +127,6 @@ const Chat = () => {
   const [loadingConv, setLoadingConv] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [loadingQuejas, setLoadingQuejas] = useState(false);
-  const [filtro, setFiltro] = useState("");
   const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const mensajesRef = useRef(null);
@@ -142,7 +142,6 @@ const Chat = () => {
 
   const [chatTargetId, setChatTargetId] = useState(null);
 
-  // Habilitación de input según vista/selección
   const inputEnabled =
     vista === "chat"
       ? Boolean(conversacionId || chatTargetId)
@@ -372,11 +371,10 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatTargetId, conversaciones]);
 
+  // 👉 Sin loop: sólo carga una vez al cambiar de conversación
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
-      const interval = setInterval(obtenerMensajes, 3000);
-      return () => clearInterval(interval);
     }
   }, [conversacionId, vista]);
 
@@ -469,29 +467,12 @@ const Chat = () => {
     }
   };
 
-  // Submit con Enter / línea con Shift+Enter
   const handleComposerKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (inputEnabled) handleEnviarMensaje(e);
     }
   };
-
-  // Filtro de conversaciones
-  const conversacionesFiltradas = useMemo(() => {
-    const f = (filtro || "").toLowerCase().trim();
-    if (!f) return conversaciones;
-    return conversaciones.filter((conv) => {
-      const otro = conv.participantes.find(
-        (p) => p.id && p.id._id !== usuarioId
-      );
-      const nombre = otro
-        ? `${otro.id?.nombre ?? ""} ${otro.id?.apellido ?? ""}`.toLowerCase()
-        : "participante desconocido";
-      const ultimo = (conv.ultimoMensaje || "").toLowerCase();
-      return nombre.includes(f) || ultimo.includes(f);
-    });
-  }, [conversaciones, filtro, usuarioId]);
 
   // Datos activos según vista
   const chatActivo =
@@ -656,42 +637,32 @@ const Chat = () => {
           style={{ borderColor: theme.border }}
           aria-label="Panel lateral de conversaciones"
         >
+          {/* Encabezado sidebar (simple) */}
           <div
-            className="px-4 py-3 md:px-6 flex items-center gap-2 border-b"
+            className="px-4 py-3 md:px-6 flex items-center justify-between border-b"
             style={{ backgroundColor: theme.brandSoft, borderColor: theme.border }}
           >
-            <div className="relative flex-1">
-              <input
-                type="search"
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-                placeholder="Buscar conversación…"
-                className="w-full bg-white border rounded-md py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2"
-                style={{ borderColor: theme.border }}
-              />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden>
-                🔎
-              </span>
-            </div>
+            <span className="font-medium">Conversaciones</span>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="md:hidden px-3 py-2 rounded-md bg-white border text-sm"
+              className="md:hidden px-3 py-1.5 rounded-md bg-white border text-sm"
               style={{ borderColor: theme.border }}
             >
               Cerrar
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y" style={{ divideColor: theme.border }}>
+          {/* Lista */}
+          <div className="flex-1 overflow-y-auto">
             {vista === "chat" ? (
               loadingConv ? (
                 <SidebarSkeleton />
-              ) : conversacionesFiltradas.length === 0 ? (
+              ) : conversaciones.length === 0 ? (
                 <p className="p-4 text-center" style={{ color: theme.subtle }}>
-                  {filtro ? "Sin resultados" : "No hay conversaciones"}
+                  No hay conversaciones
                 </p>
               ) : (
-                conversacionesFiltradas.map((conv) => {
+                conversaciones.map((conv) => {
                   const otro = conv.participantes.find(
                     (p) => p.id && p.id._id !== usuarioId
                   );
@@ -709,28 +680,20 @@ const Chat = () => {
                         setChatTargetId(null);
                         setSidebarOpen(false);
                       }}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
                       style={{
                         backgroundColor: isActive ? "#FFF7F6" : undefined,
+                        borderColor: theme.border,
                       }}
                     >
                       <Avatar nombre={nombre} foto={foto} size={40} className="flex-shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium truncate">{nombre}</span>
-                          {conv.ultimoTimestamp && (
-                            <span className="text-xs" style={{ color: theme.subtle }}>
-                              {fmtTime(conv.ultimoTimestamp)}
-                            </span>
-                          )}
-                        </div>
-                        <p
-                          className="text-sm truncate"
-                          style={{ color: theme.subtle }}
-                          title={conv.ultimoMensaje || ""}
-                        >
-                          {conv.ultimoMensaje || "…"}
-                        </p>
+                      <div className="min-w-0 flex-1 flex items-center justify-between gap-3">
+                        <span className="font-medium truncate">{nombre}</span>
+                        {conv.ultimoTimestamp && (
+                          <span className="text-xs" style={{ color: theme.subtle }}>
+                            {fmtTime(conv.ultimoTimestamp)}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -752,7 +715,6 @@ const Chat = () => {
                 const admin = q.participantes.find(
                   (p) => p.rol === "Administrador"
                 )?.id;
-                const ultimoMensaje = q.mensajes[q.mensajes.length - 1];
                 const isSelected = quejaSeleccionada?._id === q._id;
 
                 const nombreEmpr = emprendedor
@@ -764,25 +726,19 @@ const Chat = () => {
                   <button
                     key={q._id}
                     onClick={() => seleccionarQueja(q)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-start gap-3 transition-colors"
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
                     style={{
                       backgroundColor: isSelected ? "#FFF7F6" : undefined,
+                      borderColor: theme.border,
                     }}
                   >
-                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={40} className="flex-shrink-0 mt-0.5" />
+                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={40} className="flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-[#AA4A44]">
+                      <p className="font-medium text-[#AA4A44] truncate">
                         Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
                       </p>
-                      <p className="text-xs" style={{ color: theme.subtle }}>
+                      <p className="text-xs truncate" style={{ color: theme.subtle }}>
                         Receptor: {admin?.nombre} {admin?.apellido}
-                      </p>
-                      <p className="mt-1 text-sm line-clamp-2">
-                        <strong>Último mensaje:</strong>{" "}
-                        {ultimoMensaje?.contenido || "Sin mensajes"}
-                      </p>
-                      <p className="text-[11px] mt-1" style={{ color: theme.subtle }}>
-                        {new Date(q.updatedAt).toLocaleString()}
                       </p>
                     </div>
                   </button>
@@ -829,10 +785,14 @@ const Chat = () => {
               <div className="space-y-3 sm:space-y-4">
                 {mensajesConSeparadores.map((item, idx) => {
                   if (item._sep) {
+                    // Separador de fecha discreto
                     return (
-                      <div key={item.key} className="flex items-center gap-3 my-2">
+                      <div key={item.key} className="flex items-center gap-3 my-1">
                         <div className="flex-1 h-px bg-gray-200" />
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 border" style={{ borderColor: theme.border, color: theme.subtle }}>
+                        <span
+                          className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 border"
+                          style={{ borderColor: theme.border, color: theme.subtle }}
+                        >
                           {item.label}
                         </span>
                         <div className="flex-1 h-px bg-gray-200" />
@@ -970,7 +930,12 @@ const Chat = () => {
                       ? setMensaje(e.target.value)
                       : setMensajeQueja(e.target.value)
                   }
-                  onKeyDown={handleComposerKeyDown}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (inputEnabled) handleEnviarMensaje(e);
+                    }
+                  }}
                   placeholder={
                     vista === "chat"
                       ? productoNombre
@@ -1025,10 +990,7 @@ const SidebarSkeleton = () => (
     {[...Array(6)].map((_, i) => (
       <div key={i} className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3 bg-gray-200 rounded animate-pulse" />
-          <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse" />
-        </div>
+        <div className="flex-1 h-3 bg-gray-200 rounded animate-pulse" />
       </div>
     ))}
   </div>
