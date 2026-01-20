@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import storeAuth from "../../context/storeAuth";
 
@@ -33,9 +34,417 @@ const ESTADOS_EMPRENDEDOR = ["Activo", "Advertencia1", "Advertencia2", "Adverten
 const ESTADOS_CLIENTE = ["Correcto", "Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"];
 
 /* ===========================
+   BREAKPOINTS / RESPONSIVE
+   =========================== */
+const useBreakpoint = () => {
+  const getW = () => (typeof window !== "undefined" ? window.innerWidth : 1200);
+  const [w, setW] = useState(getW());
+
+  useEffect(() => {
+    const on = () => setW(getW());
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+
+  const isXS = w < 480;
+  const isSM = w < 640;
+  const isMD = w < 768;
+  const isLG = w >= 1024;
+
+  return { w, isXS, isSM, isMD, isLG };
+};
+
+/* estilos dinámicos por breakpoint */
+const getStyles = (bp) => {
+  const baseFont = bp.isXS ? 12 : bp.isSM ? 13 : 14;
+  const tableFont = bp.isXS ? 12 : 13;
+  const headerCols = bp.isMD ? "1fr" : "1fr auto";
+  const formGrid = bp.isMD ? "1fr" : "1fr 1fr";
+
+  return {
+    container: {
+      maxWidth: bp.isLG ? 1080 : 980,
+      margin: "auto",
+      padding: bp.isXS ? 12 : 20,
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+      color: "#1f2937",
+      fontSize: baseFont,
+    },
+    header: {
+      display: "grid",
+      gridTemplateColumns: headerCols,
+      gap: 12,
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    title: { margin: 0, fontSize: bp.isXS ? 18 : bp.isSM ? 20 : 24, fontWeight: 800 },
+    subTitle: { marginTop: 4, color: "#64748b", fontSize: bp.isXS ? 12 : 13 },
+
+    actionsBar: {
+      display: "flex",
+      gap: 12,
+      alignItems: "stretch",
+      flexWrap: "wrap",
+      justifyContent: bp.isMD ? "stretch" : "flex-end",
+      flexDirection: bp.isMD ? "column-reverse" : "row",
+    },
+
+    segmented: {
+      display: "inline-flex",
+      border: "1px solid #cbd5e1",
+      borderRadius: 8,
+      overflow: "hidden",
+      background: "#fff",
+      width: bp.isMD ? "100%" : "auto",
+    },
+    segmentedBtn: {
+      padding: bp.isXS ? "8px 10px" : "8px 12px",
+      backgroundColor: "#fff",
+      color: "#334155",
+      border: "none",
+      cursor: "pointer",
+      fontWeight: 600,
+      flex: bp.isMD ? 1 : "initial",
+    },
+    segmentedActive: {
+      padding: bp.isXS ? "8px 10px" : "8px 12px",
+      backgroundColor: "#0ea5e9",
+      color: "white",
+      border: "none",
+      cursor: "pointer",
+      fontWeight: 700,
+      flex: bp.isMD ? 1 : "initial",
+    },
+
+    searchBox: { display: "flex", gap: 8, alignItems: "center", width: bp.isMD ? "100%" : "auto" },
+    searchInput: {
+      width: bp.isMD ? "100%" : 280,
+      maxWidth: "100%",
+      padding: bp.isXS ? "8px 8px" : "8px 10px",
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      outline: "none",
+      fontSize: baseFont,
+    },
+    refreshBtn: {
+      padding: bp.isXS ? "8px 10px" : "8px 10px",
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      background: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+      fontSize: baseFont,
+    },
+
+    toastRegion: { position: "fixed", top: 14, right: 14, display: "grid", gap: 8, zIndex: 10000 },
+    toast: {
+      padding: "10px 12px",
+      borderRadius: 10,
+      boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+      fontSize: 13,
+      minWidth: 240,
+    },
+
+    card: {
+      marginBottom: 20,
+      padding: bp.isXS ? 12 : 16,
+      border: "1px solid #e2e8f0",
+      borderRadius: 12,
+      backgroundColor: "#ffffff",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+    },
+    cardHeader: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 8,
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    cardTitle: { margin: 0, fontSize: bp.isXS ? 16 : 18, fontWeight: 700 },
+    cardFooter: { display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" },
+
+    grid2: { display: "grid", gridTemplateColumns: formGrid, gap: 12 },
+    formGroup: { display: "flex", flexDirection: "column", gap: 6 },
+    label: { fontSize: bp.isXS ? 12 : 13, color: "#475569", fontWeight: 600 },
+    input: {
+      width: "100%",
+      padding: bp.isXS ? 8 : 10,
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      boxSizing: "border-box",
+      outline: "none",
+      fontSize: baseFont,
+    },
+
+    btnPrimary: {
+      padding: bp.isXS ? "8px 12px" : "10px 16px",
+      backgroundColor: "#0ea5e9",
+      color: "white",
+      border: "none",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: baseFont,
+    },
+    btnSecondary: {
+      padding: bp.isXS ? "8px 12px" : "10px 16px",
+      backgroundColor: "#64748b",
+      color: "white",
+      border: "none",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: baseFont,
+    },
+    btnGhost: {
+      padding: bp.isXS ? "8px 12px" : "10px 16px",
+      backgroundColor: "#ffffff",
+      color: "#0ea5e9",
+      border: "1px solid #0ea5e9",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: baseFont,
+    },
+
+    /* Tabla (solo desktop/tablet) */
+    tableWrap: { overflowX: "auto" },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: tableFont,
+    },
+    th: {
+      borderBottom: "2px solid #0ea5e9",
+      padding: bp.isXS ? 8 : 10,
+      textAlign: "left",
+      backgroundColor: "#eaf7ff",
+      fontWeight: 700,
+      fontSize: tableFont,
+      color: "#1f2937",
+      position: "sticky",
+      top: 0,
+      zIndex: 1,
+      whiteSpace: "nowrap",
+    },
+    td: {
+      borderBottom: "1px solid #e5e7eb",
+      padding: bp.isXS ? 8 : 10,
+      verticalAlign: "top",
+      fontSize: tableFont,
+    },
+
+    select: {
+      padding: bp.isXS ? "6px 8px" : "8px 10px",
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      backgroundColor: "#fff",
+      fontSize: baseFont,
+      maxWidth: bp.isXS ? 140 : 180,
+    },
+
+    btnTiny: {
+      padding: bp.isXS ? "6px 8px" : "6px 10px",
+      backgroundColor: "#0ea5e9",
+      color: "white",
+      border: "none",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: bp.isXS ? 12 : 13,
+      fontWeight: 700,
+    },
+    btnTinyDanger: {
+      padding: bp.isXS ? "6px 8px" : "6px 10px",
+      backgroundColor: "#dc3545",
+      color: "white",
+      border: "none",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: bp.isXS ? 12 : 13,
+      fontWeight: 700,
+    },
+    btnTinySuccess: {
+      padding: bp.isXS ? "6px 8px" : "6px 10px",
+      backgroundColor: "#22c55e",
+      color: "white",
+      border: "none",
+      borderRadius: 6,
+      cursor: "pointer",
+      fontSize: bp.isXS ? 12 : 13,
+      fontWeight: 700,
+    },
+
+    emptyCell: {
+      textAlign: "center",
+      padding: bp.isXS ? 14 : 20,
+      color: "#666",
+      fontSize: baseFont,
+    },
+
+    detailsCell: {
+      padding: bp.isXS ? 10 : 12,
+      backgroundColor: "#f7fbff",
+      borderTop: "1px solid #e6eef8",
+    },
+    detailsGrid: {
+      display: "grid",
+      gridTemplateColumns: bp.isMD ? "1fr" : "repeat(3, minmax(0, 1fr))",
+      gap: 12,
+    },
+    detailItem: {
+      padding: 10,
+      border: "1px solid #e2e8f0",
+      borderRadius: 10,
+      background: "#fff",
+    },
+    detailLabel: { fontSize: bp.isXS ? 11 : 12, color: "#64748b", fontWeight: 600, marginBottom: 4 },
+    detailValue: { fontSize: baseFont, color: "#1f2937" },
+
+    filtersRow: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: bp.isMD ? "stretch" : "space-between",
+      marginBottom: 10,
+      flexDirection: bp.isMD ? "column" : "row",
+      gap: 8,
+    },
+    filtersGroup: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+    labelInline: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 6,
+      fontSize: bp.isXS ? 12 : 13,
+      color: "#475569",
+      fontWeight: 600,
+    },
+    inputInline: {
+      padding: bp.isXS ? "6px 6px" : "6px 8px",
+      borderRadius: 8,
+      border: "1px solid #cbd5e1",
+      backgroundColor: "#fff",
+      outline: "none",
+      fontSize: baseFont,
+    },
+
+    sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" },
+    sectionTitle: { margin: 0, color: "#0ea5e9" },
+
+    modalOverlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+      padding: 12,
+    },
+    modal: {
+      backgroundColor: "white",
+      borderRadius: 12,
+      width: bp.isMD ? "100%" : 520,
+      maxWidth: "95%",
+      boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    },
+    modalHeader: {
+      padding: "12px 16px",
+      backgroundColor: "#0ea5e9",
+      color: "white",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      fontWeight: "bold",
+      fontSize: bp.isXS ? 14 : 16,
+    },
+    btnClose: {
+      backgroundColor: "#dc3545",
+      border: "none",
+      color: "white",
+      fontWeight: "bold",
+      cursor: "pointer",
+      padding: bp.isXS ? "6px 8px" : "6px 10px",
+      borderRadius: 8,
+      fontSize: baseFont,
+    },
+    modalBody: {
+      padding: bp.isXS ? 12 : 16,
+      minHeight: 120,
+      fontSize: baseFont,
+      color: "#333",
+      overflowY: "auto",
+    },
+    modalFooter: {
+      padding: bp.isXS ? 10 : 12,
+      borderTop: "1px solid #e5e7eb",
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    btnDanger: {
+      padding: bp.isXS ? "8px 12px" : "10px 16px",
+      backgroundColor: "#dc3545",
+      color: "white",
+      border: "none",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: baseFont,
+    },
+
+    /* ===== Vista móvil (lista/cards) ===== */
+    mobileList: { display: "grid", gap: 10 },
+    cardRow: {
+      border: "1px solid #e5e7eb",
+      borderRadius: 10,
+      padding: 12,
+      background: "#fff",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    },
+    rowHeader: {
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 10,
+      flexWrap: "wrap",
+    },
+    rowTitle: { fontWeight: 700, fontSize: bp.isXS ? 14 : 15 },
+    rowSub: { color: "#64748b", fontSize: bp.isXS ? 12 : 13 },
+    rowActions: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 },
+    rowFooter: {
+      marginTop: 10,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      flexWrap: "wrap",
+    },
+    btnLink: {
+      background: "transparent",
+      border: "none",
+      color: "#0ea5e9",
+      textDecoration: "underline",
+      cursor: "pointer",
+      padding: 0,
+      fontSize: baseFont,
+    },
+  };
+};
+
+/* ===========================
    COMPONENTE
    =========================== */
 const Table = () => {
+  const bp = useBreakpoint();
+  const s = getStyles(bp);
+
   /* --------- Contexto Auth --------- */
   const { id: emisorId, rol: emisorRol, token } = storeAuth() || {};
 
@@ -94,17 +503,11 @@ const Table = () => {
   const [catalogoProductos, setCatalogoProductos] = useState([]);
   const [catalogoEmprendimientos, setCatalogoEmprendimientos] = useState([]);
 
-  /* ========= Derivar estado visible CLIENTE desde modelo =========
-     FIX: ahora usa estado_Cliente primero (y hace fallback a estado_Emprendedor).
-     Así clientes y emprendedores se comportan igual.
-  */
+  /* ========= Derivar estado visible CLIENTE desde modelo ========= */
   const deriveEstadoCliente = (item) => {
     if (!item) return "Correcto";
     if (item.status === false) return "Suspendido";
-
-    // Preferir campo específico de cliente, si no existe usar el de emprendedor (compatibilidad)
     const e = item.estado_Cliente ?? item.estado_Emprendedor ?? "Activo";
-
     if (e === "Activo") return "Correcto";
     if (["Advertencia1", "Advertencia2", "Advertencia3", "Suspendido"].includes(e)) return e;
     return "Correcto";
@@ -127,7 +530,6 @@ const Table = () => {
       if (tipo === "cliente") {
         normalizados = normalizados.map((c) => {
           const estadoUI = deriveEstadoCliente(c);
-          // exportamos estado y estado_Cliente para que el UI use siempre el mismo campo
           return { ...c, estado: estadoUI, estado_Cliente: estadoUI };
         });
       } else if (tipo === "emprendedor") {
@@ -304,19 +706,16 @@ const Table = () => {
       ? item.estado || item.estado_Emprendedor || "Activo"
       : item.estado_Cliente ?? item.estado ?? deriveEstadoCliente(item);
 
-  const getEstadosPermitidos = () =>
-    tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE;
+  const getEstadosPermitidos = () => (tipo === "emprendedor" ? ESTADOS_EMPRENDEDOR : ESTADOS_CLIENTE);
 
-  // --- Modal cambio de estado (Cliente) ---
   const [estadoModal, setEstadoModal] = useState({
     visible: false,
     item: null,
     nuevoEstado: null,
     motivo: "",
-    suspendidoHasta: ""
+    suspendidoHasta: "",
   });
 
-  // ---------- NUEVO: cambio DIRECTO para clientes (igual que emprendedor) ----------
   const updateEstadoClienteDirect = async (item, nuevoEstado) => {
     try {
       setMensaje("");
@@ -328,7 +727,6 @@ const Table = () => {
       }
 
       const urlEstado = `${BASE_URLS["cliente"]}/estado/${item._id}`;
-      // payload mínimo: solo estado (backend ahora acepta sin motivo)
       const payload = { estado: nuevoEstado };
 
       let res = await fetch(urlEstado, {
@@ -340,7 +738,6 @@ const Table = () => {
         body: JSON.stringify(payload),
       });
 
-      // Si el endpoint dedicado falla (por permisos o versiones), fallback al actualizar/:id
       if (!res.ok) {
         res = await fetch(`${BASE_URLS["cliente"]}/actualizar/${item._id}`, {
           method: "PUT",
@@ -363,22 +760,23 @@ const Table = () => {
     }
   };
 
-  // Abre modal solo para cliente si quisieras (ahora NO lo usamos; cambio directo)
   const openEstadoModal = (item, nuevoEstado) => {
     if (tipo === "cliente") {
-      // Cambio DIRECTO: no abrimos modal, llamamos al endpoint igual que en Emprendedor
       updateEstadoClienteDirect(item, nuevoEstado);
     } else {
-      // Emprendedor: comportamiento previo (sin motivo)
       updateEstadoEmprendedor(item, nuevoEstado);
     }
   };
 
-  const closeEstadoModal = () => setEstadoModal({
-    visible: false, item: null, nuevoEstado: null, motivo: "", suspendidoHasta: ""
-  });
+  const closeEstadoModal = () =>
+    setEstadoModal({
+      visible: false,
+      item: null,
+      nuevoEstado: null,
+      motivo: "",
+      suspendidoHasta: "",
+    });
 
-  // (Dejo la función original por compatibilidad si necesitas aplicar advertencias manuales con motivo)
   const updateEstadoClienteConfirmed = async () => {
     const { item, nuevoEstado, motivo, suspendidoHasta } = estadoModal;
     try {
@@ -401,7 +799,7 @@ const Table = () => {
         motivo: motivo.trim(),
         ...(nuevoEstado === "Suspendido" && suspendidoHasta
           ? { suspendidoHasta: new Date(suspendidoHasta).toISOString() }
-          : {})
+          : {}),
       };
 
       let res = await fetch(urlEstado, {
@@ -540,9 +938,7 @@ const Table = () => {
         const inRange =
           !from && !to
             ? true
-            : (!!ts &&
-               (!from || ts >= new Date(from).getTime()) &&
-               (!to || ts <= new Date(to).getTime()));
+            : !!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime());
         return owner && inRange;
       });
     }
@@ -560,9 +956,7 @@ const Table = () => {
         const inRange =
           !from && !to
             ? true
-            : (!!ts &&
-               (!from || ts >= new Date(from).getTime()) &&
-               (!to || ts <= new Date(to).getTime()));
+            : !!ts && (!from || ts >= new Date(from).getTime()) && (!to || ts <= new Date(to).getTime());
         return owner && inRange;
       });
     }
@@ -653,13 +1047,7 @@ const Table = () => {
   };
 
   const mapperEmprendimientos = (r) =>
-    r?.header
-      ? ["Nombre Comercial", "Ciudad", "Creado"]
-      : [
-          r.nombreComercial || "",
-          r.ubicacion?.ciudad || "",
-          r.createdAt ? new Date(r.createdAt).toLocaleString() : "",
-        ];
+    r?.header ? ["Nombre Comercial", "Ciudad", "Creado"] : [r.nombreComercial || "", r.ubicacion?.ciudad || "", r.createdAt ? new Date(r.createdAt).toLocaleString() : ""];
 
   const mapperProductos = (r) =>
     r?.header
@@ -694,9 +1082,7 @@ const Table = () => {
       );
       const dataConv = await resConv.json();
       const conversacion = Array.isArray(dataConv)
-        ? dataConv.find((conv) =>
-            conv.participantes?.some((p) => p.id && p.id._id === receptorId)
-          )
+        ? dataConv.find((conv) => conv.participantes?.some((p) => p.id && p.id._id === receptorId))
         : null;
 
       if (!conversacion) {
@@ -765,93 +1151,365 @@ const Table = () => {
   ============================ */
   const totalPages = Math.max(1, Math.ceil(listaFiltrada.length / pageSize));
   useEffect(() => {
-    // Ajusta page si queda fuera de rango tras cambios en listaFiltrada/pageSize
     if (page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
   const listaPaginada = listaFiltrada.slice((page - 1) * pageSize, page * pageSize);
 
   /* ===========================
+     RENDER AUX: Mobile row card
+  ============================ */
+  const MobileRow = ({ item, idx }) => {
+    const estadoActual = getEstado(item);
+
+    return (
+      <div key={item._id} style={s.cardRow}>
+        <div style={s.rowHeader}>
+          <div>
+            <div style={s.rowTitle}>
+              {idx}. {item.nombre} {item.apellido} <EstadoBadge estado={estadoActual} />
+            </div>
+            <div style={s.rowSub}>
+              {item.email} · {item.telefono || "N/A"}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <select
+              aria-label="Cambiar estado/advertencia"
+              value={estadoActual}
+              onChange={(e) => openEstadoModal(item, e.target.value)}
+              style={s.select}
+            >
+              {getEstadosPermitidos().map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div style={s.rowActions}>
+          <button
+            style={s.btnTiny}
+            onClick={(e) => {
+              e.stopPropagation();
+              prepararEditar(item);
+            }}
+          >
+            ✏️ Editar
+          </button>
+          <button
+            style={s.btnTinyDanger}
+            onClick={(e) => {
+              e.stopPropagation();
+              solicitarEliminar(item);
+            }}
+          >
+            🗑️ Eliminar
+          </button>
+          <button
+            style={s.btnTinySuccess}
+            onClick={(e) => {
+              e.stopPropagation();
+              abrirChat(item);
+            }}
+          >
+            💬 Chatear
+          </button>
+        </div>
+
+        <div style={s.rowFooter}>
+          <button
+            style={s.btnLink}
+            onClick={() => toggleExpandido(item._id, item)}
+            aria-expanded={expandido === item._id}
+          >
+            {expandido === item._id ? "Ocultar detalles ▲" : "Ver detalles ▼"}
+          </button>
+        </div>
+
+        {expandido === item._id && (
+          <div style={{ marginTop: 10 }}>
+            <div style={s.detailsGrid}>
+              <div style={s.detailItem}>
+                <div style={s.detailLabel}>Nombre completo</div>
+                <div style={s.detailValue}>
+                  {item.nombre} {item.apellido}
+                </div>
+              </div>
+              <div style={s.detailItem}>
+                <div style={s.detailLabel}>Email</div>
+                <div style={s.detailValue}>{item.email}</div>
+              </div>
+              <div style={s.detailItem}>
+                <div style={s.detailLabel}>Teléfono</div>
+                <div style={s.detailValue}>{item.telefono || "N/A"}</div>
+              </div>
+              <div style={s.detailItem}>
+                <div style={s.detailLabel}>Creado</div>
+                <div style={s.detailValue}>
+                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}
+                </div>
+              </div>
+              <div style={s.detailItem}>
+                <div style={s.detailLabel}>Actualizado</div>
+                <div style={s.detailValue}>
+                  {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}
+                </div>
+              </div>
+            </div>
+
+            {tipo === "emprendedor" && (
+              <div style={{ marginTop: 12 }}>
+                {/* Filtros de fecha */}
+                <div style={s.filtersRow}>
+                  <div style={{ fontWeight: 600 }}>Filtrar por fecha</div>
+                  <div style={s.filtersGroup}>
+                    <label style={s.labelInline}>
+                      Desde
+                      <input
+                        type="date"
+                        value={rangoFechas.from}
+                        onChange={(e) => setRangoFechas((st) => ({ ...st, from: e.target.value }))}
+                        style={s.inputInline}
+                      />
+                    </label>
+                    <label style={s.labelInline}>
+                      Hasta
+                      <input
+                        type="date"
+                        value={rangoFechas.to}
+                        onChange={(e) => setRangoFechas((st) => ({ ...st, to: e.target.value }))}
+                        style={s.inputInline}
+                      />
+                    </label>
+                    <button
+                      style={s.btnTiny}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const emp = lista.find((x) => x._id === expandido);
+                        if (emp) cargarNestedParaEmprendedor(emp);
+                      }}
+                    >
+                      Aplicar
+                    </button>
+                    <button
+                      style={s.btnTiny}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRangoFechas({ from: "", to: "" });
+                      }}
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Emprendimientos */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={s.sectionHeader}>
+                    <h4 style={s.sectionTitle}>Emprendimientos</h4>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        style={s.btnTiny}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const emps = mapEmpEmprendimientos[item._id] || [];
+                          exportCSV(
+                            emps.map((e) => ({
+                              nombreComercial: e.nombreComercial || "",
+                              ciudad: e?.ubicacion?.ciudad || "",
+                              creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
+                            })),
+                            `emprendimientos_${item.nombre}_${item.apellido}`
+                          );
+                        }}
+                      >
+                        Exportar CSV
+                      </button>
+                      <button
+                        style={s.btnTiny}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const emps = mapEmpEmprendimientos[item._id] || [];
+                          exportPDF(`Emprendimientos de ${item.nombre} ${item.apellido}`, emps, mapperEmprendimientos);
+                        }}
+                      >
+                        Exportar PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingNested ? (
+                    <div style={s.emptyCell}>Cargando emprendimientos…</div>
+                  ) : (mapEmpEmprendimientos[item._id] || []).length === 0 ? (
+                    <div style={s.emptyCell}>Sin emprendimientos en el rango.</div>
+                  ) : (
+                    <div style={s.mobileList}>
+                      {(mapEmpEmprendimientos[item._id] || []).map((e) => (
+                        <div key={e._id} style={s.detailItem}>
+                          <div style={{ fontWeight: 700 }}>{e.nombreComercial}</div>
+                          <div style={{ color: "#64748b" }}>{e?.ubicacion?.ciudad || "—"}</div>
+                          <div style={{ color: "#64748b" }}>
+                            {e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Productos */}
+                <div>
+                  <div style={s.sectionHeader}>
+                    <h4 style={s.sectionTitle}>Productos</h4>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        style={s.btnTiny}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const prods = mapEmpProductos[item._id] || [];
+                          exportCSV(
+                            prods.map((p) => ({
+                              producto: p.nombre || "",
+                              precio: typeof p.precio === "number" ? p.precio : "",
+                              stock: p.stock ?? "",
+                              emprendimiento:
+                                p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
+                              creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
+                            })),
+                            `productos_${item.nombre}_${item.apellido}`
+                          );
+                        }}
+                      >
+                        Exportar CSV
+                      </button>
+                      <button
+                        style={s.btnTiny}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const prods = mapEmpProductos[item._id] || [];
+                          exportPDF(`Productos de ${item.nombre} ${item.apellido}`, prods, mapperProductos);
+                        }}
+                      >
+                        Exportar PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingNested ? (
+                    <div style={s.emptyCell}>Cargando productos…</div>
+                  ) : (mapEmpProductos[item._id] || []).length === 0 ? (
+                    <div style={s.emptyCell}>Sin productos en el rango.</div>
+                  ) : (
+                    <div style={s.mobileList}>
+                      {(mapEmpProductos[item._id] || []).map((p) => (
+                        <div key={p._id} style={s.detailItem}>
+                          <div style={{ fontWeight: 700 }}>{p.nombre}</div>
+                          <div style={{ color: "#64748b" }}>
+                            {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"} · Stock:{" "}
+                            {p.stock ?? "—"}
+                          </div>
+                          <div style={{ color: "#64748b" }}>
+                            {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
+                          </div>
+                          <div style={{ color: "#64748b" }}>
+                            {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ===========================
      RENDER
   ============================ */
   return (
-    <div style={styles.container}>
+    <div style={s.container}>
       {/* ====== ENCABEZADO ====== */}
-      <header style={styles.header}>
+      <header style={s.header}>
         <div>
-          <h1 style={styles.title}>Panel de Administración</h1>
-          <div style={styles.subTitle}>
+          <h1 style={s.title}>Panel de Administración</h1>
+          <div style={s.subTitle}>
             {capitalize(tipo)}s • {loadingLista ? "Cargando…" : `${listaFiltrada.length} resultados`}
           </div>
         </div>
 
-        <div style={styles.actionsBar}>
-          <div role="group" aria-label="Seleccionar tipo" style={styles.segmented}>
-            <button
-              style={tipo === "cliente" ? styles.segmentedActive : styles.segmentedBtn}
-              onClick={() => setTipo("cliente")}
-            >
+        <div style={s.actionsBar}>
+          <div role="group" aria-label="Seleccionar tipo" style={s.segmented}>
+            <button style={tipo === "cliente" ? s.segmentedActive : s.segmentedBtn} onClick={() => setTipo("cliente")}>
               Clientes
             </button>
             <button
-              style={tipo === "emprendedor" ? styles.segmentedActive : styles.segmentedBtn}
+              style={tipo === "emprendedor" ? s.segmentedActive : s.segmentedBtn}
               onClick={() => setTipo("emprendedor")}
             >
               Emprendedores
             </button>
           </div>
 
-          <div style={styles.searchBox}>
+          <div style={s.searchBox}>
             <input
               aria-label="Buscar en el listado"
               type="search"
               placeholder={`Buscar ${capitalize(tipo)} por nombre, apellido, email o teléfono…`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={styles.searchInput}
+              style={s.searchInput}
             />
-            <button style={styles.refreshBtn} onClick={fetchLista}>↻ Actualizar</button>
+            <button style={s.refreshBtn} onClick={fetchLista}>
+              ↻ Actualizar
+            </button>
           </div>
         </div>
       </header>
 
       {/* Mensajes */}
-      <div style={styles.toastRegion} aria-live="polite" aria-atomic="true">
-        {error && <div style={{ ...styles.toast, backgroundColor: "#ffe8e6", color: "#a33" }}>⚠️ {error}</div>}
-        {mensaje && <div style={{ ...styles.toast, backgroundColor: "#e7f9ed", color: "#1e7e34" }}>✅ {mensaje}</div>}
+      <div style={s.toastRegion} aria-live="polite" aria-atomic="true">
+        {error && <div style={{ ...s.toast, backgroundColor: "#ffe8e6", color: "#a33" }}>⚠️ {error}</div>}
+        {mensaje && <div style={{ ...s.toast, backgroundColor: "#e7f9ed", color: "#1e7e34" }}>✅ {mensaje}</div>}
       </div>
 
       {/* ====== FORM: CREAR ====== */}
-      <section style={styles.card} aria-label="Crear">
-        <div style={styles.cardHeader}>
-          <h2 style={styles.cardTitle}>Crear {capitalize(tipo)}</h2>
+      <section style={s.card} aria-label="Crear">
+        <div style={s.cardHeader}>
+          <h2 style={s.cardTitle}>Crear {capitalize(tipo)}</h2>
         </div>
         <form onSubmit={handleCrear}>
-          <div style={styles.grid2}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Nombre</label>
+          <div style={s.grid2}>
+            <div style={s.formGroup}>
+              <label style={s.label}>Nombre</label>
               <input
-                style={styles.input}
+                style={s.input}
                 placeholder="Ej. Ana"
                 value={formCrear.nombre}
                 onChange={(e) => setFormCrear({ ...formCrear, nombre: e.target.value })}
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Apellido</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Apellido</label>
               <input
-                style={styles.input}
+                style={s.input}
                 placeholder="Ej. Pérez"
                 value={formCrear.apellido}
                 onChange={(e) => setFormCrear({ ...formCrear, apellido: e.target.value })}
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Email</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Email</label>
               <input
-                style={styles.input}
+                style={s.input}
                 type="email"
                 placeholder="nombre@dominio.com"
                 value={formCrear.email}
@@ -859,10 +1517,10 @@ const Table = () => {
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Password</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Password</label>
               <input
-                style={styles.input}
+                style={s.input}
                 type="password"
                 placeholder="••••••••"
                 value={formCrear.password}
@@ -870,10 +1528,10 @@ const Table = () => {
                 required
               />
             </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Teléfono</label>
+            <div style={s.formGroup}>
+              <label style={s.label}>Teléfono</label>
               <input
-                style={styles.input}
+                style={s.input}
                 placeholder="Ej. 0999999999"
                 value={formCrear.telefono}
                 onChange={(e) => setFormCrear({ ...formCrear, telefono: e.target.value })}
@@ -881,14 +1539,11 @@ const Table = () => {
             </div>
           </div>
 
-          <div style={styles.cardFooter}>
-            <button style={styles.btnPrimary} type="submit">Crear</button>
-            <button
-              style={styles.btnGhost}
-              type="button"
-              onClick={() => setFormCrear(emptyForm)}
-              title="Limpiar formulario"
-            >
+          <div style={s.cardFooter}>
+            <button style={s.btnPrimary} type="submit">
+              Crear
+            </button>
+            <button style={s.btnGhost} type="button" onClick={() => setFormCrear(emptyForm)} title="Limpiar formulario">
               Limpiar
             </button>
           </div>
@@ -897,63 +1552,65 @@ const Table = () => {
 
       {/* ====== FORM: EDITAR ====== */}
       {formEditar.id && (
-        <section style={styles.card} aria-label="Editar">
-          <div style={styles.cardHeader}>
-            <h2 style={styles.cardTitle}>Editar {capitalize(tipo)}</h2>
+        <section style={s.card} aria-label="Editar">
+          <div style={s.cardHeader}>
+            <h2 style={s.cardTitle}>Editar {capitalize(tipo)}</h2>
           </div>
           <form onSubmit={handleActualizar}>
-            <div style={styles.grid2}>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Nombre</label>
+            <div style={s.grid2}>
+              <div style={s.formGroup}>
+                <label style={s.label}>Nombre</label>
                 <input
-                  style={styles.input}
+                  style={s.input}
                   value={formEditar.nombre}
                   onChange={(e) => setFormEditar({ ...formEditar, nombre: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Apellido</label>
+              <div style={s.formGroup}>
+                <label style={s.label}>Apellido</label>
                 <input
-                  style={styles.input}
+                  style={s.input}
                   value={formEditar.apellido}
                   onChange={(e) => setFormEditar({ ...formEditar, apellido: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Email</label>
+              <div style={s.formGroup}>
+                <label style={s.label}>Email</label>
                 <input
-                  style={styles.input}
+                  style={s.input}
                   type="email"
                   value={formEditar.email}
                   onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
                   required
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Password (opcional)</label>
+              <div style={s.formGroup}>
+                <label style={s.label}>Password (opcional)</label>
                 <input
-                  style={styles.input}
+                  style={s.input}
                   type="password"
                   value={formEditar.password}
                   onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
                 />
               </div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Teléfono</label>
+              <div style={s.formGroup}>
+                <label style={s.label}>Teléfono</label>
                 <input
-                  style={styles.input}
+                  style={s.input}
                   value={formEditar.telefono}
                   onChange={(e) => setFormEditar({ ...formEditar, telefono: e.target.value })}
                 />
               </div>
             </div>
 
-            <div style={styles.cardFooter}>
-              <button style={styles.btnPrimary} type="submit">Actualizar</button>
+            <div style={s.cardFooter}>
+              <button style={s.btnPrimary} type="submit">
+                Actualizar
+              </button>
               <button
-                style={styles.btnSecondary}
+                style={s.btnSecondary}
                 type="button"
                 onClick={() => setFormEditar({ id: null, ...emptyForm })}
               >
@@ -964,383 +1621,449 @@ const Table = () => {
         </section>
       )}
 
-      {/* ====== TABLA PRINCIPAL ====== */}
-      <section aria-label="Listado principal" style={styles.card}>
-        <div style={styles.cardHeader}>
-          <h2 style={styles.cardTitle}>Listado de {capitalize(tipo)}s</h2>
+      {/* ====== LISTADO PRINCIPAL ====== */}
+      <section aria-label="Listado principal" style={s.card}>
+        <div style={s.cardHeader}>
+          <h2 style={s.cardTitle}>Listado de {capitalize(tipo)}s</h2>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>#</th>
-                <th style={styles.th}>Nombre</th>
-                <th style={styles.th}>Apellido</th>
-                <th style={styles.th}>Email</th>
-                <th style={styles.th}>Teléfono</th>
-                <th style={styles.th}>Estado</th>
-                <th style={styles.th}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingLista && (
+        {/* Vista móvil: tarjetas */}
+        {bp.isMD ? (
+          <>
+            {loadingLista && <div style={s.emptyCell}>Cargando datos…</div>}
+            {!loadingLista && listaFiltrada.length === 0 && (
+              <div style={s.emptyCell}>
+                <div style={{ fontSize: 24 }}>🗂️</div>
+                <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
+              </div>
+            )}
+            <div style={s.mobileList}>
+              {listaPaginada.map((item, i) => (
+                <MobileRow key={item._id} item={item} idx={(page - 1) * pageSize + i + 1} />
+              ))}
+            </div>
+          </>
+        ) : (
+          /* Vista desktop: tabla */
+          <div style={s.tableWrap}>
+            <table style={s.table}>
+              <thead>
                 <tr>
-                  <td colSpan="7" style={styles.emptyCell}>Cargando datos…</td>
+                  <th style={s.th}>#</th>
+                  <th style={s.th}>Nombre</th>
+                  <th style={s.th}>Apellido</th>
+                  <th style={s.th}>Email</th>
+                  <th style={s.th}>Teléfono</th>
+                  <th style={s.th}>Estado</th>
+                  <th style={s.th}>Acciones</th>
                 </tr>
-              )}
+              </thead>
+              <tbody>
+                {loadingLista && (
+                  <tr>
+                    <td colSpan="7" style={s.emptyCell}>
+                      Cargando datos…
+                    </td>
+                  </tr>
+                )}
 
-              {!loadingLista && listaFiltrada.length === 0 && (
-                <tr>
-                  <td colSpan="7" style={styles.emptyCell}>
-                    <div style={{ fontSize: 24 }}>🗂️</div>
-                    <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
-                  </td>
-                </tr>
-              )}
+                {!loadingLista && listaFiltrada.length === 0 && (
+                  <tr>
+                    <td colSpan="7" style={s.emptyCell}>
+                      <div style={{ fontSize: 24 }}>🗂️</div>
+                      <div style={{ color: "#666" }}>No hay {capitalize(tipo)}s para mostrar.</div>
+                    </td>
+                  </tr>
+                )}
 
-              {!loadingLista &&
-                listaPaginada.map((item, i) => (
-                  <React.Fragment key={item._id}>
-                    <tr
-                      style={{
-                        backgroundColor: expandido === item._id ? "#f5faff" : "white",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => toggleExpandido(item._id, item)}
-                      aria-expanded={expandido === item._id}
-                    >
-                      <td style={styles.td}>{(page - 1) * pageSize + i + 1}</td>
-                      <td style={styles.td}>
-                        <span style={{ fontWeight: 600 }}>{item.nombre}</span>
-                        <EstadoBadge estado={getEstado(item)} />
-                      </td>
-                      <td style={styles.td}>{item.apellido}</td>
-                      <td style={styles.td}>{item.email}</td>
-                      <td style={styles.td}>{item.telefono || "N/A"}</td>
-
-                      {/* ESTADO editable inline */}
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <select
-                            aria-label="Cambiar estado/advertencia"
-                            value={getEstado(item)}
-                            onChange={(e) => { e.stopPropagation(); openEstadoModal(item, e.target.value); }}
-                            style={styles.select}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {getEstadosPermitidos().map((opt) => (
-                              <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                          </select>
+                {!loadingLista &&
+                  listaPaginada.map((item, i) => (
+                    <React.Fragment key={item._id}>
+                      <tr
+                        style={{
+                          backgroundColor: expandido === item._id ? "#f5faff" : "white",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => toggleExpandido(item._id, item)}
+                        aria-expanded={expandido === item._id}
+                      >
+                        <td style={s.td}>{(page - 1) * pageSize + i + 1}</td>
+                        <td style={s.td}>
+                          <span style={{ fontWeight: 600 }}>{item.nombre}</span>
                           <EstadoBadge estado={getEstado(item)} />
-                        </div>
-                      </td>
+                        </td>
+                        <td style={s.td}>{item.apellido}</td>
+                        <td style={s.td}>{item.email}</td>
+                        <td style={s.td}>{item.telefono || "N/A"}</td>
 
-                      {/* ACCIONES */}
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <button
-                            style={styles.btnTiny}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              prepararEditar(item);
-                            }}
-                          >
-                            ✏️ Editar
-                          </button>
-                          <button
-                            style={styles.btnTinyDanger}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              solicitarEliminar(item);
-                            }}
-                          >
-                            🗑️ Eliminar
-                          </button>
-                          <button
-                            style={styles.btnTinySuccess}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirChat(item);
-                            }}
-                          >
-                            💬 Chatear
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        <td style={s.td}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <select
+                              aria-label="Cambiar estado/advertencia"
+                              value={getEstado(item)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                openEstadoModal(item, e.target.value);
+                              }}
+                              style={s.select}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {getEstadosPermitidos().map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                            <EstadoBadge estado={getEstado(item)} />
+                          </div>
+                        </td>
 
-                    {/* DETALLES */}
-                    {expandido === item._id && (
-                      <>
-                        <tr>
-                          <td colSpan="7" style={styles.detailsCell}>
-                            <div style={styles.detailsGrid}>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Nombre completo</div>
-                                <div style={styles.detailValue}>{item.nombre} {item.apellido}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Email</div>
-                                <div style={styles.detailValue}>{item.email}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Teléfono</div>
-                                <div style={styles.detailValue}>{item.telefono || "N/A"}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Creado</div>
-                                <div style={styles.detailValue}>{item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}</div>
-                              </div>
-                              <div style={styles.detailItem}>
-                                <div style={styles.detailLabel}>Actualizado</div>
-                                <div style={styles.detailValue}>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</div>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
+                        <td style={s.td}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button
+                              style={s.btnTiny}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                prepararEditar(item);
+                              }}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              style={s.btnTinyDanger}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                solicitarEliminar(item);
+                              }}
+                            >
+                              🗑️ Eliminar
+                            </button>
+                            <button
+                              style={s.btnTinySuccess}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirChat(item);
+                              }}
+                            >
+                              💬 Chatear
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
 
-                        {tipo === "emprendedor" && (
+                      {expandido === item._id && (
+                        <>
                           <tr>
-                            <td colSpan="7" style={{ padding: 16, backgroundColor: "#fafcff", borderTop: "1px solid #e6eef8" }}>
-                              {/* Filtros de fecha */}
-                              <div style={styles.filtersRow}>
-                                <div style={{ fontWeight: 600 }}>Filtrar por fecha</div>
-                                <div style={styles.filtersGroup}>
-                                  <label style={styles.labelInline}>
-                                    Desde
-                                    <input
-                                      type="date"
-                                      value={rangoFechas.from}
-                                      onChange={(e) => setRangoFechas((s) => ({ ...s, from: e.target.value }))}
-                                      style={styles.inputInline}
-                                    />
-                                  </label>
-                                  <label style={styles.labelInline}>
-                                    Hasta
-                                    <input
-                                      type="date"
-                                      value={rangoFechas.to}
-                                      onChange={(e) => setRangoFechas((s) => ({ ...s, to: e.target.value }))}
-                                      style={styles.inputInline}
-                                    />
-                                  </label>
-                                  <button
-                                    style={styles.btnTiny}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const emp = lista.find((x) => x._id === expandido);
-                                      if (emp) cargarNestedParaEmprendedor(emp);
-                                    }}
-                                  >
-                                    Aplicar
-                                  </button>
-                                  <button
-                                    style={styles.btnTiny}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setRangoFechas({ from: "", to: "" });
-                                    }}
-                                  >
-                                    Limpiar
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Emprendimientos */}
-                              <div style={{ marginBottom: 18 }}>
-                                <div style={styles.sectionHeader}>
-                                  <h4 style={styles.sectionTitle}>Emprendimientos</h4>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const emps = mapEmpEmprendimientos[item._id] || [];
-                                        exportCSV(
-                                          emps.map((e) => ({
-                                            nombreComercial: e.nombreComercial || "",
-                                            ciudad: e?.ubicacion?.ciudad || "",
-                                            creado: e.createdAt ? new Date(e.createdAt).toLocaleString() : "",
-                                          })),
-                                          `emprendimientos_${item.nombre}_${item.apellido}`
-                                        );
-                                      }}
-                                    >
-                                      Exportar CSV
-                                    </button>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const emps = mapEmpEmprendimientos[item._id] || [];
-                                        exportPDF(
-                                          `Emprendimientos de ${item.nombre} ${item.apellido}`,
-                                          emps,
-                                          mapperEmprendimientos
-                                        );
-                                      }}
-                                    >
-                                      Exportar PDF
-                                    </button>
+                            <td colSpan="7" style={s.detailsCell}>
+                              <div style={s.detailsGrid}>
+                                <div style={s.detailItem}>
+                                  <div style={s.detailLabel}>Nombre completo</div>
+                                  <div style={s.detailValue}>
+                                    {item.nombre} {item.apellido}
                                   </div>
                                 </div>
-
-                                {loadingNested ? (
-                                  <div style={styles.emptyCell}>Cargando emprendimientos…</div>
-                                ) : (
-                                  <table style={{ ...styles.table, marginTop: 8 }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={styles.th}>Nombre Comercial</th>
-                                        <th style={styles.th}>Ciudad</th>
-                                        <th style={styles.th}>Creado</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
-                                        <tr><td colSpan="3" style={styles.emptyCell}>Sin emprendimientos en el rango.</td></tr>
-                                      ) : (
-                                        (mapEmpEmprendimientos[item._id] || []).map((e) => (
-                                          <tr key={e._id}>
-                                            <td style={styles.td}>{e.nombreComercial}</td>
-                                            <td style={styles.td}>{e?.ubicacion?.ciudad || "—"}</td>
-                                            <td style={styles.td}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}</td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                )}
-                              </div>
-
-                              {/* Productos */}
-                              <div>
-                                <div style={styles.sectionHeader}>
-                                  <h4 style={styles.sectionTitle}>Productos</h4>
-                                  <div style={{ display: "flex", gap: 8 }}>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const prods = mapEmpProductos[item._id] || [];
-                                        exportCSV(
-                                          prods.map((p) => ({
-                                            producto: p.nombre || "",
-                                            precio: typeof p.precio === "number" ? p.precio : "",
-                                            stock: p.stock ?? "",
-                                            emprendimiento: p.empNombreComercial || p?.emprendimiento?.nombreComercial || "",
-                                            creado: p.createdAt ? new Date(p.createdAt).toLocaleString() : "",
-                                          })),
-                                          `productos_${item.nombre}_${item.apellido}`
-                                        );
-                                      }}
-                                    >
-                                      Exportar CSV
-                                    </button>
-                                    <button
-                                      style={styles.btnTiny}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const prods = mapEmpProductos[item._id] || [];
-                                        exportPDF(
-                                          `Productos de ${item.nombre} ${item.apellido}`,
-                                          prods,
-                                          mapperProductos
-                                        );
-                                      }}
-                                    >
-                                      Exportar PDF
-                                    </button>
+                                <div style={s.detailItem}>
+                                  <div style={s.detailLabel}>Email</div>
+                                  <div style={s.detailValue}>{item.email}</div>
+                                </div>
+                                <div style={s.detailItem}>
+                                  <div style={s.detailLabel}>Teléfono</div>
+                                  <div style={s.detailValue}>{item.telefono || "N/A"}</div>
+                                </div>
+                                <div style={s.detailItem}>
+                                  <div style={s.detailLabel}>Creado</div>
+                                  <div style={s.detailValue}>
+                                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : "—"}
                                   </div>
                                 </div>
-
-                                {loadingNested ? (
-                                  <div style={styles.emptyCell}>Cargando productos…</div>
-                                ) : (
-                                  <table style={{ ...styles.table, marginTop: 8 }}>
-                                    <thead>
-                                      <tr>
-                                        <th style={styles.th}>Producto</th>
-                                        <th style={styles.th}>Precio</th>
-                                        <th style={styles.th}>Stock</th>
-                                        <th style={styles.th}>Emprendimiento</th>
-                                        <th style={styles.th}>Creado</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(mapEmpProductos[item._id] || []).length === 0 ? (
-                                        <tr><td colSpan="5" style={styles.emptyCell}>Sin productos en el rango.</td></tr>
-                                      ) : (
-                                        (mapEmpProductos[item._id] || []).map((p) => (
-                                          <tr key={p._id}>
-                                            <td style={styles.td}>{p.nombre}</td>
-                                            <td style={styles.td}>
-                                              {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
-                                            </td>
-                                            <td style={styles.td}>{p.stock ?? "—"}</td>
-                                            <td style={styles.td}>
-                                              {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
-                                            </td>
-                                            <td style={styles.td}>
-                                              {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
-                                            </td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                )}
+                                <div style={s.detailItem}>
+                                  <div style={s.detailLabel}>Actualizado</div>
+                                  <div style={s.detailValue}>
+                                    {item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}
+                                  </div>
+                                </div>
                               </div>
                             </td>
                           </tr>
-                        )}
-                      </>
-                    )}
-                  </React.Fragment>
-                ))}
-            </tbody>
-          </table>
-        </div>
+
+                          {tipo === "emprendedor" && (
+                            <tr>
+                              <td
+                                colSpan="7"
+                                style={{
+                                  padding: bp.isXS ? 12 : 16,
+                                  backgroundColor: "#fafcff",
+                                  borderTop: "1px solid #e6eef8",
+                                }}
+                              >
+                                {/* Filtros de fecha */}
+                                <div style={s.filtersRow}>
+                                  <div style={{ fontWeight: 600 }}>Filtrar por fecha</div>
+                                  <div style={s.filtersGroup}>
+                                    <label style={s.labelInline}>
+                                      Desde
+                                      <input
+                                        type="date"
+                                        value={rangoFechas.from}
+                                        onChange={(e) =>
+                                          setRangoFechas((st) => ({ ...st, from: e.target.value }))
+                                        }
+                                        style={s.inputInline}
+                                      />
+                                    </label>
+                                    <label style={s.labelInline}>
+                                      Hasta
+                                      <input
+                                        type="date"
+                                        value={rangoFechas.to}
+                                        onChange={(e) =>
+                                          setRangoFechas((st) => ({ ...st, to: e.target.value }))
+                                        }
+                                        style={s.inputInline}
+                                      />
+                                    </label>
+                                    <button
+                                      style={s.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const emp = lista.find((x) => x._id === expandido);
+                                        if (emp) cargarNestedParaEmprendedor(emp);
+                                      }}
+                                    >
+                                      Aplicar
+                                    </button>
+                                    <button
+                                      style={s.btnTiny}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRangoFechas({ from: "", to: "" });
+                                      }}
+                                    >
+                                      Limpiar
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Emprendimientos */}
+                                <div style={{ marginBottom: 18 }}>
+                                  <div style={s.sectionHeader}>
+                                    <h4 style={s.sectionTitle}>Emprendimientos</h4>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <button
+                                        style={s.btnTiny}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const emps = mapEmpEmprendimientos[item._id] || [];
+                                          exportCSV(
+                                            emps.map((e) => ({
+                                              nombreComercial: e.nombreComercial || "",
+                                              ciudad: e?.ubicacion?.ciudad || "",
+                                              creado: e.createdAt
+                                                ? new Date(e.createdAt).toLocaleString()
+                                                : "",
+                                            })),
+                                            `emprendimientos_${item.nombre}_${item.apellido}`
+                                          );
+                                        }}
+                                      >
+                                        Exportar CSV
+                                      </button>
+                                      <button
+                                        style={s.btnTiny}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const emps = mapEmpEmprendimientos[item._id] || [];
+                                          exportPDF(
+                                            `Emprendimientos de ${item.nombre} ${item.apellido}`,
+                                            emps,
+                                            mapperEmprendimientos
+                                          );
+                                        }}
+                                      >
+                                        Exportar PDF
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {loadingNested ? (
+                                    <div style={s.emptyCell}>Cargando emprendimientos…</div>
+                                  ) : (
+                                    <table style={{ ...s.table, marginTop: 8 }}>
+                                      <thead>
+                                        <tr>
+                                          <th style={s.th}>Nombre Comercial</th>
+                                          <th style={s.th}>Ciudad</th>
+                                          <th style={s.th}>Creado</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(mapEmpEmprendimientos[item._id] || []).length === 0 ? (
+                                          <tr>
+                                            <td colSpan="3" style={s.emptyCell}>
+                                              Sin emprendimientos en el rango.
+                                            </td>
+                                          </tr>
+                                        ) : (
+                                          (mapEmpEmprendimientos[item._id] || []).map((e) => (
+                                            <tr key={e._id}>
+                                              <td style={s.td}>{e.nombreComercial}</td>
+                                              <td style={s.td}>{e?.ubicacion?.ciudad || "—"}</td>
+                                              <td style={s.td}>
+                                                {e.createdAt ? new Date(e.createdAt).toLocaleString() : "—"}
+                                              </td>
+                                            </tr>
+                                          ))
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+
+                                {/* Productos */}
+                                <div>
+                                  <div style={s.sectionHeader}>
+                                    <h4 style={s.sectionTitle}>Productos</h4>
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <button
+                                        style={s.btnTiny}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const prods = mapEmpProductos[item._id] || [];
+                                          exportCSV(
+                                            prods.map((p) => ({
+                                              producto: p.nombre || "",
+                                              precio: typeof p.precio === "number" ? p.precio : "",
+                                              stock: p.stock ?? "",
+                                              emprendimiento:
+                                                p.empNombreComercial ||
+                                                p?.emprendimiento?.nombreComercial ||
+                                                "",
+                                              creado: p.createdAt
+                                                ? new Date(p.createdAt).toLocaleString()
+                                                : "",
+                                            })),
+                                            `productos_${item.nombre}_${item.apellido}`
+                                          );
+                                        }}
+                                      >
+                                        Exportar CSV
+                                      </button>
+                                      <button
+                                        style={s.btnTiny}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const prods = mapEmpProductos[item._id] || [];
+                                          exportPDF(
+                                            `Productos de ${item.nombre} ${item.apellido}`,
+                                            prods,
+                                            mapperProductos
+                                          );
+                                        }}
+                                      >
+                                        Exportar PDF
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {loadingNested ? (
+                                    <div style={s.emptyCell}>Cargando productos…</div>
+                                  ) : (
+                                    <table style={{ ...s.table, marginTop: 8 }}>
+                                      <thead>
+                                        <tr>
+                                          <th style={s.th}>Producto</th>
+                                          <th style={s.th}>Precio</th>
+                                          <th style={s.th}>Stock</th>
+                                          <th style={s.th}>Emprendimiento</th>
+                                          <th style={s.th}>Creado</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(mapEmpProductos[item._id] || []).length === 0 ? (
+                                          <tr>
+                                            <td colSpan="5" style={s.emptyCell}>
+                                              Sin productos en el rango.
+                                            </td>
+                                          </tr>
+                                        ) : (
+                                          (mapEmpProductos[item._id] || []).map((p) => (
+                                            <tr key={p._id}>
+                                              <td style={s.td}>{p.nombre}</td>
+                                              <td style={s.td}>
+                                                {typeof p.precio === "number" ? fmtUSD.format(p.precio) : "—"}
+                                              </td>
+                                              <td style={s.td}>{p.stock ?? "—"}</td>
+                                              <td style={s.td}>
+                                                {p.empNombreComercial || p?.emprendimiento?.nombreComercial || "—"}
+                                              </td>
+                                              <td style={s.td}>
+                                                {p.createdAt ? new Date(p.createdAt).toLocaleString() : "—"}
+                                              </td>
+                                            </tr>
+                                          ))
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      )}
+                    </React.Fragment>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* ===== PAGINACIÓN ===== */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: bp.isMD ? "center" : "space-between",
+            alignItems: "center",
+            marginTop: 12,
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <button
-              style={styles.btnSecondary}
-              onClick={() => { setPage(1); }}
+              style={s.btnSecondary}
+              onClick={() => {
+                setPage(1);
+              }}
               disabled={page === 1}
             >
               ⏮ Inicio
             </button>
-            <button
-              style={styles.btnSecondary}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
+            <button style={s.btnSecondary} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
               ← Anterior
             </button>
-            <span style={{ color: "#64748b", fontSize: 14 }}>
+            <span style={{ color: "#64748b", fontSize: bp.isXS ? 12 : 14 }}>
               Página {page} de {totalPages}
             </span>
             <button
-              style={styles.btnSecondary}
+              style={s.btnSecondary}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
             >
               Siguiente →
             </button>
             <button
-              style={styles.btnSecondary}
-              onClick={() => { setPage(totalPages); }}
+              style={s.btnSecondary}
+              onClick={() => {
+                setPage(totalPages);
+              }}
               disabled={page === totalPages}
             >
               Fin ⏭
             </button>
           </div>
 
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <label style={{ color: "#475569", fontWeight: 600 }}>Filas por página</label>
             <select
               value={pageSize}
@@ -1348,28 +2071,27 @@ const Table = () => {
               style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid #cbd5e1" }}
             >
               {PAGE_SIZE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
               ))}
             </select>
           </div>
         </div>
       </section>
 
-      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (motivo, suspendidoHasta) ======
-          Nota: lo dejo en el código por compatibilidad, pero ya no se abre
-          porque los cambios de estado para cliente son DIRECTOS (igual que emprendedor).
-      */}
+      {/* ====== MODAL: CAMBIO DE ESTADO CLIENTE (con motivo) ====== */}
       {estadoModal.visible && tipo === "cliente" && (
-        <div style={styles.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
-            <div style={styles.modalHeader}>
-              <h3 style={{ margin: 0 }}>
-                Cambiar estado a {estadoModal.nuevoEstado}
-              </h3>
-              <button style={styles.btnClose} onClick={closeEstadoModal}>Cerrar</button>
+        <div style={s.modalOverlay} onKeyDown={(e) => e.key === "Escape" && closeEstadoModal()}>
+          <div style={s.modal} role="dialog" aria-modal="true" aria-label="Confirmar cambio de estado">
+            <div style={s.modalHeader}>
+              <h3 style={{ margin: 0 }}>Cambiar estado a {estadoModal.nuevoEstado}</h3>
+              <button style={s.btnClose} onClick={closeEstadoModal}>
+                Cerrar
+              </button>
             </div>
 
-            <div style={styles.modalBody}>
+            <div style={s.modalBody}>
               <div style={{ marginBottom: 10 }}>
                 <label style={{ fontWeight: 600, fontSize: 14, color: "#374151" }}>
                   Motivo <span style={{ color: "#dc2626" }}>*</span>
@@ -1377,7 +2099,7 @@ const Table = () => {
                 <textarea
                   rows={4}
                   value={estadoModal.motivo}
-                  onChange={(e) => setEstadoModal((s) => ({ ...s, motivo: e.target.value }))}
+                  onChange={(e) => setEstadoModal((st) => ({ ...st, motivo: e.target.value }))}
                   placeholder="Describe brevemente el motivo…"
                   style={{
                     width: "100%",
@@ -1385,7 +2107,7 @@ const Table = () => {
                     padding: 10,
                     borderRadius: 8,
                     border: "1px solid #cbd5e1",
-                    resize: "vertical"
+                    resize: "vertical",
                   }}
                 />
               </div>
@@ -1398,7 +2120,7 @@ const Table = () => {
                   <input
                     type="datetime-local"
                     value={estadoModal.suspendidoHasta}
-                    onChange={(e) => setEstadoModal((s) => ({ ...s, suspendidoHasta: e.target.value }))}
+                    onChange={(e) => setEstadoModal((st) => ({ ...st, suspendidoHasta: e.target.value }))}
                     style={{
                       width: "100%",
                       marginTop: 6,
@@ -1414,9 +2136,11 @@ const Table = () => {
               )}
             </div>
 
-            <div style={styles.modalFooter}>
-              <button style={styles.btnSecondary} onClick={closeEstadoModal}>Cancelar</button>
-              <button style={styles.btnPrimary} onClick={updateEstadoClienteConfirmed}>
+            <div style={s.modalFooter}>
+              <button style={s.btnSecondary} onClick={closeEstadoModal}>
+                Cancelar
+              </button>
+              <button style={s.btnPrimary} onClick={updateEstadoClienteConfirmed}>
                 Confirmar
               </button>
             </div>
@@ -1426,316 +2150,32 @@ const Table = () => {
 
       {/* ====== MODAL CONFIRM ELIMINACIÓN ====== */}
       {confirmDelete.visible && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal} role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
-            <div style={styles.modalHeader}>
+        <div style={s.modalOverlay}>
+          <div style={s.modal} role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
+            <div style={s.modalHeader}>
               <h3 style={{ margin: 0 }}>Confirmar eliminación</h3>
-              <button style={styles.btnClose} onClick={cancelarEliminar}>Cerrar</button>
+              <button style={s.btnClose} onClick={cancelarEliminar}>
+                Cerrar
+              </button>
             </div>
-            <div style={styles.modalBody}>
+            <div style={s.modalBody}>
               <p style={{ marginTop: 0 }}>
                 ¿Eliminar {capitalize(tipo)} <strong>{confirmDelete.nombre}</strong>? Esta acción no se puede deshacer.
               </p>
             </div>
-            <div style={styles.modalFooter}>
-              <button style={styles.btnSecondary} onClick={cancelarEliminar}>Cancelar</button>
-              <button style={styles.btnDanger} onClick={confirmarEliminar}>Eliminar</button>
+            <div style={s.modalFooter}>
+              <button style={s.btnSecondary} onClick={cancelarEliminar}>
+                Cancelar
+              </button>
+              <button style={s.btnDanger} onClick={confirmarEliminar}>
+                Eliminar
+              </button>
             </div>
           </div>
         </div>
       )}
     </div>
   );
-};
-
-/* ===========================
-   ESTILOS (sin cambios)
-  =========================== */
-const styles = {
-  container: {
-    maxWidth: 1080,
-    margin: "auto",
-    padding: 20,
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    color: "#1f2937",
-  },
-  header: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: 12,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: { margin: 0, fontSize: 24, fontWeight: 800 },
-  subTitle: { marginTop: 4, color: "#64748b", fontSize: 13 },
-  actionsBar: { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" },
-
-  segmented: {
-    display: "inline-flex",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    overflow: "hidden",
-    background: "#fff",
-  },
-  segmentedBtn: {
-    padding: "8px 12px",
-    backgroundColor: "#fff",
-    color: "#334155",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-  segmentedActive: {
-    padding: "8px 12px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-
-  searchBox: { display: "flex", gap: 8, alignItems: "center" },
-  searchInput: {
-    width: 280,
-    maxWidth: "60vw",
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    outline: "none",
-  },
-  refreshBtn: {
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    background: "#fff",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-
-  toastRegion: { position: "fixed", top: 14, right: 14, display: "grid", gap: 8, zIndex: 10000 },
-  toast: {
-    padding: "10px 12px",
-    borderRadius: 10,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-    fontSize: 13,
-    minWidth: 240,
-  },
-
-  card: {
-    marginBottom: 20,
-    padding: 16,
-    border: "1px solid #e2e8f0",
-    borderRadius: 12,
-    backgroundColor: "#ffffff",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-  },
-  cardHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  cardTitle: { margin: 0, fontSize: 18, fontWeight: 700 },
-  cardFooter: { display: "flex", gap: 8, marginTop: 8 },
-
-  grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-  formGroup: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, color: "#475569", fontWeight: 600 },
-  input: {
-    width: "100%",
-    padding: 10,
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    boxSizing: "border-box",
-    outline: "none",
-  },
-
-  btnPrimary: {
-    padding: "10px 16px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  btnSecondary: {
-    padding: "10px 16px",
-    backgroundColor: "#64748b",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  btnGhost: {
-    padding: "10px 16px",
-    backgroundColor: "#ffffff",
-    color: "#0ea5e9",
-    border: "1px solid #0ea5e9",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  th: {
-    borderBottom: "2px solid #0ea5e9",
-    padding: 10,
-    textAlign: "left",
-    backgroundColor: "#eaf7ff",
-    fontWeight: 700,
-    fontSize: 13,
-    color: "#1f2937",
-    position: "sticky",
-    top: 0,
-    zIndex: 1,
-  },
-  td: {
-    borderBottom: "1px solid #e5e7eb",
-    padding: 10,
-    verticalAlign: "top",
-    fontSize: 14,
-  },
-
-  select: {
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#fff",
-  },
-
-  btnTiny: {
-    padding: "6px 10px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  btnTinyDanger: {
-    padding: "6px 10px",
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
-  btnTinySuccess: {
-    padding: "6px 10px",
-    backgroundColor: "#22c55e",
-    color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-  },
-
-  emptyCell: {
-    textAlign: "center",
-    padding: 20,
-    color: "#666",
-    fontSize: 14,
-  },
-
-  detailsCell: {
-    padding: 12,
-    backgroundColor: "#f7fbff",
-    borderTop: "1px solid #e6eef8",
-  },
-  detailsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: 12,
-  },
-  detailItem: {
-    padding: 10,
-    border: "1px solid #e2e8f0",
-    borderRadius: 10,
-    background: "#fff",
-  },
-  detailLabel: { fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 4 },
-  detailValue: { fontSize: 14, color: "#1f2937" },
-
-  filtersRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  filtersGroup: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  labelInline: { display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569", fontWeight: 600 },
-  inputInline: {
-    padding: "6px 8px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    backgroundColor: "#fff",
-    outline: "none",
-  },
-
-  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  sectionTitle: { margin: 0, color: "#0ea5e9" },
-
-  modalOverlay: {
-    position: "fixed",
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 9999,
-    padding: 12,
-  },
-  modal: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    width: 520,
-    maxWidth: "95%",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-  },
-  modalHeader: {
-    padding: "12px 16px",
-    backgroundColor: "#0ea5e9",
-    color: "white",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  btnClose: {
-    backgroundColor: "#dc3545",
-    border: "none",
-    color: "white",
-    fontWeight: "bold",
-    cursor: "pointer",
-    padding: "6px 10px",
-    borderRadius: 8,
-  },
-  modalBody: {
-    padding: 16,
-    minHeight: 120,
-    fontSize: 14,
-    color: "#333",
-    overflowY: "auto",
-  },
-  modalFooter: {
-    padding: 12,
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 8,
-  },
-  btnDanger: {
-    padding: "10px 16px",
-    backgroundColor: "#dc3545",
-    color: "white",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontWeight: 700,
-  },
 };
 
 export default Table;
