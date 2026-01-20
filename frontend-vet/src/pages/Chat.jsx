@@ -1,16 +1,30 @@
 
 // src/pages/Chat.jsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
- * Chat responsivo con avatar (foto o iniciales) y soporte de quejas.
- * - Evita clases Tailwind generadas en runtime (rompen el build).
- * - Para colores dinámicos, usa `style={{ ... }}`.
+ * Chat con mejor UX:
+ * - Sidebar con búsqueda y estados vacíos/cargando
+ * - Lista de mensajes con separadores por fecha, timestamps y scroll-to-bottom
+ * - Composer con textarea auto-size, Enter para enviar y Shift+Enter para nueva línea
+ * - Colores de marca con style (evita clases dinámicas no soportadas por Tailwind)
  */
 
-const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
+const theme = {
+  brand: "#AA4A44",
+  brandHover: "#8C3E39",
+  brandSoft: "#FFF5F4",
+  mineBubble: "#AA4A44",
+  otherBubble: "#FFFFFF",
+  border: "#E5E7EB",
+  bg: "#F8FAFC",
+  text: "#1F2937",
+  subtle: "#6B7280",
+};
+
+const Avatar = ({ nombre = "", foto = null, size = 36, className = "" }) => {
   const initials =
     (nombre || "")
       .trim()
@@ -25,6 +39,8 @@ const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
     height: size,
     borderRadius: "9999px",
     objectFit: "cover",
+    boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
+    backgroundColor: "#fff",
   };
   const styleDiv = {
     width: size,
@@ -35,8 +51,10 @@ const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
     justifyContent: "center",
     fontWeight: 700,
     fontSize: Math.max(10, Math.floor(size / 3)),
-    backgroundColor: "#F7E5D2",
+    background:
+      "linear-gradient(135deg, rgba(255,221,215,1) 0%, rgba(247,229,210,1) 100%)",
     color: "#8C3E39",
+    boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
   };
 
   if (foto) {
@@ -60,9 +78,34 @@ const Avatar = ({ nombre = "", foto = null, size = 32, className = "" }) => {
   }
 
   return (
-    <div style={styleDiv} className={className}>
+    <div style={styleDiv} className={className} aria-label={`Avatar de ${nombre}`}>
       {initials}
     </div>
+  );
+};
+
+// Utilidades de fecha/hora
+const fmtDate = (ts) =>
+  new Intl.DateTimeFormat("es-EC", {
+    weekday: "long",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(ts));
+
+const fmtTime = (ts) =>
+  new Intl.DateTimeFormat("es-EC", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+
+const isSameDay = (aTs, bTs) => {
+  const a = new Date(aTs);
+  const b = new Date(bTs);
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
   );
 };
 
@@ -83,13 +126,15 @@ const Chat = () => {
   const [loadingConv, setLoadingConv] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [loadingQuejas, setLoadingQuejas] = useState(false);
+  const [filtro, setFiltro] = useState("");
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
 
   const mensajesRef = useRef(null);
+  const composerRef = useRef(null);
 
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const chatUserIdParam = params.get("user");
-  const productoIdParam = params.get("productoId"); // reservado si lo usas más adelante
   const productoNombreParam = params.get("productoNombre");
   const productoNombre = productoNombreParam
     ? decodeURIComponent(productoNombreParam)
@@ -97,13 +142,7 @@ const Chat = () => {
 
   const [chatTargetId, setChatTargetId] = useState(null);
 
-  // Colores base de la marca
-  const colorBrand = "#AA4A44";
-  const colorBrandHover = "#8C3E39";
-  const colorBrandSoft = "#FFF5F4";
-  const bubbleMaxWMobile = "max-w-[80%]";
-  const bubbleMaxWDesktop = "sm:max-w-[70%]";
-
+  // Habilitación de input según vista/selección
   const inputEnabled =
     vista === "chat"
       ? Boolean(conversacionId || chatTargetId)
@@ -153,30 +192,69 @@ const Chat = () => {
 
   const handleEnviar = async (e, receptorId, receptorRol) => {
     if (e && typeof e.preventDefault === "function") e.preventDefault();
-    if (!mensaje.trim() || !receptorId || !receptorRol) return false;
+    const contenido = vista === "chat" ? mensaje : mensajeQueja;
+    if (!contenido.trim() || !receptorId || !receptorRol) return false;
 
     try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/chat/mensaje",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            emisorId: usuarioId,
-            emisorRol,
-            receptorId,
-            receptorRol,
-            contenido: mensaje.trim(),
-          }),
-        }
-      );
+      const url =
+        vista === "chat"
+          ? "https://backend-production-bd1d.up.railway.app/api/chat/mensaje"
+          : "https://backend-production-bd1d.up.railway.app/api/quejas/queja";
+
+      const body =
+        vista === "chat"
+          ? {
+              emisorId: usuarioId,
+              emisorRol,
+              receptorId,
+              receptorRol,
+              contenido: contenido.trim(),
+            }
+          : {
+              emisorId: usuarioId,
+              emisorRol,
+              contenido: contenido.trim(),
+              quejaId:
+                emisorRol === "Cliente" || emisorRol === "Emprendedor"
+                  ? null
+                  : quejaSeleccionada?._id,
+              receptorId,
+              receptorRol,
+            };
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
       const data = await res.json();
       if (res.ok) {
-        setMensaje("");
-        setInfo("");
-        await obtenerMensajes();
-        await cargarConversaciones();
+        if (vista === "chat") {
+          setMensaje("");
+          setInfo("");
+          await obtenerMensajes();
+          await cargarConversaciones();
+        } else {
+          const nuevo =
+            data?.data || {
+              _id: Date.now().toString(),
+              contenido: contenido.trim(),
+              emisor: usuarioId,
+              emisorRol,
+              timestamp: new Date().toISOString(),
+            };
+          const usuarioLocal = {
+            _id: usuarioId,
+            nombre: storeAuth()?.nombre || "",
+            apellido: storeAuth()?.apellido || "",
+            foto: storeAuth()?.foto || null,
+          };
+          const nuevoEnriquecido = { ...nuevo, _emisorObj: usuarioLocal };
+          setMensajesQueja((prev) => [...prev, nuevoEnriquecido]);
+          setMensajeQueja("");
+          setInfo("");
+        }
         return true;
       } else {
         setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
@@ -188,7 +266,6 @@ const Chat = () => {
     }
   };
 
-  // ---------------- Quejas ----------------
   const cargarQuejas = async () => {
     try {
       setLoadingQuejas(true);
@@ -257,72 +334,6 @@ const Chat = () => {
     setSidebarOpen(false);
   };
 
-  const enviarMensajeQueja = async (e) => {
-    e.preventDefault();
-    if (!mensajeQueja.trim()) return;
-
-    const receptorId =
-      emisorRol === "Cliente" || emisorRol === "Emprendedor"
-        ? "6894f9c409b9687e33e57f56"
-        : quejaSeleccionada?._id;
-
-    const receptorRol =
-      emisorRol === "Cliente" || emisorRol === "Emprendedor"
-        ? "Administrador"
-        : null;
-
-    if (!receptorId) return;
-
-    try {
-      const res = await fetch(
-        "https://backend-production-bd1d.up.railway.app/api/quejas/queja",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            emisorId: usuarioId,
-            emisorRol,
-            contenido: mensajeQueja.trim(),
-            quejaId:
-              emisorRol === "Cliente" || emisorRol === "Emprendedor"
-                ? null
-                : quejaSeleccionada?._id,
-            receptorId,
-            receptorRol,
-          }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
-        const nuevo =
-          data?.data || {
-            _id: Date.now().toString(),
-            contenido: mensajeQueja.trim(),
-            emisor: usuarioId,
-            emisorRol,
-            timestamp: new Date().toISOString(),
-          };
-
-        const usuarioLocal = {
-          _id: usuarioId,
-          nombre: storeAuth()?.nombre || "",
-          apellido: storeAuth()?.apellido || "",
-          foto: storeAuth()?.foto || null,
-        };
-        const nuevoEnriquecido = { ...nuevo, _emisorObj: usuarioLocal };
-
-        setMensajesQueja((prev) => [...prev, nuevoEnriquecido]);
-        setMensajeQueja("");
-        setInfo("");
-      } else {
-        setInfo("❌ Error: " + (data.mensaje || "Error desconocido"));
-      }
-    } catch (error) {
-      console.error("Error enviando mensaje de queja", error);
-      setInfo("❌ Error de red al enviar mensaje");
-    }
-  };
-
   // ---------------- Effects ----------------
   useEffect(() => {
     if (chatUserIdParam) {
@@ -378,13 +389,32 @@ const Chat = () => {
     }
   }, [vista]);
 
+  // Auto-scroll + botón "bajar"
   useEffect(() => {
-    if (mensajesRef.current) {
-      mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
-    }
+    const el = mensajesRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      setShowScrollBtn(!atBottom);
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const el = mensajesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [mensajes, mensajesQueja]);
 
-  // ---------------- Envío del mensaje (UI) ----------------
+  // Auto-resize del textarea
+  useEffect(() => {
+    const ta = composerRef.current;
+    if (!ta) return;
+    ta.style.height = "0px";
+    ta.style.height = Math.min(160, ta.scrollHeight) + "px";
+  }, [mensaje, mensajeQueja, vista]);
+
+  // ---------------- UI/acciones ----------------
   const handleEnviarMensaje = async (e) => {
     e.preventDefault();
 
@@ -424,17 +454,67 @@ const Chat = () => {
     }
 
     if (vista === "quejas") {
-      enviarMensajeQueja(e);
+      const receptorId =
+        emisorRol === "Cliente" || emisorRol === "Emprendedor"
+          ? "6894f9c409b9687e33e57f56"
+          : quejaSeleccionada?._id;
+
+      const receptorRol =
+        emisorRol === "Cliente" || emisorRol === "Emprendedor"
+          ? "Administrador"
+          : null;
+
+      if (!receptorId) return;
+      await handleEnviar(e, receptorId, receptorRol);
     }
   };
 
-  // ---------------- Render helpers ----------------
+  // Submit con Enter / línea con Shift+Enter
+  const handleComposerKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (inputEnabled) handleEnviarMensaje(e);
+    }
+  };
+
+  // Filtro de conversaciones
+  const conversacionesFiltradas = useMemo(() => {
+    const f = (filtro || "").toLowerCase().trim();
+    if (!f) return conversaciones;
+    return conversaciones.filter((conv) => {
+      const otro = conv.participantes.find(
+        (p) => p.id && p.id._id !== usuarioId
+      );
+      const nombre = otro
+        ? `${otro.id?.nombre ?? ""} ${otro.id?.apellido ?? ""}`.toLowerCase()
+        : "participante desconocido";
+      const ultimo = (conv.ultimoMensaje || "").toLowerCase();
+      return nombre.includes(f) || ultimo.includes(f);
+    });
+  }, [conversaciones, filtro, usuarioId]);
+
+  // Datos activos según vista
   const chatActivo =
     vista === "chat"
       ? conversaciones.find((c) => c._id === conversacionId)
       : quejaSeleccionada;
 
   const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
+
+  // Lista con separadores por fecha
+  const mensajesConSeparadores = useMemo(() => {
+    const arr = [];
+    let lastDate = null;
+    for (const m of mensajesActivos) {
+      const t = m.timestamp || m.fecha || m.createdAt || Date.now();
+      if (!lastDate || !isSameDay(lastDate, t)) {
+        arr.push({ _sep: true, key: `sep-${t}`, label: fmtDate(t) });
+        lastDate = t;
+      }
+      arr.push(m);
+    }
+    return arr;
+  }, [mensajesActivos]);
 
   const HeaderTitle = () => {
     if (vista === "chat") {
@@ -443,14 +523,44 @@ const Chat = () => {
           chatActivo.participantes.find(
             (p) => p.id && p.id._id !== usuarioId
           )?.id?.nombre || "Desconocido";
-        return `Chat con ${nombreReceptor}${
-          productoNombre ? ` — Sobre: ${productoNombre}` : ""
-        }`;
+        return (
+          <div className="flex items-baseline gap-2">
+            <span className="font-semibold">Chat con {nombreReceptor}</span>
+            {productoNombre && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  color: theme.brand,
+                  backgroundColor: theme.brandSoft,
+                  border: `1px solid ${theme.border}`,
+                }}
+                title={`Sobre ${productoNombre}`}
+              >
+                {productoNombre}
+              </span>
+            )}
+          </div>
+        );
       }
       if (chatTargetId) {
-        return `Chat con el emprendedor${
-          productoNombre ? ` — Sobre: ${productoNombre}` : ""
-        }`;
+        return (
+          <div className="flex items-baseline gap-2">
+            <span className="font-semibold">Chat con el emprendedor</span>
+            {productoNombre && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  color: theme.brand,
+                  backgroundColor: theme.brandSoft,
+                  border: `1px solid ${theme.border}`,
+                }}
+                title={`Sobre ${productoNombre}`}
+              >
+                {productoNombre}
+              </span>
+            )}
+          </div>
+        );
       }
       return "Selecciona una conversación";
     }
@@ -459,7 +569,7 @@ const Chat = () => {
         const nombreOtro =
           quejaSeleccionada.participantes.find((p) => p.rol !== emisorRol)?.id
             ?.nombre || "Desconocido";
-        return `Chat Queja con ${nombreOtro}`;
+        return `Queja con ${nombreOtro}`;
       }
       return emisorRol === "Cliente" || emisorRol === "Emprendedor"
         ? "Manda una queja al administrador del sitio"
@@ -469,51 +579,57 @@ const Chat = () => {
   };
 
   return (
-    <div className="bg-white min-h-[100dvh] w-full" style={{ padding: 5 }}>
+    <div className="min-h-[100dvh] w-full" style={{ backgroundColor: theme.bg }}>
+      {/* Header */}
       <header
-        className="flex items-center justify-between px-4 py-3 md:py-4 md:px-6 sticky top-0 z-30"
-        style={{ color: colorBrand, backgroundColor: colorBrandSoft }}
+        className="flex items-center justify-between px-4 py-3 md:px-6 sticky top-0 z-30 border-b"
+        style={{ color: theme.brand, backgroundColor: theme.brandSoft, borderColor: theme.border }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             aria-label="Abrir panel lateral"
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md bg-white border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2"
+            className="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path
                 d="M4 6h16M4 12h16M4 18h16"
-                stroke={colorBrand}
+                stroke={theme.brand}
                 strokeWidth="2"
                 strokeLinecap="round"
               />
             </svg>
           </button>
-          <h1 className="font-bold text-base sm:text-lg">{HeaderTitle()}</h1>
+          <div className="flex flex-col">
+            <h1 className="text-base md:text-lg"><HeaderTitle /></h1>
+            <span className="text-xs" style={{ color: theme.subtle }}>
+              {vista === "chat" ? "Mensajería" : "Gestión de quejas"}
+            </span>
+          </div>
         </div>
 
         <div className="hidden md:flex gap-2">
           <button
             onClick={() => setVista("chat")}
-            className={`px-3 py-2 rounded-md font-semibold transition-colors ${
-              vista === "chat"
-                ? "text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+            className={`px-3 py-2 rounded-md font-medium transition-colors ${
+              vista === "chat" ? "text-white" : "bg-white border"
             }`}
-            style={{ backgroundColor: vista === "chat" ? colorBrand : undefined }}
+            style={{
+              backgroundColor: vista === "chat" ? theme.brand : undefined,
+              borderColor: theme.border,
+            }}
           >
             Chat
           </button>
           <button
             onClick={() => setVista("quejas")}
-            className={`px-3 py-2 rounded-md font-semibold transition-colors ${
-              vista === "quejas"
-                ? "text-white"
-                : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
+            className={`px-3 py-2 rounded-md font-medium transition-colors ${
+              vista === "quejas" ? "text-white" : "bg-white border"
             }`}
             style={{
-              backgroundColor: vista === "quejas" ? colorBrand : undefined,
+              backgroundColor: vista === "quejas" ? theme.brand : undefined,
+              borderColor: theme.border,
             }}
           >
             Quejas
@@ -521,72 +637,61 @@ const Chat = () => {
         </div>
       </header>
 
-      <div className="grid md:grid-cols-[20rem_1fr] md:gap-0">
+      {/* Layout */}
+      <div className="grid md:grid-cols-[22rem_1fr]">
+        {/* Overlay móvil */}
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40 md:hidden"
+            className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-40 md:hidden"
             aria-hidden="true"
           />
         )}
 
+        {/* Sidebar */}
         <aside
-          className={`fixed md:relative z-50 md:z-10 inset-y-0 left-0 w-80 md:w-full bg-white border-r border-gray-300 flex flex-col transform transition-transform duration-300 ${
+          className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[88%] max-w-[22rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           }`}
+          style={{ borderColor: theme.border }}
+          aria-label="Panel lateral de conversaciones"
         >
           <div
-            className="py-3 px-4 md:px-6 font-bold text-sm md:text-lg text-center md:text-left"
-            style={{ color: colorBrand, backgroundColor: colorBrandSoft }}
+            className="px-4 py-3 md:px-6 flex items-center gap-2 border-b"
+            style={{ backgroundColor: theme.brandSoft, borderColor: theme.border }}
           >
-            <div className="flex justify-center md:justify-start gap-2">
-              <button
-                onClick={() => setVista("chat")}
-                className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                  vista === "chat"
-                    ? "text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-                }`}
-                style={{
-                  backgroundColor: vista === "chat" ? colorBrand : undefined,
-                }}
-              >
-                Chat
-              </button>
-              <button
-                onClick={() => setVista("quejas")}
-                className={`px-3 py-1 rounded-md font-semibold transition-colors ${
-                  vista === "quejas"
-                    ? "text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-                }`}
-                style={{
-                  backgroundColor: vista === "quejas" ? colorBrand : undefined,
-                }}
-              >
-                Quejas
-              </button>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="md:hidden ml-auto px-3 py-1 rounded-md bg-gray-200 text-gray-700 hover:bg-[#f7d4d1]"
-              >
-                Cerrar
-              </button>
+            <div className="relative flex-1">
+              <input
+                type="search"
+                value={filtro}
+                onChange={(e) => setFiltro(e.target.value)}
+                placeholder="Buscar conversación…"
+                className="w-full bg-white border rounded-md py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2"
+                style={{ borderColor: theme.border }}
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden>
+                🔎
+              </span>
             </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden px-3 py-2 rounded-md bg-white border text-sm"
+              style={{ borderColor: theme.border }}
+            >
+              Cerrar
+            </button>
           </div>
 
-          <div className="flex-grow overflow-y-auto">
+          <div className="flex-1 overflow-y-auto divide-y" style={{ divideColor: theme.border }}>
             {vista === "chat" ? (
               loadingConv ? (
-                <p className="p-4 text-center text-gray-500">
-                  Cargando conversaciones…
-                </p>
-              ) : conversaciones.length === 0 ? (
-                <p className="p-4 text-center text-gray-500">
-                  No hay conversaciones
+                <SidebarSkeleton />
+              ) : conversacionesFiltradas.length === 0 ? (
+                <p className="p-4 text-center" style={{ color: theme.subtle }}>
+                  {filtro ? "Sin resultados" : "No hay conversaciones"}
                 </p>
               ) : (
-                conversaciones.map((conv) => {
+                conversacionesFiltradas.map((conv) => {
                   const otro = conv.participantes.find(
                     (p) => p.id && p.id._id !== usuarioId
                   );
@@ -604,25 +709,37 @@ const Chat = () => {
                         setChatTargetId(null);
                         setSidebarOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-center gap-3 ${
-                        isActive ? "bg-[#fceaea]" : ""
-                      }`}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                      style={{
+                        backgroundColor: isActive ? "#FFF7F6" : undefined,
+                      }}
                     >
-                      <Avatar
-                        nombre={nombre}
-                        foto={foto}
-                        size={32}
-                        className="flex-shrink-0"
-                      />
-                      <span className="truncate">{nombre}</span>
+                      <Avatar nombre={nombre} foto={foto} size={40} className="flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium truncate">{nombre}</span>
+                          {conv.ultimoTimestamp && (
+                            <span className="text-xs" style={{ color: theme.subtle }}>
+                              {fmtTime(conv.ultimoTimestamp)}
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className="text-sm truncate"
+                          style={{ color: theme.subtle }}
+                          title={conv.ultimoMensaje || ""}
+                        >
+                          {conv.ultimoMensaje || "…"}
+                        </p>
+                      </div>
                     </button>
                   );
                 })
               )
             ) : loadingQuejas ? (
-              <p className="p-4 text-center text-gray-500">Cargando quejas…</p>
+              <SidebarSkeleton />
             ) : quejas.length === 0 ? (
-              <p className="p-4 text-center text-gray-500">
+              <p className="p-4 text-center" style={{ color: theme.subtle }}>
                 {emisorRol === "Cliente" || emisorRol === "Emprendedor"
                   ? "Manda una queja al administrador del sitio"
                   : "No hay quejas registradas."}
@@ -639,9 +756,7 @@ const Chat = () => {
                 const isSelected = quejaSeleccionada?._id === q._id;
 
                 const nombreEmpr = emprendedor
-                  ? `${emprendedor.nombre || ""} ${
-                      emprendedor.apellido || ""
-                    }`.trim()
+                  ? `${emprendedor.nombre || ""} ${emprendedor.apellido || ""}`.trim()
                   : "Emprendedor";
                 const fotoEmpr = emprendedor?.foto || null;
 
@@ -649,28 +764,24 @@ const Chat = () => {
                   <button
                     key={q._id}
                     onClick={() => seleccionarQueja(q)}
-                    className={`w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-[#fceaea] flex items-start gap-3 ${
-                      isSelected ? "bg-[#fceaea]" : ""
-                    }`}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-start gap-3 transition-colors"
+                    style={{
+                      backgroundColor: isSelected ? "#FFF7F6" : undefined,
+                    }}
                   >
-                    <Avatar
-                      nombre={nombreEmpr}
-                      foto={fotoEmpr}
-                      size={32}
-                      className="mt-1 flex-shrink-0"
-                    />
-                    <div className="flex-1">
-                      <p className="font-semibold text-[#AA4A44]">
+                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={40} className="flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[#AA4A44]">
                         Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs" style={{ color: theme.subtle }}>
                         Receptor: {admin?.nombre} {admin?.apellido}
                       </p>
-                      <p className="mt-1 text-gray-800 text-sm line-clamp-2">
+                      <p className="mt-1 text-sm line-clamp-2">
                         <strong>Último mensaje:</strong>{" "}
                         {ultimoMensaje?.contenido || "Sin mensajes"}
                       </p>
-                      <p className="text-[11px] text-gray-500 mt-1">
+                      <p className="text-[11px] mt-1" style={{ color: theme.subtle }}>
                         {new Date(q.updatedAt).toLocaleString()}
                       </p>
                     </div>
@@ -681,24 +792,56 @@ const Chat = () => {
           </div>
         </aside>
 
+        {/* Main */}
         <section className="flex-1 flex flex-col">
+          {/* Mensajes */}
           <div
             ref={mensajesRef}
             role="log"
             aria-live="polite"
-            className="flex-1 overflow-y-auto p-3 sm:p-4 bg-gray-50 space-y-3 sm:space-y-4"
+            className="flex-1 overflow-y-auto p-3 sm:p-6"
+            style={{
+              background:
+                "linear-gradient(180deg, #FFFFFF 0%, rgba(248,250,252,1) 100%)",
+            }}
           >
-            {chatActivo ? (
-              loadingMsgs ? (
-                <p className="text-center text-gray-500 mt-10">
-                  Cargando mensajes…
-                </p>
-              ) : mensajesActivos.length === 0 ? (
-                <p className="text-center text-gray-500 mt-10">
-                  No hay mensajes aún.
-                </p>
-              ) : (
-                mensajesActivos.map((msg) => {
+            {!chatActivo ? (
+              <div className="h-full flex items-center justify-center">
+                <EmptyState
+                  title={
+                    emisorRol === "Cliente" || emisorRol === "Emprendedor"
+                      ? "Envía una queja al administrador o elige un chat"
+                      : "Selecciona una conversación o una queja"
+                  }
+                  description="Tus conversaciones aparecerán aquí"
+                />
+              </div>
+            ) : loadingMsgs ? (
+              <MessagesSkeleton />
+            ) : mensajesConSeparadores.length === 0 ? (
+              <div className="h-full flex items-center justify-center">
+                <EmptyState
+                  title="No hay mensajes aún"
+                  description="Escribe el primero para iniciar la conversación"
+                />
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                {mensajesConSeparadores.map((item, idx) => {
+                  if (item._sep) {
+                    return (
+                      <div key={item.key} className="flex items-center gap-3 my-2">
+                        <div className="flex-1 h-px bg-gray-200" />
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 border" style={{ borderColor: theme.border, color: theme.subtle }}>
+                          {item.label}
+                        </span>
+                        <div className="flex-1 h-px bg-gray-200" />
+                      </div>
+                    );
+                  }
+
+                  const msg = item;
+                  // Resolución de emisor
                   let emisorObj = null;
                   if (
                     msg &&
@@ -736,102 +879,130 @@ const Chat = () => {
                     : "";
                   const emisorFoto = emisorObj ? emisorObj.foto : null;
                   const esMio = String(emisorId) === String(usuarioId);
+                  const timestamp = msg.timestamp || msg.fecha || msg.createdAt;
 
                   return (
                     <div
-                      key={msg._id || msg.id}
-                      className={`flex items-end ${
-                        esMio ? "justify-end" : "justify-start"
-                      }`}
+                      key={msg._id || msg.id || idx}
+                      className={`flex items-end gap-2 ${esMio ? "justify-end" : "justify-start"}`}
                     >
                       {!esMio && (
-                        <div className="mr-3">
-                          <Avatar
-                            nombre={emisorNombre}
-                            foto={emisorFoto}
-                            size={36}
-                          />
-                        </div>
+                        <Avatar
+                          nombre={emisorNombre}
+                          foto={emisorFoto}
+                          size={34}
+                          className="flex-shrink-0 translate-y-1"
+                        />
                       )}
 
                       <div
-                        className={`px-4 py-2 rounded-2xl shadow ${
-                          esMio
-                            ? `text-white ${bubbleMaxWMobile} ${bubbleMaxWDesktop}`
-                            : `bg-white border border-gray-300 ${bubbleMaxWMobile} ${bubbleMaxWDesktop}`
+                        className={`rounded-2xl px-4 py-2 shadow-sm border ${
+                          esMio ? "text-white" : "text-gray-800"
                         }`}
-                        style={esMio ? { backgroundColor: colorBrand } : {}}
+                        style={{
+                          maxWidth: "72%",
+                          backgroundColor: esMio ? theme.mineBubble : theme.otherBubble,
+                          borderColor: esMio ? "transparent" : theme.border,
+                        }}
+                        title={timestamp ? new Date(timestamp).toLocaleString() : ""}
                       >
-                        <div className="whitespace-pre-wrap break-words">
+                        <div className="whitespace-pre-wrap break-words text-[15px] leading-snug">
                           {msg.contenido}
                         </div>
                         <div
-                          className={`mt-1 text-[11px] ${
-                            esMio ? "text-white/80" : "text-gray-500"
-                          } text-right`}
+                          className="mt-1 text-[11px] text-right"
+                          style={{ color: esMio ? "rgba(255,255,255,0.8)" : theme.subtle }}
                         >
                           {msg.emisorRol || ""}
-                          {msg.timestamp
-                            ? ` · ${new Date(msg.timestamp).toLocaleTimeString()}`
-                            : ""}
+                          {timestamp ? ` · ${fmtTime(timestamp)}` : ""}
                         </div>
                       </div>
 
-                      {esMio && <div className="ml-3" />}
+                      {esMio && <div className="w-[34px]" />}
                     </div>
                   );
-                })
-              )
-            ) : (
-              <p className="text-center text-gray-500 mt-10">
-                {emisorRol === "Cliente" || emisorRol === "Emprendedor"
-                  ? "Manda una queja al administrador del sitio"
-                  : "Selecciona una queja para comenzar"}
-              </p>
+                })}
+              </div>
             )}
           </div>
 
+          {/* Botón bajar cuando estás arriba */}
+          {showScrollBtn && (
+            <button
+              onClick={() => {
+                const el = mensajesRef.current;
+                if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+              }}
+              className="absolute right-4 bottom-24 z-20 px-3 py-2 rounded-full shadow bg-white border text-sm"
+              style={{ borderColor: theme.border, color: theme.text }}
+              aria-label="Bajar al último mensaje"
+              title="Bajar al último mensaje"
+            >
+              ⬇️ Nuevos
+            </button>
+          )}
+
+          {/* Composer */}
           <form
             onSubmit={handleEnviarMensaje}
-            className="flex items-center gap-2 p-3 sm:p-4 border-t border-gray-300 bg-white sticky bottom-0"
-            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px))" }}
+            className="flex items-end gap-2 p-3 sm:p-4 border-t bg-white sticky bottom-0"
+            style={{ borderColor: theme.border }}
           >
-            <label htmlFor="messageInput" className="sr-only">
+            <label htmlFor="composer" className="sr-only">
               {vista === "chat"
                 ? productoNombre
                   ? `Mensaje sobre "${productoNombre}"`
                   : "Escribe un mensaje…"
                 : "Escribe tu respuesta…"}
             </label>
-            <input
-              id="messageInput"
-              type="text"
-              placeholder={
-                vista === "chat"
-                  ? productoNombre
-                    ? `Mensaje sobre "${productoNombre}"`
-                    : "Escribe un mensaje…"
-                  : "Escribe tu respuesta…"
-              }
-              value={vista === "chat" ? mensaje : mensajeQueja}
-              onChange={(e) =>
-                vista === "chat"
-                  ? setMensaje(e.target.value)
-                  : setMensajeQueja(e.target.value)
-              }
-              className="flex-1 border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-offset-0 text-[15px]"
-              disabled={!inputEnabled}
-              autoComplete="off"
-            />
+
+            <div className="flex-1">
+              <div
+                className="border rounded-xl bg-white px-3 py-2 focus-within:ring-2"
+                style={{ borderColor: theme.border }}
+              >
+                <textarea
+                  id="composer"
+                  ref={composerRef}
+                  value={vista === "chat" ? mensaje : mensajeQueja}
+                  onChange={(e) =>
+                    vista === "chat"
+                      ? setMensaje(e.target.value)
+                      : setMensajeQueja(e.target.value)
+                  }
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder={
+                    vista === "chat"
+                      ? productoNombre
+                        ? `Mensaje sobre "${productoNombre}"`
+                        : "Escribe un mensaje…"
+                      : "Escribe tu respuesta…"
+                  }
+                  rows={1}
+                  className="w-full resize-none outline-none text-[15px] leading-snug"
+                  style={{ maxHeight: 160 }}
+                  disabled={!inputEnabled}
+                  autoComplete="off"
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs" style={{ color: theme.subtle }}>
+                    {vista === "chat"
+                      ? "Enter para enviar · Shift+Enter para nueva línea"
+                      : "Responder al hilo de queja"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={!inputEnabled}
-              className="inline-flex items-center gap-2 text-white px-4 sm:px-6 py-2 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2"
-              style={{ backgroundColor: colorBrand }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = colorBrandHover)}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = colorBrand)}
+              className="inline-flex items-center gap-2 text-white px-4 sm:px-5 py-2 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2"
+              style={{ backgroundColor: theme.brand }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = theme.brandHover)}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = theme.brand)}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path d="M3 20l18-8L3 4l3 7 8 1-8 1-3 7z" fill="currentColor" />
               </svg>
               <span className="hidden sm:inline">Enviar</span>
@@ -846,5 +1017,44 @@ const Chat = () => {
     </div>
   );
 };
+
+/* ---------- Componentes de apoyo (skeleton/empty) ---------- */
+
+const SidebarSkeleton = () => (
+  <div className="p-4 space-y-3">
+    {[...Array(6)].map((_, i) => (
+      <div key={i} className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 bg-gray-200 rounded animate-pulse" />
+          <div className="h-3 bg-gray-200 rounded w-2/3 animate-pulse" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const MessagesSkeleton = () => (
+  <div className="space-y-4">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className={`flex ${i % 2 ? "justify-end" : "justify-start"}`}>
+        <div className="rounded-2xl px-4 py-3 bg-gray-200 animate-pulse" style={{ maxWidth: "70%" }}>
+          <div className="h-4 bg-gray-300 rounded w-48 mb-2" />
+          <div className="h-3 bg-gray-300 rounded w-24" />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const EmptyState = ({ title, description }) => (
+  <div className="text-center">
+    <div className="mx-auto mb-3 w-12 h-12 rounded-full flex items-center justify-center border bg-white">
+      💬
+    </div>
+    <h3 className="font-semibold">{title}</h3>
+    <p className="text-sm text-gray-500 mt-1">{description}</p>
+  </div>
+);
 
 export default Chat;
