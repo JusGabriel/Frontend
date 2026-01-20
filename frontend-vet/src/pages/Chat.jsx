@@ -1,13 +1,15 @@
 
 // src/pages/Chat.jsx
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
- * Chat con UI compacta, sin polling, sin buscador, sin preview debajo de cada conversación,
- * y sin espacios vacíos grandes. Enter para enviar, Shift+Enter para nueva línea.
- * Colores dinámicos por style (evita clases Tailwind dinámicas con variables).
+ * Chat compacto y sin polling.
+ * - Sin buscador ni previews bajo cada conversación.
+ * - Sin separadores de fecha (máxima compacidad).
+ * - Composer siempre visible sin espacios grandes.
+ * - Colores dinámicos por style (sin clases Tailwind con variables).
  */
 
 const theme = {
@@ -17,13 +19,13 @@ const theme = {
   mineBubble: "#AA4A44",
   otherBubble: "#FFFFFF",
   border: "#E5E7EB",
-  bg: "#F7F7F9",          // un gris sutil para contraste de la app
+  bg: "#F7F7F9",
   surface: "#FFFFFF",
   text: "#1F2937",
   subtle: "#6B7280",
 };
 
-const Avatar = ({ nombre = "", foto = null, size = 36, className = "" }) => {
+const Avatar = ({ nombre = "", foto = null, size = 34, className = "" }) => {
   const initials =
     (nombre || "")
       .trim()
@@ -83,30 +85,11 @@ const Avatar = ({ nombre = "", foto = null, size = 36, className = "" }) => {
   );
 };
 
-// Utilidades fecha/hora
-const fmtDate = (ts) =>
-  new Intl.DateTimeFormat("es-EC", {
-    weekday: "long",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(ts));
-
 const fmtTime = (ts) =>
   new Intl.DateTimeFormat("es-EC", {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(ts));
-
-const isSameDay = (aTs, bTs) => {
-  const a = new Date(aTs);
-  const b = new Date(bTs);
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-};
 
 const Chat = () => {
   const { id: usuarioId, rol: emisorRol } = storeAuth();
@@ -149,7 +132,7 @@ const Chat = () => {
             emisorRol === "Emprendedor"
         );
 
-  // ---------------- Backend calls ----------------
+  // ---------------- Backend ----------------
   const cargarConversaciones = async () => {
     if (!usuarioId) return [];
     try {
@@ -332,8 +315,6 @@ const Chat = () => {
   };
 
   // ---------------- Effects ----------------
-
-  // Deep link: /chat?user=<id>&productoNombre=<...>
   useEffect(() => {
     if (chatUserIdParam) {
       setChatTargetId(chatUserIdParam);
@@ -347,7 +328,6 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatUserIdParam, productoNombreParam]);
 
-  // Cargar conversaciones al entrar a chat
   useEffect(() => {
     if (vista === "chat") {
       cargarConversaciones();
@@ -357,7 +337,6 @@ const Chat = () => {
     }
   }, [usuarioId, vista]);
 
-  // Si llegaste desde un producto y ya hay lista, abre la conversación existente
   useEffect(() => {
     if (!chatTargetId) return;
     if (!conversaciones || conversaciones.length === 0) return;
@@ -373,14 +352,13 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatTargetId, conversaciones]);
 
-  // 👉 Sin polling: solo cuando cambia la conversación
+  // Sin loop/polling: carga sólo al cambiar la conversación
   useEffect(() => {
     if (vista === "chat" && conversacionId) {
       obtenerMensajes();
     }
   }, [conversacionId, vista]);
 
-  // Cargar quejas cuando el usuario cambia a "quejas"
   useEffect(() => {
     if (vista === "quejas") {
       cargarQuejas();
@@ -395,7 +373,7 @@ const Chat = () => {
     const el = mensajesRef.current;
     if (!el) return;
     const onScroll = () => {
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
       setShowScrollBtn(!atBottom);
     };
     el.addEventListener("scroll", onScroll);
@@ -412,10 +390,10 @@ const Chat = () => {
     const ta = composerRef.current;
     if (!ta) return;
     ta.style.height = "0px";
-    ta.style.height = Math.min(140, ta.scrollHeight) + "px";
+    ta.style.height = Math.min(120, ta.scrollHeight) + "px";
   }, [mensaje, mensajeQueja, vista]);
 
-  // ---------------- Acciones UI ----------------
+  // ---------------- Acciones ----------------
   const handleEnviarMensaje = async (e) => {
     e.preventDefault();
 
@@ -470,28 +448,10 @@ const Chat = () => {
     }
   };
 
-  // Datos activos según vista
   const chatActivo =
     vista === "chat"
       ? conversaciones.find((c) => c._id === conversacionId)
       : quejaSeleccionada;
-
-  const mensajesActivos = vista === "chat" ? mensajes : mensajesQueja;
-
-  // Lista con separadores por fecha (compactos)
-  const mensajesConSeparadores = useMemo(() => {
-    const arr = [];
-    let lastDate = null;
-    for (const m of mensajesActivos) {
-      const t = m.timestamp || m.fecha || m.createdAt || Date.now();
-      if (!lastDate || !isSameDay(lastDate, t)) {
-        arr.push({ _sep: true, key: `sep-${t}`, label: fmtDate(t) });
-        lastDate = t;
-      }
-      arr.push(m);
-    }
-    return arr;
-  }, [mensajesActivos]);
 
   const HeaderTitle = () => {
     if (vista === "chat") {
@@ -560,9 +520,9 @@ const Chat = () => {
       className="h-[100dvh] w-full overflow-hidden flex flex-col"
       style={{ backgroundColor: theme.bg }}
     >
-      {/* Header compacto, ocupa altura fija */}
+      {/* Header muy compacto */}
       <header
-        className="flex items-center justify-between px-3 md:px-6 py-2 border-b shrink-0"
+        className="flex items-center justify-between px-3 md:px-5 py-2 border-b shrink-0"
         style={{ color: theme.brand, backgroundColor: theme.brandSoft, borderColor: theme.border }}
       >
         <div className="flex items-center gap-2">
@@ -570,22 +530,19 @@ const Chat = () => {
             type="button"
             aria-label="Abrir panel lateral"
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden inline-flex items-center justify-center w-9 h-9 rounded-md bg-white border hover:bg-gray-50"
+            className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-md bg-white border hover:bg-gray-50"
             style={{ borderColor: theme.border }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M4 6h16M4 12h16M4 18h16" stroke={theme.brand} strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
           <div className="leading-tight">
             <h1 className="text-[15px] md:text-base"><HeaderTitle /></h1>
-            <span className="text-[11px]" style={{ color: theme.subtle }}>
-              {vista === "chat" ? "Mensajería" : "Gestión de quejas"}
-            </span>
           </div>
         </div>
 
-        <div className="hidden md:flex gap-2">
+        <div className="hidden md:flex gap-1.5">
           <button
             onClick={() => setVista("chat")}
             className={`px-3 py-1.5 rounded-md text-sm ${vista === "chat" ? "text-white" : "bg-white border"}`}
@@ -603,8 +560,8 @@ const Chat = () => {
         </div>
       </header>
 
-      {/* Contenido ocupa el resto, sin espacios vacíos */}
-      <div className="flex-1 grid md:grid-cols-[19rem_1fr] min-h-0">
+      {/* Cuerpo ocupa todo el resto (sin espacios) */}
+      <div className="flex-1 grid md:grid-cols-[18rem_1fr] min-h-0">
         {/* Overlay móvil */}
         {sidebarOpen && (
           <div
@@ -616,14 +573,14 @@ const Chat = () => {
 
         {/* Sidebar compacto */}
         <aside
-          className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[86%] max-w-[19rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
+          className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[84%] max-w-[18rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           }`}
           style={{ borderColor: theme.border }}
           aria-label="Panel lateral de conversaciones"
         >
           <div
-            className="px-4 py-2.5 md:px-5 flex items-center justify-between border-b"
+            className="px-4 py-2 md:px-4 flex items-center justify-between border-b"
             style={{ backgroundColor: theme.brandSoft, borderColor: theme.border }}
           >
             <span className="font-medium text-[14px]">Conversaciones</span>
@@ -657,7 +614,7 @@ const Chat = () => {
               loadingConv ? (
                 <SidebarSkeleton />
               ) : conversaciones.length === 0 ? (
-                <p className="p-4 text-center" style={{ color: theme.subtle }}>
+                <p className="p-3 text-center text-sm" style={{ color: theme.subtle }}>
                   No hay conversaciones
                 </p>
               ) : (
@@ -679,17 +636,17 @@ const Chat = () => {
                         setChatTargetId(null);
                         setSidebarOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
+                      className="w-full text-left px-3.5 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
                       style={{
                         backgroundColor: isActive ? "#FFF7F6" : undefined,
                         borderColor: theme.border,
                       }}
                     >
-                      <Avatar nombre={nombre} foto={foto} size={38} className="flex-shrink-0" />
-                      <div className="min-w-0 flex-1 flex items-center justify-between gap-3">
+                      <Avatar nombre={nombre} foto={foto} size={36} className="flex-shrink-0" />
+                      <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
                         <span className="font-medium truncate text-[14px]">{nombre}</span>
                         {conv.ultimoTimestamp && (
-                          <span className="text-[11px]" style={{ color: theme.subtle }}>
+                          <span className="text-[10.5px]" style={{ color: theme.subtle }}>
                             {fmtTime(conv.ultimoTimestamp)}
                           </span>
                         )}
@@ -701,7 +658,7 @@ const Chat = () => {
             ) : loadingQuejas ? (
               <SidebarSkeleton />
             ) : quejas.length === 0 ? (
-              <p className="p-4 text-center" style={{ color: theme.subtle }}>
+              <p className="p-3 text-center text-sm" style={{ color: theme.subtle }}>
                 {emisorRol === "Cliente" || emisorRol === "Emprendedor"
                   ? "Manda una queja al administrador del sitio"
                   : "No hay quejas registradas."}
@@ -725,13 +682,13 @@ const Chat = () => {
                   <button
                     key={q._id}
                     onClick={() => seleccionarQueja(q)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
                     style={{
                       backgroundColor: isSelected ? "#FFF7F6" : undefined,
                       borderColor: theme.border,
                     }}
                   >
-                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={38} className="flex-shrink-0" />
+                    <Avatar nombre={nombreEmpr} foto={fotoEmpr} size={36} className="flex-shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-[#AA4A44] truncate text-[14px]">
                         Emisor: {emprendedor?.nombre} {emprendedor?.apellido}
@@ -747,18 +704,15 @@ const Chat = () => {
           </div>
         </aside>
 
-        {/* Main (mensajes + composer) */}
+        {/* Main */}
         <section className="min-h-0 flex flex-col bg-white">
-          {/* Mensajes */}
+          {/* Lista de mensajes */}
           <div
             ref={mensajesRef}
             role="log"
             aria-live="polite"
-            className="flex-1 overflow-y-auto px-2 sm:px-6 py-3 sm:py-4"
-            style={{
-              background:
-                "linear-gradient(180deg, #FFFFFF 0%, rgba(248,250,252,0.9) 100%)",
-            }}
+            className="flex-1 overflow-y-auto px-2 sm:px-5 py-2"
+            style={{ background: "linear-gradient(180deg, #FFFFFF 0%, rgba(248,250,252,0.9) 100%)" }}
           >
             {!chatActivo ? (
               <div className="h-full flex items-center justify-center">
@@ -773,7 +727,7 @@ const Chat = () => {
               </div>
             ) : loadingMsgs ? (
               <MessagesSkeleton />
-            ) : mensajesConSeparadores.length === 0 ? (
+            ) : (vista === "chat" ? mensajes : mensajesQueja).length === 0 ? (
               <div className="h-full flex items-center justify-center">
                 <EmptyState
                   title="No hay mensajes aún"
@@ -781,27 +735,11 @@ const Chat = () => {
                 />
               </div>
             ) : (
-              <div className="space-y-2.5 sm:space-y-3">
-                {mensajesConSeparadores.map((item, idx) => {
-                  if (item._sep) {
-                    // Separador de fecha MUY compacto (poco espacio)
-                    return (
-                      <div key={item.key} className="flex items-center gap-2 my-[4px]">
-                        <div className="flex-1 h-px bg-gray-200" />
-                        <span
-                          className="text-[10px] px-1.5 py-[1px] rounded-full bg-gray-100 border"
-                          style={{ borderColor: theme.border, color: theme.subtle }}
-                        >
-                          {item.label}
-                        </span>
-                        <div className="flex-1 h-px bg-gray-200" />
-                      </div>
-                    );
-                  }
-
-                  const msg = item;
+              <div className="space-y-2 sm:space-y-2.5">
+                {(vista === "chat" ? mensajes : mensajesQueja).map((msg, idx) => {
                   // Resolver emisor
                   let emisorObj = null;
+                  const chatActual = chatActivo;
                   if (
                     msg &&
                     typeof msg.emisor === "object" &&
@@ -811,8 +749,8 @@ const Chat = () => {
                     emisorObj = msg.emisor;
                   } else if (msg && msg._emisorObj) {
                     emisorObj = msg._emisorObj;
-                  } else if (chatActivo && chatActivo.participantes) {
-                    const pFound = chatActivo.participantes.find((p) => {
+                  } else if (chatActual && chatActual.participantes) {
+                    const pFound = chatActual.participantes.find((p) => {
                       const pid =
                         typeof p.id === "object" && p.id !== null
                           ? p.id._id
@@ -849,27 +787,27 @@ const Chat = () => {
                         <Avatar
                           nombre={emisorNombre}
                           foto={emisorFoto}
-                          size={32}
-                          className="flex-shrink-0 translate-y-[2px]"
+                          size={30}
+                          className="flex-shrink-0 translate-y-[1px]"
                         />
                       )}
 
                       <div
-                        className={`rounded-2xl px-3.5 py-2 shadow-sm border ${
+                        className={`rounded-2xl px-3 py-1.5 shadow-sm border ${
                           esMio ? "text-white" : "text-gray-800"
                         }`}
                         style={{
-                          maxWidth: "70%",
+                          maxWidth: "68%",
                           backgroundColor: esMio ? theme.mineBubble : theme.otherBubble,
                           borderColor: esMio ? "transparent" : theme.border,
                         }}
                         title={timestamp ? new Date(timestamp).toLocaleString() : ""}
                       >
-                        <div className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">
+                        <div className="whitespace-pre-wrap break-words text-[14px] leading-snug">
                           {msg.contenido}
                         </div>
                         <div
-                          className="mt-1 text-[10.5px] text-right"
+                          className="mt-0.5 text-[10px] text-right"
                           style={{ color: esMio ? "rgba(255,255,255,0.85)" : theme.subtle }}
                         >
                           {msg.emisorRol || ""}
@@ -877,7 +815,7 @@ const Chat = () => {
                         </div>
                       </div>
 
-                      {esMio && <div className="w-[32px]" />}
+                      {esMio && <div className="w-[30px]" />}
                     </div>
                   );
                 })}
@@ -892,7 +830,7 @@ const Chat = () => {
                 const el = mensajesRef.current;
                 if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
               }}
-              className="absolute right-4 bottom-24 z-20 px-3 py-2 rounded-full shadow bg-white border text-xs"
+              className="absolute right-3 bottom-24 z-20 px-2.5 py-1.5 rounded-full shadow bg-white border text-xs"
               style={{ borderColor: theme.border, color: theme.text }}
               aria-label="Bajar al último mensaje"
               title="Bajar al último mensaje"
@@ -901,15 +839,15 @@ const Chat = () => {
             </button>
           )}
 
-          {/* Composer compacto */}
+          {/* Composer ultracompacto y SIEMPRE visible */}
           <form
             onSubmit={handleEnviarMensaje}
             className="shrink-0 border-t bg-white"
             style={{ borderColor: theme.border }}
           >
-            <div className="max-w-screen-lg mx-auto px-2 sm:px-4 py-2.5">
+            <div className="max-w-screen-lg mx-auto px-2 sm:px-3 py-2">
               <div
-                className="border rounded-xl bg-white px-3 py-2 focus-within:ring-2"
+                className="border rounded-lg bg-white px-3 py-1.5 focus-within:ring-2"
                 style={{ borderColor: theme.border }}
               >
                 <label htmlFor="composer" className="sr-only">
@@ -942,13 +880,13 @@ const Chat = () => {
                       : "Escribe tu respuesta…"
                   }
                   rows={1}
-                  className="w-full resize-none outline-none text-[15px] leading-snug"
-                  style={{ maxHeight: 140 }}
+                  className="w-full resize-none outline-none text-[14.5px] leading-snug"
+                  style={{ maxHeight: 120 }}
                   disabled={!inputEnabled}
                   autoComplete="off"
                 />
                 <div className="flex items-center justify-between mt-1">
-                  <span className="text-[11px]" style={{ color: theme.subtle }}>
+                  <span className="text-[10.5px]" style={{ color: theme.subtle }}>
                     {vista === "chat"
                       ? "Enter para enviar · Shift+Enter para nueva línea"
                       : "Responder al hilo de queja"}
@@ -957,20 +895,21 @@ const Chat = () => {
                   <button
                     type="submit"
                     disabled={!inputEnabled}
-                    className="inline-flex items-center gap-2 text-white px-4 py-1.5 rounded-lg text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 text-white px-3.5 py-1.5 rounded-md text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ backgroundColor: theme.brand }}
                     onMouseOver={(e) => (e.currentTarget.style.backgroundColor = theme.brandHover)}
                     onMouseOut={(e) => (e.currentTarget.style.backgroundColor = theme.brand)}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                       <path d="M3 20l18-8L3 4l3 7 8 1-8 1-3 7z" fill="currentColor" />
                     </svg>
                     Enviar
                   </button>
                 </div>
               </div>
+
               {!!info && (
-                <div className="pt-2 text-center text-red-600 font-medium text-sm">{info}</div>
+                <div className="pt-1.5 text-center text-red-600 font-medium text-sm">{info}</div>
               )}
             </div>
           </form>
@@ -980,13 +919,13 @@ const Chat = () => {
   );
 };
 
-/* ---------- Componentes de apoyo (skeleton/empty) ---------- */
+/* ---------- Componentes de apoyo ---------- */
 
 const SidebarSkeleton = () => (
-  <div className="p-4 space-y-2">
+  <div className="p-3 space-y-2">
     {[...Array(6)].map((_, i) => (
       <div key={i} className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-gray-200 animate-pulse" />
+        <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
         <div className="flex-1 h-3 bg-gray-200 rounded animate-pulse" />
       </div>
     ))}
@@ -994,12 +933,12 @@ const SidebarSkeleton = () => (
 );
 
 const MessagesSkeleton = () => (
-  <div className="space-y-3">
+  <div className="space-y-2.5">
     {[...Array(5)].map((_, i) => (
       <div key={i} className={`flex ${i % 2 ? "justify-end" : "justify-start"}`}>
-        <div className="rounded-2xl px-4 py-2 bg-gray-200 animate-pulse" style={{ maxWidth: "68%" }}>
-          <div className="h-4 bg-gray-300 rounded w-40 mb-1.5" />
-          <div className="h-3 bg-gray-300 rounded w-20" />
+        <div className="rounded-2xl px-3.5 py-2 bg-gray-200 animate-pulse" style={{ maxWidth: "66%" }}>
+          <div className="h-4 bg-gray-300 rounded w-36 mb-1" />
+          <div className="h-3 bg-gray-300 rounded w-16" />
         </div>
       </div>
     ))}
@@ -1008,10 +947,10 @@ const MessagesSkeleton = () => (
 
 const EmptyState = ({ title, description }) => (
   <div className="text-center">
-    <div className="mx-auto mb-2 w-10 h-10 rounded-full flex items-center justify-center border bg-white">
+    <div className="mx-auto mb-2 w-9 h-9 rounded-full flex items-center justify-center border bg-white">
       💬
     </div>
-    <h3 className="font-semibold text-[15px]">{title}</h3>
+    <h3 className="font-semibold text-[14.5px]">{title}</h3>
     <p className="text-[12.5px] text-gray-500 mt-0.5">{description}</p>
   </div>
 );
