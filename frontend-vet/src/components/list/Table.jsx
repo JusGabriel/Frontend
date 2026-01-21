@@ -399,41 +399,72 @@ const getStyles = (bp) => {
       fontSize: baseFont,
     },
 
-    /* ===== Vista móvil (lista/cards) ===== */
-    mobileList: { display: "grid", gap: 10 },
-    cardRow: {
-      border: "1px solid #e5e7eb",
-      borderRadius: 10,
-      padding: 12,
-      background: "#fff",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-    },
-    rowHeader: {
+    /* ===== Card flotante de chat ===== */
+    chatFloat: {
+      position: "fixed",
+      right: 16,
+      bottom: 16,
+      width: bp.isXS ? "94%" : 360,
+      maxWidth: "94%",
+      maxHeight: bp.isXS ? "72vh" : "70vh",
       display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 10,
-      flexWrap: "wrap",
+      flexDirection: "column",
+      background: "#fff",
+      border: "1px solid #e5e7eb",
+      borderRadius: 12,
+      boxShadow: "0 10px 24px rgba(0,0,0,0.14)",
+      zIndex: 99999,
+      overflow: "hidden",
     },
-    rowTitle: { fontWeight: 700, fontSize: bp.isXS ? 14 : 15 },
-    rowSub: { color: "#64748b", fontSize: bp.isXS ? 12 : 13 },
-    rowActions: { display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 },
-    rowFooter: {
-      marginTop: 10,
+    chatHeader: {
+      padding: "10px 12px",
+      backgroundColor: "#0ea5e9",
+      color: "white",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      fontWeight: 700,
+      fontSize: bp.isXS ? 13 : 14,
+    },
+    btnCloseSmall: {
+      backgroundColor: "rgba(255,255,255,0.15)",
+      color: "white",
+      border: "1px solid rgba(255,255,255,0.35)",
+      padding: "6px 10px",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: bp.isXS ? 12 : 13,
+    },
+    chatBody: {
+      padding: 10,
+      background: "linear-gradient(180deg, #FFFFFF 0%, #f8fafc 100%)",
+      overflowY: "auto",
+      flex: 1,
+    },
+    chatFooter: {
+      borderTop: "1px solid #e5e7eb",
+      padding: 10,
+      background: "#fff",
+    },
+    chatInput: {
+      width: "100%",
+      border: "1px solid #cbd5e1",
+      borderRadius: 8,
+      padding: "8px 10px",
+      fontSize: baseFont,
+      outline: "none",
+      boxSizing: "border-box",
+      resize: "none",
+    },
+    chatSendRow: {
+      marginTop: 8,
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
       gap: 8,
       flexWrap: "wrap",
-    },
-    btnLink: {
-      background: "transparent",
-      border: "none",
-      color: "#0ea5e9",
-      textDecoration: "underline",
-      cursor: "pointer",
-      padding: 0,
-      fontSize: baseFont,
     },
   };
 };
@@ -1064,6 +1095,10 @@ const Table = () => {
      CHAT
   ============================ */
   const abrirChat = (item) => {
+    if (!emisorId || !emisorRol) {
+      setError("Inicia sesión para chatear.");
+      return;
+    }
     setChatUser({ id: item._id, rol: capitalize(tipo), nombre: item.nombre });
     setModalChatVisible(true);
     cargarMensajes(item._id);
@@ -1075,7 +1110,7 @@ const Table = () => {
     setMensajeChat("");
   };
   const cargarMensajes = async (receptorId) => {
-    if (!receptorId) return;
+    if (!receptorId || !emisorId) return;
     try {
       const resConv = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/conversaciones/${emisorId}`
@@ -1117,7 +1152,11 @@ const Table = () => {
       const data = await res.json();
       if (res.ok) {
         setMensajeChat("");
-        cargarMensajes(chatUser.id);
+        await cargarMensajes(chatUser.id);
+        // scroll al final
+        if (mensajesRef.current) {
+          mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
+        }
       } else {
         setError(data.mensaje || "No se pudo enviar el mensaje.");
       }
@@ -1125,15 +1164,18 @@ const Table = () => {
       setError("Error de red al enviar mensaje.");
     }
   };
+  // scroll al final al cambiar mensajes
   useEffect(() => {
     if (mensajesRef.current) {
       mensajesRef.current.scrollTop = mensajesRef.current.scrollHeight;
     }
   }, [mensajes]);
+  // polling del chat (solo con modal abierto)
   useEffect(() => {
     if (!modalChatVisible || !chatUser) return;
     const intervalo = setInterval(() => cargarMensajes(chatUser.id), 3000);
     return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalChatVisible, chatUser]);
 
   /* ===========================
@@ -2172,6 +2214,103 @@ const Table = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ====== CARD FLOTANTE DE CHAT ====== */}
+      {modalChatVisible && chatUser && (
+        <div style={s.chatFloat} role="dialog" aria-label={`Chat con ${chatUser.nombre}`}>
+          <div style={s.chatHeader}>
+            <span>💬 Chat con {chatUser.nombre} ({chatUser.rol})</span>
+            <button style={s.btnCloseSmall} onClick={cerrarChat} title="Cerrar chat">
+              Cerrar
+            </button>
+          </div>
+
+          <div style={s.chatBody} ref={mensajesRef}>
+            {mensajes.length === 0 ? (
+              <div style={{ textAlign: "center", color: "#6b7280", fontSize: 13, marginTop: 8 }}>
+                No hay mensajes todavía.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {mensajes.map((msg, idx) => {
+                  // Resolver emisor
+                  const emisor =
+                    msg && typeof msg.emisor === "object" && msg.emisor !== null ? msg.emisor._id : msg.emisor;
+                  const esMio = String(emisor) === String(emisorId);
+                  const timestamp = msg.timestamp || msg.fecha || msg.createdAt;
+
+                  return (
+                    <div
+                      key={msg._id || msg.id || idx}
+                      style={{
+                        display: "flex",
+                        justifyContent: esMio ? "flex-end" : "flex-start",
+                      }}
+                    >
+                      <div
+                        title={timestamp ? new Date(timestamp).toLocaleString() : ""}
+                        style={{
+                          maxWidth: "78%",
+                          padding: "8px 10px",
+                          borderRadius: 12,
+                          border: esMio ? "1px solid transparent" : "1px solid #e5e7eb",
+                          backgroundColor: esMio ? "#0ea5e9" : "#fff",
+                          color: esMio ? "white" : "#111827",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        <div style={{ whiteSpace: "pre-wrap", wordWrap: "break-word", fontSize: 14 }}>
+                          {msg.contenido}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 4,
+                            textAlign: "right",
+                            fontSize: 10,
+                            color: esMio ? "rgba(255,255,255,0.85)" : "#6b7280",
+                          }}
+                        >
+                          {msg.emisorRol || ""}
+                          {timestamp ? ` · ${new Intl.DateTimeFormat("es-EC", { hour: "2-digit", minute: "2-digit" }).format(new Date(timestamp))}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <form
+            onSubmit={enviarMensaje}
+            style={s.chatFooter}
+          >
+            <label htmlFor="chat-input" className="sr-only">Escribe tu mensaje</label>
+            <textarea
+              id="chat-input"
+              rows={1}
+              placeholder="Escribe un mensaje…"
+              value={mensajeChat}
+              onChange={(e) => setMensajeChat(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  enviarMensaje(e);
+                }
+              }}
+              style={{ ...s.chatInput, maxHeight: 110 }}
+            />
+            <div style={s.chatSendRow}>
+              <span style={{ fontSize: 12, color: "#6b7280" }}>
+                Enter para enviar · Shift+Enter para nueva línea
+              </span>
+              <button type="submit" style={s.btnPrimary} disabled={!mensajeChat.trim()}>
+                Enviar
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
