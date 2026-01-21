@@ -5,13 +5,13 @@ import storeAuth from "../context/storeAuth";
 import { useLocation } from "react-router-dom";
 
 /**
- * Chat compacto, sin espacios muertos:
- * - Ajuste de altura con variables CSS para integrarse con header/footer globales
- * - Sin buscador ni previews
- * - Sin separadores de fecha
- * - Composer siempre visible
- * - Sin polling (solo al cambiar conversación y al enviar)
+ * Chat compacto con polling suave:
+ * - Polling cada 5s sin animación de carga
+ * - Autoscroll solo si ya estabas al fondo (umbral 60px)
+ * - Botón “⬇️ Nuevos” cuando no estás al fondo
  */
+
+const POLL_INTERVAL_MS = 5000; // ⇦ ajusta aquí el intervalo de refresco
 
 const theme = {
   brand: "#AA4A44",
@@ -92,7 +92,7 @@ const fmtTime = (ts) =>
   }).format(new Date(ts));
 
 const Chat = () => {
-  // ✅ LEE storeAuth() UNA SOLA VEZ (evita violar reglas de hooks)
+  // ✅ Leer storeAuth() solo una vez
   const auth = storeAuth();
   const usuarioId = auth?.id || null;
   const emisorRol = auth?.rol || null;
@@ -119,6 +119,10 @@ const Chat = () => {
   const mensajesRef = useRef(null);
   const composerRef = useRef(null);
 
+  // Estado/refs para scroll inteligente y polling
+  const isAtBottomRef = useRef(true); // refleja si el usuario está al fondo (umbral)
+  const pollingRef = useRef(null);
+
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const chatUserIdParam = params.get("user");
@@ -137,6 +141,22 @@ const Chat = () => {
             emisorRol === "Cliente" ||
             emisorRol === "Emprendedor"
         );
+
+  // ---------------- Helpers de scroll ----------------
+  const SCROLL_BOTTOM_THRESHOLD = 60; // px
+
+  const computeIsAtBottom = () => {
+    const el = mensajesRef.current;
+    if (!el) return true;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_BOTTOM_THRESHOLD;
+    return atBottom;
+  };
+
+  const scrollToBottom = (smooth = false) => {
+    const el = mensajesRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  };
 
   // ---------------- Backend ----------------
   const cargarConversaciones = async () => {
@@ -159,10 +179,11 @@ const Chat = () => {
     }
   };
 
-  const obtenerMensajes = async () => {
+  // Obtener mensajes con modo silencioso (sin skeleton) para polling
+  const obtenerMensajes = async ({ silent = false } = {}) => {
     if (!conversacionId) return;
     try {
-      setLoadingMsgs(true);
+      if (!silent) setLoadingMsgs(true);
       const res = await fetch(
         `https://backend-production-bd1d.up.railway.app/api/chat/mensajes/${conversacionId}`
       );
@@ -172,7 +193,7 @@ const Chat = () => {
       console.error("Error cargando mensajes", error);
       setInfo("❌ Error cargando mensajes");
     } finally {
-      setLoadingMsgs(false);
+      if (!silent) setLoadingMsgs(false);
     }
   };
 
@@ -219,10 +240,13 @@ const Chat = () => {
         if (vista === "chat") {
           setMensaje("");
           setInfo("");
-          await obtenerMensajes();
+          // ✅ Forzamos que el efecto de autoscroll reconozca "estoy al fondo"
+          isAtBottomRef.current = true;
+          await obtenerMensajes({ silent: true });
           await cargarConversaciones();
+          // una vez llegue el re-render, el efecto de autoscroll te lleva abajo
         } else {
-          // ✅ NO LLAMAMOS storeAuth() AQUÍ. Reutilizamos los datos de 'auth'
+          // Reutilizar datos de auth (no llamar hooks aquí)
           const nuevo =
             data?.data || {
               _id: Date.now().toString(),
@@ -248,7 +272,7 @@ const Chat = () => {
         return false;
       }
     } catch (error) {
-      // Nota: esto también va a atrapar errores de lógica, no solo de red
+      // Nota: esto también captura errores no‑red
       setInfo("❌ Error de red: " + error.message);
       return false;
     }
@@ -360,12 +384,34 @@ const Chat = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatTargetId, conversaciones]);
 
-  // Sin polling: solo al cambiar de conversación
+  // ✅ Polling: cuando hay conversación activa en "chat"
   useEffect(() => {
-    if (vista === "chat" && conversacionId) {
-      obtenerMensajes();
+    // limpiar cualquier polling previo
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
-  }, [conversacionId, vista]);
+
+    if (vista === "chat" && conversacionId) {
+      // Carga inicial con skeleton
+      obtenerMensajes({ silent: false });
+
+      // Iniciar polling silencioso
+      pollingRef.current = setInterval(() => {
+        // Mantener estado de "estoy al fondo" en tiempo real
+        isAtBottomRef.current = computeIsAtBottom();
+        obtenerMensajes({ silent: true });
+      }, POLL_INTERVAL_MS);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vista, conversacionId]);
 
   useEffect(() => {
     if (vista === "quejas") {
@@ -373,24 +419,34 @@ const Chat = () => {
       setConversacionId(null);
       setMensajes([]);
       setMensaje("");
+      // detener polling si existiera
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     }
   }, [vista]);
 
-  // Auto-scroll + botón “bajar”
+  // Botón “bajar” y detección de "estar al fondo"
   useEffect(() => {
     const el = mensajesRef.current;
     if (!el) return;
     const onScroll = () => {
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      const atBottom = computeIsAtBottom();
+      isAtBottomRef.current = atBottom;
       setShowScrollBtn(!atBottom);
     };
     el.addEventListener("scroll", onScroll);
     return () => el.removeEventListener("scroll", onScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Autoscroll solo si ya estabas al fondo
   useEffect(() => {
-    const el = mensajesRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (isAtBottomRef.current) {
+      scrollToBottom(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mensajes, mensajesQueja]);
 
   // Auto-resize del textarea
@@ -413,7 +469,9 @@ const Chat = () => {
         );
         if (receptor) {
           const ok = await handleEnviar(e, receptor.id._id, receptor.rol);
-          if (ok) await obtenerMensajes();
+          if (ok) {
+            // tras enviar, ya dejamos atBottom y el efecto baja solo
+          }
         }
         return;
       }
@@ -427,7 +485,7 @@ const Chat = () => {
           );
           if (nuevaConv) {
             setConversacionId(nuevaConv._id);
-            await obtenerMensajes();
+            // carga inicial la gestionará el efecto de polling
             setChatTargetId(null);
           }
         }
@@ -526,14 +584,13 @@ const Chat = () => {
   return (
     <div
       className="w-full overflow-hidden flex flex-col"
-      // Altura exacta restando header/subnav/footer externos (ajústalos en tu layout global)
       style={{
         backgroundColor: theme.bg,
         height:
           "calc(100dvh - var(--app-header, 0px) - var(--app-subnav, 0px) - var(--app-footer, 0px))",
       }}
     >
-      {/* Header interno ultra-compacto */}
+      {/* Header */}
       <header
         className="flex items-center justify-between px-3 md:px-5 py-2 border-b shrink-0"
         style={{ color: theme.brand, backgroundColor: theme.brandSoft, borderColor: theme.border }}
@@ -573,7 +630,7 @@ const Chat = () => {
         </div>
       </header>
 
-      {/* Cuerpo: grid altura total sin espacios extra */}
+      {/* Layout */}
       <div className="flex-1 grid md:grid-cols-[17.5rem_1fr] min-h-0">
         {/* Overlay móvil */}
         {sidebarOpen && (
@@ -584,7 +641,7 @@ const Chat = () => {
           />
         )}
 
-        {/* Sidebar compacto */}
+        {/* Sidebar */}
         <aside
           className={`fixed md:relative z-50 md:z-auto inset-y-0 left-0 w-[84%] max-w-[17.5rem] md:max-w-none md:w-full bg-white border-r flex flex-col transform transition-transform duration-300 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
@@ -648,6 +705,9 @@ const Chat = () => {
                         setConversacionId(conv._id);
                         setChatTargetId(null);
                         setSidebarOpen(false);
+                        // al cambiar de conversación, el efecto de polling hará la carga inicial
+                        // actualizamos estado de scroll a "abajo" para que lleve al último mensaje
+                        isAtBottomRef.current = true;
                       }}
                       className="w-full text-left px-3.5 py-2.5 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b"
                       style={{
@@ -719,7 +779,7 @@ const Chat = () => {
 
         {/* Main */}
         <section className="min-h-0 flex flex-col bg-white">
-          {/* Lista de mensajes (compacta) */}
+          {/* Lista de mensajes */}
           <div
             ref={mensajesRef}
             role="log"
@@ -783,12 +843,12 @@ const Chat = () => {
                     }
                   }
 
-                  const emisorId = emisorObj ? emisorObj._id : msg.emisor;
+                  const emisorIdMsg = emisorObj ? emisorObj._id : msg.emisor;
                   const emisorNombreCompleto = emisorObj
                     ? `${emisorObj.nombre || ""} ${emisorObj.apellido || ""}`.trim()
                     : "";
                   const emisorFoto = emisorObj ? emisorObj.foto : null;
-                  const esMio = String(emisorId) === String(usuarioId);
+                  const esMio = String(emisorIdMsg) === String(usuarioId);
                   const timestamp = msg.timestamp || msg.fecha || msg.createdAt;
 
                   return (
@@ -840,8 +900,12 @@ const Chat = () => {
           {showScrollBtn && (
             <button
               onClick={() => {
-                const el = mensajesRef.current;
-                if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                scrollToBottom(true);
+                // tras bajar, recalcular estado
+                setTimeout(() => {
+                  isAtBottomRef.current = computeIsAtBottom();
+                  setShowScrollBtn(!isAtBottomRef.current);
+                }, 100);
               }}
               className="absolute right-3 bottom-20 z-20 px-2.5 py-1.5 rounded-full shadow bg-white border text-xs"
               style={{ borderColor: theme.border, color: theme.text }}
@@ -852,7 +916,7 @@ const Chat = () => {
             </button>
           )}
 
-          {/* Composer compacto y siempre visible */}
+          {/* Composer */}
           <form
             onSubmit={handleEnviarMensaje}
             className="shrink-0 border-t bg-white"
