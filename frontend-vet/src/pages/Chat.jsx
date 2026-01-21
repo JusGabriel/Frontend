@@ -92,7 +92,13 @@ const fmtTime = (ts) =>
   }).format(new Date(ts));
 
 const Chat = () => {
-  const { id: usuarioId, rol: emisorRol } = storeAuth();
+  // ✅ LEE storeAuth() UNA SOLA VEZ (evita violar reglas de hooks)
+  const auth = storeAuth();
+  const usuarioId = auth?.id || null;
+  const emisorRol = auth?.rol || null;
+  const usuarioNombre = auth?.nombre || "";
+  const usuarioApellido = auth?.apellido || "";
+  const usuarioFoto = auth?.foto || null;
 
   const [vista, setVista] = useState("chat");
   const [conversacionId, setConversacionId] = useState(null);
@@ -216,6 +222,7 @@ const Chat = () => {
           await obtenerMensajes();
           await cargarConversaciones();
         } else {
+          // ✅ NO LLAMAMOS storeAuth() AQUÍ. Reutilizamos los datos de 'auth'
           const nuevo =
             data?.data || {
               _id: Date.now().toString(),
@@ -226,9 +233,9 @@ const Chat = () => {
             };
           const usuarioLocal = {
             _id: usuarioId,
-            nombre: storeAuth()?.nombre || "",
-            apellido: storeAuth()?.apellido || "",
-            foto: storeAuth()?.foto || null,
+            nombre: usuarioNombre,
+            apellido: usuarioApellido,
+            foto: usuarioFoto,
           };
           const nuevoEnriquecido = { ...nuevo, _emisorObj: usuarioLocal };
           setMensajesQueja((prev) => [...prev, nuevoEnriquecido]);
@@ -241,6 +248,7 @@ const Chat = () => {
         return false;
       }
     } catch (error) {
+      // Nota: esto también va a atrapar errores de lógica, no solo de red
       setInfo("❌ Error de red: " + error.message);
       return false;
     }
@@ -538,7 +546,7 @@ const Chat = () => {
             className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded-md bg-white border hover:bg-gray-50"
             style={{ borderColor: theme.border }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M4 6h16M4 12h16M4 18h16" stroke={theme.brand} strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
@@ -776,7 +784,7 @@ const Chat = () => {
                   }
 
                   const emisorId = emisorObj ? emisorObj._id : msg.emisor;
-                  const emisorNombre = emisorObj
+                  const emisorNombreCompleto = emisorObj
                     ? `${emisorObj.nombre || ""} ${emisorObj.apellido || ""}`.trim()
                     : "";
                   const emisorFoto = emisorObj ? emisorObj.foto : null;
@@ -790,7 +798,7 @@ const Chat = () => {
                     >
                       {!esMio && (
                         <Avatar
-                          nombre={emisorNombre}
+                          nombre={emisorNombreCompleto}
                           foto={emisorFoto}
                           size={28}
                           className="flex-shrink-0 translate-y-[1px]"
@@ -905,7 +913,7 @@ const Chat = () => {
                     onMouseOver={(e) => (e.currentTarget.style.backgroundColor = theme.brandHover)}
                     onMouseOut={(e) => (e.currentTarget.style.backgroundColor = theme.brand)}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M3 20l18-8L3 4l3 7 8 1-8 1-3 7z" fill="currentColor" />
                     </svg>
                     Enviar
